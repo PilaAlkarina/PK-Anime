@@ -275,6 +275,22 @@ export function EmbedPlayer({
   const fallbackRef = useRef<() => void>(() => {});
 
   const lastProgressEmitRef = useRef<number>(0);
+  const malSyncedRef = useRef<boolean>(false);
+
+  // Watch position is saved in this browser, per anime and episode
+  const progressKey = `anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`;
+
+  // Resume from the saved position unless the embed URL asks for a start time
+  useEffect(() => {
+    malSyncedRef.current = false;
+    if (startAt) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressKey) || "null");
+      if (saved?.currentTime > 5 && (!saved.duration || saved.currentTime < saved.duration * 0.95)) {
+        preserveTimeRef.current = saved.currentTime;
+      }
+    } catch {}
+  }, [progressKey, startAt]);
 
   // Broadcast to parent page via PostMessage
   const postToParent = useCallback(
@@ -310,6 +326,23 @@ export function EmbedPlayer({
       setActiveStreamToast((prev) => (prev?.message === message ? null : prev));
     }, 3000);
   }, []);
+
+  // Mark the episode as watched on the viewer's MyAnimeList list, once per episode. Without a
+  // session (or in a third-party embed, where the session cookie is blocked) the route answers 401.
+  const syncMalProgress = useCallback(() => {
+    if (malSyncedRef.current) return;
+    malSyncedRef.current = true;
+    fetch("/api/mal/list-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anilistId, malId, episode: episodeNumber }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.updated) showToast("success", `Episode ${episodeNumber} marked as watched on MyAnimeList`);
+      })
+      .catch(() => {});
+  }, [anilistId, malId, episodeNumber, showToast]);
 
   // Web Audio Graph setup for Volume Boost past 100%
   const setupAudioGraph = useCallback(() => {
@@ -1031,20 +1064,17 @@ export function EmbedPlayer({
 
     if (!progressSaveTimer.current) {
       progressSaveTimer.current = setTimeout(() => {
-        fetch("/api/progress", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            anilistId,
-            malId,
-            episode: episodeNumber,
-            currentTime: Math.floor(current),
-            duration: Math.floor(dur),
-          }),
-        }).catch(() => {});
+        try {
+          localStorage.setItem(
+            progressKey,
+            JSON.stringify({ currentTime: Math.floor(current), duration: Math.floor(dur), updatedAt: Date.now() })
+          );
+        } catch {}
         progressSaveTimer.current = null;
       }, 4000);
     }
+
+    if (dur > 0 && current / dur >= 0.9) syncMalProgress();
   };
 
   // Play / Pause toggler
@@ -2213,6 +2243,7 @@ export function EmbedPlayer({
             percentage: 100,
             paused: true,
           });
+          syncMalProgress();
         }}
         playsInline
         crossOrigin="anonymous"

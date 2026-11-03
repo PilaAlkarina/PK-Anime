@@ -318,13 +318,15 @@ playerIframe.contentWindow.postMessage({ command: "getStatus" }, "*");
 ```
 aniflow-api/
 ├── app/
+│   ├── aniflow-doc/              # Documentation page with demo player
 │   ├── api/
 │   │   ├── anime/
 │   │   │   ├── flow-skip-times/  # Re:ANIME OP/ED skip extraction
 │   │   │   └── skip-times/       # AniSkip integration with duration adjustment
+│   │   ├── auth/                 # Better Auth handler (MyAnimeList sign-in)
 │   │   ├── m3u8/                 # Direct HLS stream aliases
+│   │   ├── mal/                  # MAL authorize shim and watched-episode sync
 │   │   ├── play/                 # Stream resolver and ticket creation
-│   │   ├── progress/             # Playback progress tracking
 │   │   └── proxy/                # HLS proxy (m3u8, segments, subtitles, keys)
 │   ├── embed/
 │   │   ├── ani/[anilistId]/      # AniList embed routes
@@ -334,7 +336,7 @@ aniflow-api/
 │   │   └── mal/[malId]/          # MyAnimeList direct M3U8 routes
 │   ├── globals.css               # Global styles and theme
 │   ├── layout.tsx                # Root layout and site metadata
-│   └── page.tsx                  # Documentation page with demo player
+│   └── page.tsx                  # Redirects / to /aniflow-doc
 ├── components/
 │   └── player/
 │       ├── embed-player.tsx      # HLS player
@@ -382,6 +384,22 @@ Build and run for production:
 npm run build
 npm run start
 ```
+
+### MyAnimeList sign-in (optional)
+
+Visitors can sign in with MyAnimeList through [Better Auth](https://www.better-auth.com/). Episodes they watch past 90% are then added to their MAL list. No database is needed: the session and MAL tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`.
+
+1. Create an app at [myanimelist.net/apiconfig](https://myanimelist.net/apiconfig) with App Type **web** and the redirect URL `https://your-domain/api/auth/callback/myanimelist` (`http://localhost:3000/api/auth/callback/myanimelist` for local development).
+2. Copy `.env.example` to `.env.local` and fill it in:
+
+| Variable | Description |
+| --- | --- |
+| `BETTER_AUTH_SECRET` | Random string of at least 32 characters, used to encrypt the cookies (`openssl rand -base64 32`). |
+| `BETTER_AUTH_URL` | Public origin of the site, e.g. `https://your-domain`. |
+| `MAL_CLIENT_ID` | Client ID of the MAL app. |
+| `MAL_CLIENT_SECRET` | Client secret of the MAL app. |
+
+The session cookie only reaches the player on your own domain. Inside embeds on other sites the browser treats it as a third-party cookie and blocks it, so syncing is skipped there.
 
 ---
 

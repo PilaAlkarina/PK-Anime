@@ -49,6 +49,7 @@
     "@consumet/extensions": "^1.8.8",
     "anime-sdk": "^1.1.0",
     "axios": "^1.7.7",
+    "better-auth": "^1.7.15",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",

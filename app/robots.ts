@@ -10,12 +10,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/"],
-        disallow: ["/api/proxy/", "/api/play", "/api/progress", "/embed/"],
+        disallow: ["/api/proxy/", "/api/play", "/embed/"],
       },
       {
         userAgent: "Googlebot",
         allow: ["/"],
-        disallow: ["/api/proxy/", "/api/play", "/api/progress", "/embed/"],
+        disallow: ["/api/proxy/", "/api/play", "/embed/"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

@@ -4,7 +4,8 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/api/:path*",
+        // Open CORS for the public API, but not for the cookie-authenticated auth and MAL routes
+        source: "/api/:path((?!auth/|mal/).*)",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS, HEAD" },
