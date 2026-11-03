@@ -1,6 +1,6 @@
 import type { MediaSeason, MediaStatus } from "./types";
 
-export type MediaSort = "TRENDING_DESC" | "POPULARITY_DESC" | "SCORE_DESC";
+export type MediaSort = "TRENDING_DESC" | "POPULARITY_DESC" | "SCORE_DESC" | "SEARCH_MATCH";
 
 /** Where a row's items come from: a filtered Media page, or the recent airing schedule */
 export type RowSource =
@@ -12,6 +12,7 @@ export type RowSource =
       status?: MediaStatus;
       genre?: string;
       tag?: string;
+      search?: string;
     }
   | { type: "airing"; before: number };
 
@@ -27,7 +28,7 @@ fragment card on Media {
 /**
  * One query with an aliased Page per row (r0, r1, …), so a whole screen of rows costs a
  * single request. Enums come from our own row definitions and go inline; strings (genre,
- * tag) can come from the URL, so they go through variables.
+ * tag, search) can come from the URL, so they go through variables.
  */
 export function buildRowsQuery(sources: RowSource[], page: number, perPage: number) {
   const declarations = ["$page: Int", "$perPage: Int"];
@@ -56,6 +57,11 @@ export function buildRowsQuery(sources: RowSource[], page: number, perPage: numb
       declarations.push(`$tag${i}: String`);
       variables[`tag${i}`] = source.tag;
       args.push(`tag: $tag${i}`);
+    }
+    if (source.search) {
+      declarations.push(`$search${i}: String`);
+      variables[`search${i}`] = source.search;
+      args.push(`search: $search${i}`);
     }
     return `r${i}: Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage }

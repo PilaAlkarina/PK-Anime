@@ -16,7 +16,7 @@ if (typeof window !== "undefined") {
 }
 
 /** Returns true when it handled Back, so outer handlers and the page change are skipped */
-type BackHandler = () => boolean | void;
+type BackHandler = (e: KeyboardEvent) => boolean | void;
 
 interface LibraryNavigation {
   goBack: () => void;
@@ -85,7 +85,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
       e.preventDefault();
       const handlers = handlersRef.current;
       for (let i = handlers.length - 1; i >= 0; i--) {
-        if (handlers[i]() === true) return;
+        if (handlers[i](e) === true) return;
       }
       goBackRef.current();
     };
@@ -119,6 +119,6 @@ export function useBackHandler(handler: BackHandler | null) {
 
   useEffect(() => {
     if (!active) return;
-    return registerBackHandler(() => handlerRef.current?.());
+    return registerBackHandler((e) => handlerRef.current?.(e));
   }, [active, registerBackHandler]);
 }

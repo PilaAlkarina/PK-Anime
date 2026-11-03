@@ -5,7 +5,7 @@ import { catalogError, catalogJson, upstreamError } from "../shared";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/catalog/row?kind=genre&value=Action&page=2 */
+/** GET /api/catalog/row?kind=genre&value=Action&page=2 (also kind=tag and kind=search) */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const kind = searchParams.get("kind") as RowKind | null;
@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
   if (!Number.isInteger(page) || page < 1 || page > MAX_ROW_PAGE) {
     return catalogError(400, "INVALID_PAGE", `page must be between 1 and ${MAX_ROW_PAGE}`);
   }
-  if ((kind === "genre" || kind === "tag") && !value) {
+  const isFiltered = kind === "genre" || kind === "tag" || kind === "search";
+  if (isFiltered && !value) {
     return catalogError(400, "MISSING_VALUE", `kind=${kind} needs a value`);
   }
-  if (kind === "tag" && value!.length > 60) {
-    return catalogError(400, "INVALID_VALUE", "tag is too long");
+  if ((kind === "tag" || kind === "search") && value!.length > 60) {
+    return catalogError(400, "INVALID_VALUE", `${kind} is too long`);
   }
 
   try {
@@ -30,7 +31,6 @@ export async function GET(request: NextRequest) {
     if (kind === "genre" && !(await getGenres()).some((g) => g.name === value)) {
       return catalogError(400, "INVALID_VALUE", `Unknown genre: ${value}`);
     }
-    const isFiltered = kind === "genre" || kind === "tag";
     return catalogJson({ row: await getRow(kind, isFiltered ? value : undefined, page) }, 300);
   } catch (err) {
     return upstreamError(err);

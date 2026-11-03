@@ -45,6 +45,7 @@ export const ROW_KINDS = [
   "latest",
   "genre",
   "tag",
+  "search",
 ] as const;
 export type RowKind = (typeof ROW_KINDS)[number];
 

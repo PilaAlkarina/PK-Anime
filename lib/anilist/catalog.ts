@@ -153,6 +153,11 @@ function describeRow(kind: RowKind, value: string | undefined, now: Date): { tit
       };
     case "tag":
       return { title: value || "", source: { type: "media", sort: "POPULARITY_DESC", tag: value } };
+    case "search":
+      return {
+        title: `Resultados para «${value || ""}»`,
+        source: { type: "media", sort: "SEARCH_MATCH", search: value },
+      };
   }
 }
 
