@@ -66,7 +66,7 @@ export function GenresScreen({ genres }: { genres: Genre[] }) {
           {genres.map((genre, index) => (
             <Link
               key={genre.name}
-              href={`/genres/${encodeURIComponent(genre.name)}`}
+              href={`/search?genre=${encodeURIComponent(genre.name)}`}
               className={cn(
                 "flex items-end h-20 sm:h-28 p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br text-lg sm:text-xl font-bold hover:brightness-125",
                 GENRE_COLORS[index % GENRE_COLORS.length]

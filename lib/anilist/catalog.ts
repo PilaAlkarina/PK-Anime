@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
+import { parseFilters } from "./filters";
 import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
@@ -13,6 +14,7 @@ import type {
   MediaStatus,
   RowKind,
   ScheduleEntry,
+  Tag,
 } from "./types";
 
 const PER_PAGE = 20;
@@ -158,6 +160,13 @@ function describeRow(kind: RowKind, value: string | undefined, now: Date): { tit
         title: `Resultados para «${value || ""}»`,
         source: { type: "media", sort: "SEARCH_MATCH", search: value },
       };
+    case "filter": {
+      const filters = parseFilters(new URLSearchParams(value || ""));
+      return {
+        title: filters.q ? `Resultados para «${filters.q}»` : "Resultados",
+        source: { type: "filter", filters },
+      };
+    }
   }
 }
 
@@ -283,6 +292,20 @@ export const getGenres = unstable_cache(
     }));
   },
   ["anilist:genres"],
+  { revalidate: GENRES_TTL, tags: ["anilist"] }
+);
+
+/** Community tags allowed in the library (adult ones are left out), by category then name */
+export const getTags = unstable_cache(
+  async (): Promise<Tag[]> => {
+    const { MediaTagCollection } = await anilistQuery<{
+      MediaTagCollection: { name: string; description: string | null; category: string | null; isAdult: boolean }[];
+    }>(TAGS_QUERY);
+    return MediaTagCollection.filter((t) => !t.isAdult)
+      .map((t) => ({ name: t.name, description: t.description || "", category: t.category || "Other" }))
+      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+  },
+  ["anilist:tags"],
   { revalidate: GENRES_TTL, tags: ["anilist"] }
 );
 

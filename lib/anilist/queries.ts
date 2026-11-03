@@ -1,4 +1,5 @@
 import type { MediaSeason, MediaStatus } from "./types";
+import { effectiveSort, lengthRange, type CatalogFilters } from "./filters";
 
 export type MediaSort = "TRENDING_DESC" | "POPULARITY_DESC" | "SCORE_DESC" | "SEARCH_MATCH";
 
@@ -14,7 +15,9 @@ export type RowSource =
       tag?: string;
       search?: string;
     }
-  | { type: "airing"; before: number };
+  | { type: "airing"; before: number }
+  /** Advanced search; every value was validated by parseFilters */
+  | { type: "filter"; filters: CatalogFilters };
 
 const CARD_FRAGMENT = `
 fragment card on Media {
@@ -35,6 +38,12 @@ export function buildRowsQuery(sources: RowSource[], page: number, perPage: numb
   const variables: Record<string, unknown> = { page, perPage };
 
   const fields = sources.map((source, i) => {
+    if (source.type === "filter") {
+      return `r${i}: Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage }
+    media(${filterArgs(source.filters, i, declarations, variables).join(", ")}) { ...card }
+  }`;
+    }
     if (source.type === "airing") {
       declarations.push(`$before${i}: Int`);
       variables[`before${i}`] = source.before;
@@ -75,6 +84,39 @@ export function buildRowsQuery(sources: RowSource[], page: number, perPage: numb
   };
 }
 
+/**
+ * Media arguments for the advanced search. Enum values were checked against fixed lists
+ * and go inline; names (genres, tags) and the text go through variables.
+ */
+function filterArgs(f: CatalogFilters, i: number, declarations: string[], variables: Record<string, unknown>) {
+  const args = ["type: ANIME", "isAdult: false", `sort: [${effectiveSort(f)}]`];
+  const variable = (name: string, type: string, value: unknown, arg: string) => {
+    declarations.push(`$${name}${i}: ${type}`);
+    variables[`${name}${i}`] = value;
+    args.push(`${arg}: $${name}${i}`);
+  };
+
+  if (f.q) variable("search", "String", f.q, "search");
+  // Several genres or tags must all match (AniList's genre_in / tag_in are AND)
+  if (f.genres.length) variable("genres", "[String]", f.genres, "genre_in");
+  if (f.excludeGenres.length) variable("noGenres", "[String]", f.excludeGenres, "genre_not_in");
+  if (f.tags.length) variable("tags", "[String]", f.tags, "tag_in");
+  if (f.excludeTags.length) variable("noTags", "[String]", f.excludeTags, "tag_not_in");
+  if (f.formats.length) args.push(`format_in: [${f.formats.join(", ")}]`);
+  if (f.statuses.length) args.push(`status_in: [${f.statuses.join(", ")}]`);
+  if (f.sources.length) args.push(`source_in: [${f.sources.join(", ")}]`);
+  if (f.season) args.push(`season: ${f.season}`);
+  if (f.country) args.push(`countryOfOrigin: "${f.country}"`);
+  // FuzzyDateInt is YYYYMMDD; the bounds are exclusive
+  if (f.yearFrom) args.push(`startDate_greater: ${f.yearFrom * 10000}`);
+  if (f.yearTo) args.push(`startDate_lesser: ${(f.yearTo + 1) * 10000}`);
+  const { min, max } = lengthRange(f.length);
+  if (min) args.push(`episodes_greater: ${min - 1}`);
+  if (max) args.push(`episodes_lesser: ${max + 1}`);
+  if (f.minScore) args.push(`averageScore_greater: ${f.minScore - 1}`);
+  return args;
+}
+
 export const DETAIL_QUERY = `
 query ($id: Int) {
   Media(id: $id, type: ANIME) {
@@ -105,6 +147,8 @@ query ($page: Int, $from: Int, $to: Int) {
 ${CARD_FRAGMENT}`;
 
 export const GENRES_QUERY = `query { GenreCollection }`;
+
+export const TAGS_QUERY = `query { MediaTagCollection { name description category isAdult } }`;
 
 export const BY_MAL_IDS_QUERY = `
 query ($ids: [Int]) {

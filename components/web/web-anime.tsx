@@ -217,15 +217,25 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
             <h1 className="text-[1.6rem] md:text-[2.6rem] leading-tight font-extrabold tracking-tight">{anime.title}</h1>
             {subtitle && <p className="-mt-1.5 text-sm md:text-base text-zinc-400">{subtitle}</p>}
             <p className="text-sm md:text-[0.95rem] text-zinc-300">{metaLine(anime)}</p>
-            {anime.genres.length > 0 && (
+            {(anime.genres.length > 0 || anime.tags.length > 0) && (
               <div className="flex flex-wrap gap-2">
+                {/* Each one opens the advanced search with it applied, ready to refine */}
                 {anime.genres.map((g) => (
                   <Link
                     key={g}
-                    href={`/genres/${encodeURIComponent(g)}`}
+                    href={`/search?genre=${encodeURIComponent(g)}`}
                     className="px-3 py-1 rounded-full bg-zinc-800 text-xs md:text-sm text-zinc-200 hover:bg-zinc-700"
                   >
                     {GENRE_LABELS[g] || g}
+                  </Link>
+                ))}
+                {anime.tags.map((t) => (
+                  <Link
+                    key={t}
+                    href={`/search?tag=${encodeURIComponent(t)}`}
+                    className="px-3 py-1 rounded-full border border-zinc-800 text-xs md:text-sm text-zinc-400 hover:text-white hover:border-zinc-600"
+                  >
+                    #{t}
                   </Link>
                 ))}
               </div>

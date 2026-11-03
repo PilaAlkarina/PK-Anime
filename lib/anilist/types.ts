@@ -46,6 +46,7 @@ export const ROW_KINDS = [
   "genre",
   "tag",
   "search",
+  "filter",
 ] as const;
 export type RowKind = (typeof ROW_KINDS)[number];
 
@@ -91,4 +92,11 @@ export interface ScheduleEntry extends AiringEpisode {
 export interface Genre {
   name: string;
   label: string;
+}
+
+/** Community tag (AniList), e.g. "Isekai" in the "Theme-Fantasy" category */
+export interface Tag {
+  name: string;
+  description: string;
+  category: string;
 }

@@ -80,7 +80,12 @@ function TopSearch() {
 
   const go = (value: string) => {
     const q = value.trim();
-    router[pathname === "/search" ? "replace" : "push"](q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+    // On the search page the text joins the filters already applied
+    const next = new URLSearchParams(pathname === "/search" ? params.toString() : "");
+    if (q) next.set("q", q);
+    else next.delete("q");
+    const qs = next.toString();
+    router[pathname === "/search" ? "replace" : "push"](qs ? `/search?${qs}` : "/search", { scroll: false });
   };
 
   return (

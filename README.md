@@ -84,13 +84,15 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/` | Home: hero for the focused title, *Seguir viendo*, trending, current season, latest episodes, top rated, upcoming and genre rows |
 | `/anime/{anilistId}` | Details, Sub/Dub choice, *Mi lista*, episodes in blocks of 50, related titles and recommendations |
 | `/watch/{anilistId}/{episode}` | Full-screen player with a countdown to the next episode |
-| `/search` | On-screen keyboard (a physical keyboard also types) |
+| `/search` | Advanced search: text plus filters (see below). On TV, an on-screen keyboard and a *Filtros* tab; on the web, the device keyboard with a filter sidebar (a sheet on phones) |
 | `/schedule` | Episodes airing in the next 7 days, in the viewer's time zone |
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
 | `/link` | Phone page opened from the TV's QR: remote control, keyboard and sign-in |
+
+**Advanced search.** `/search` combines the title text with filters: format (series, movie, special, OVA, ONA…), status, season, a range of years, genres and community tags (each one included or excluded; several of either must all match), source material, number of episodes, minimum score and country of origin, plus the sort order. The state lives in the URL (`/search?q=…&genre=Action&no-genre=Romance&tag=Isekai&format=TV&from=2018&to=2024&sort=SCORE_DESC`), so searches can be shared and survive going back from an anime. Genres and tags on an anime's page, and the genre tiles, open it with that filter applied. On TV every filter is a chip reachable with the remote; tags there are a list of the most common ones, while the web screens search all of them by name.
 
 **Playback preferences.** *Ajustes* stores the preferred audio, an ordered list of subtitle languages, what to show over a dub (full, signs and songs only, or nothing), a preferred server and the subtitle format. When an episode starts, the player:
 
@@ -253,10 +255,11 @@ Normalized AniList data for the TV library, cached on the server (rows 15 min, d
 | Endpoint | Returns |
 | :--- | :--- |
 | `GET /api/catalog/home` | The home rows, fetched from AniList in a single query |
-| `GET /api/catalog/row?kind={kind}&value={value}&page={n}` | One page of a row. `kind`: `trending`, `season`, `next-season`, `top-rated`, `airing`, `upcoming`, `latest`, `genre`, `tag` or `search` (the last three need `value`) |
+| `GET /api/catalog/row?kind={kind}&value={value}&page={n}` | One page of a row. `kind`: `trending`, `season`, `next-season`, `top-rated`, `airing`, `upcoming`, `latest`, `genre`, `tag`, `search` (these three need `value`) or `filter`, whose `value` is the advanced search's query string, e.g. `genre=Action&format=TV&from=2020` |
 | `GET /api/catalog/anime/{anilistId}` | Details, relations, recommendations and streaming episode titles |
 | `GET /api/catalog/schedule?from={unix}&to={unix}` | Airing episodes in a range of up to 8 days (default: the next 7) |
 | `GET /api/catalog/genres` | Genre names with Spanish labels |
+| `GET /api/catalog/tags` | Community tags (name, description, category), adult ones excluded |
 
 ```http
 GET /api/catalog/row?kind=genre&value=Romance&page=2
