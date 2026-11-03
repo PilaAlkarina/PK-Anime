@@ -61,19 +61,26 @@ export interface ContinueItem {
   anime: CatalogItem;
   episode: number;
   progress: number;
+  /** Unix ms of the last activity, for ordering */
+  updatedAt: number;
+}
+
+/** Episodes fully watched, judging by the last one opened and how far it got */
+export function watchedEpisodes({ anime, episode }: HistoryEntry) {
+  return episodeProgress(anime.id, episode) >= WATCHED_FRACTION ? episode : episode - 1;
 }
 
 /** The episode to resume per anime: the last one opened, or the next one once it was finished */
 export function continueWatching(entries: HistoryEntry[]): ContinueItem[] {
   const items: ContinueItem[] = [];
-  for (const { anime, episode } of entries) {
+  for (const { anime, episode, updatedAt } of entries) {
     const progress = episodeProgress(anime.id, episode);
     if (progress < WATCHED_FRACTION) {
-      items.push({ anime, episode, progress });
+      items.push({ anime, episode, progress, updatedAt });
       continue;
     }
     const lastAvailable = anime.availableEpisodes ?? anime.episodes ?? episode;
-    if (episode < lastAvailable) items.push({ anime, episode: episode + 1, progress: 0 });
+    if (episode < lastAvailable) items.push({ anime, episode: episode + 1, progress: 0, updatedAt });
   }
   return items;
 }

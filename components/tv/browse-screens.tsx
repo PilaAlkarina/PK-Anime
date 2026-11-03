@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilist/types";
 import { formatTime, startOfDay } from "@/lib/library/format";
+import { useAccount } from "@/lib/library/account";
 import { useMyList } from "@/lib/library/my-list";
+import { mergeMyList, providerShortName, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { usePagedRow } from "./catalog-row";
 import { FocusButton, FocusGroup, useTvFocusable } from "./focusable";
+import { ExportLocal } from "./export-local";
 import { CardGrid, PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 import { cn } from "@/lib/utils";
 
@@ -86,10 +89,36 @@ export function MyListScreen() {
   const openAnime = useOpenAnime();
   const mounted = useMounted();
   const list = useMyList();
+  const account = useAccount();
+  const remote = useRemoteLibrary();
+  const items = mergeMyList(list, remote);
+  const short = remote ? providerShortName(remote.provider.id) : null;
+
+  const subtitle = remote
+    ? `Unida con tus pendientes de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo y «${short}» lo que solo está en tu lista.`
+    : account && !account.signedIn && account.providers.length > 0
+      ? `Inicia sesión en Cuenta para unirla con tu lista de ${account.providers[0].name}.`
+      : undefined;
+
   return (
-    <PageFrame title="Mi lista" ready={mounted}>
+    <PageFrame title="Mi lista" subtitle={subtitle} ready={mounted}>
+      {remote && (
+        <div className="mb-10">
+          <ExportLocal />
+        </div>
+      )}
       <CardGrid
-        cards={list.map((item) => ({ item }))}
+        cards={items.map(({ item, origin, remoteStatus }) => ({
+          item,
+          badge:
+            origin === "local" && remote
+              ? "LOCAL"
+              : origin === "remote"
+                ? short ?? undefined
+                : remoteStatus && remoteStatus !== "planning"
+                  ? REMOTE_STATUS_LABELS[remoteStatus]
+                  : undefined,
+        }))}
         onSelect={openAnime}
         emptyMessage="Todavía no has guardado nada. Añade series desde su ficha con «Mi lista»."
       />

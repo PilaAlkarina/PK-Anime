@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { continueWatching, useWatchHistory } from "@/lib/library/history";
+import { mergeContinueWatching, useRemoteLibrary } from "@/lib/library/remote";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
@@ -48,7 +49,9 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   // Initial focus waits for the stored history, so it lands on "Seguir viendo" when there is one
   const mounted = useMounted();
   const history = useWatchHistory();
-  const resume = useMemo(() => continueWatching(history), [history]);
+  const remote = useRemoteLibrary();
+  // Local history merged with what the remote list is watching
+  const resume = useMemo(() => mergeContinueWatching(continueWatching(history), remote), [history, remote]);
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);

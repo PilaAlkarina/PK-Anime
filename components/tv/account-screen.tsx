@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { refreshAccount, useAccount } from "@/lib/library/account";
 import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
+import { ExportLocal } from "./export-local";
 import { useTvLink } from "./tv-link";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,9 @@ function AccountSection() {
               <LogOut className="w-6 h-6 mr-3" /> Cerrar sesión
             </FocusButton>
           </FocusGroup>
+          <div className="mt-10">
+            <ExportLocal />
+          </div>
         </div>
       </div>
     );
