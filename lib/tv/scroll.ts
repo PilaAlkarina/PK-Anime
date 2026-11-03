@@ -12,3 +12,15 @@ export function scrollToPosition(el: HTMLElement | null | undefined, target: { l
   if (!moveX && !moveY) return;
   el.scrollTo({ ...(moveX ? { left } : {}), ...(moveY ? { top } : {}), behavior: "smooth" });
 }
+
+/** Scrolls `container` vertically just enough to show `node` with `margin` px around it */
+export function revealVertically(container: HTMLElement | null | undefined, node: HTMLElement, margin = 0) {
+  if (!container) return;
+  const box = container.getBoundingClientRect();
+  const rect = node.getBoundingClientRect();
+  if (rect.top - margin < box.top) {
+    scrollToPosition(container, { top: container.scrollTop + rect.top - box.top - margin });
+  } else if (rect.bottom + margin > box.bottom) {
+    scrollToPosition(container, { top: container.scrollTop + rect.bottom - box.bottom + margin });
+  }
+}
