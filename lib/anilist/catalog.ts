@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
 import { buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, type RowSource } from "./queries";
+import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
   AiringEpisode,
@@ -35,29 +36,6 @@ const HOME_ROWS: { kind: RowKind; value?: string }[] = [
   { kind: "upcoming" },
   ...HOME_GENRES.map((value) => ({ kind: "genre" as const, value })),
 ];
-
-export const GENRE_LABELS: Record<string, string> = {
-  Action: "Acción",
-  Adventure: "Aventura",
-  Comedy: "Comedia",
-  Drama: "Drama",
-  Ecchi: "Ecchi",
-  Fantasy: "Fantasía",
-  Horror: "Terror",
-  "Mahou Shoujo": "Mahou shoujo",
-  Mecha: "Mecha",
-  Music: "Música",
-  Mystery: "Misterio",
-  Psychological: "Psicológico",
-  Romance: "Romance",
-  "Sci-Fi": "Ciencia ficción",
-  "Slice of Life": "Recuentos de la vida",
-  Sports: "Deportes",
-  Supernatural: "Sobrenatural",
-  Thriller: "Suspense",
-};
-
-const HIDDEN_GENRES = new Set(["Hentai"]);
 
 interface RawCard {
   id: number;

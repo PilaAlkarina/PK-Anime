@@ -1,20 +1,16 @@
-"use client";
+import { getHomeRows } from "@/lib/anilist/catalog";
+import type { CatalogRow } from "@/lib/anilist/types";
+import { HomeScreen } from "@/components/tv/home-screen";
 
-import { FocusButton, FocusGroup, Screen } from "@/components/tv/focusable";
+// Rendered per request from the cached catalog, so builds never depend on AniList
+export const dynamic = "force-dynamic";
 
-// Temporary home so the layout and remote navigation can be tried; replaced by the catalog home
-export default function LibraryHomePage() {
-  return (
-    <Screen className="min-h-screen flex flex-col justify-center px-16">
-      <h1 className="text-5xl font-bold">Inicio</h1>
-      <p className="mt-4 text-2xl text-zinc-400">Usa las flechas, Enter y Atrás para moverte.</p>
-      <FocusGroup className="mt-10 space-x-4">
-        {["Uno", "Dos", "Tres"].map((label) => (
-          <FocusButton key={label} variant="primary" onSelect={() => console.log("select", label)}>
-            {label}
-          </FocusButton>
-        ))}
-      </FocusGroup>
-    </Screen>
-  );
+export default async function LibraryHomePage() {
+  let rows: CatalogRow[] = [];
+  try {
+    rows = await getHomeRows();
+  } catch (err) {
+    console.warn("[library] Home rows unavailable:", err instanceof Error ? err.message : err);
+  }
+  return <HomeScreen rows={rows} />;
 }
