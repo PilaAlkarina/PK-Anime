@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { NavigationProvider } from "@/components/tv/navigation-provider";
 import { Sidebar } from "@/components/tv/sidebar";
+import { TvLinkProvider } from "@/components/tv/tv-link";
 import "./library.css";
 
 export const metadata: Metadata = {
@@ -16,11 +17,13 @@ const TV_SCALE = `html{font-size:calc(100vw / 120)}@media (max-width:959px){html
 export default function LibraryLayout({ children }: { children: React.ReactNode }) {
   return (
     <NavigationProvider>
-      <style dangerouslySetInnerHTML={{ __html: TV_SCALE }} />
-      <div lang="es" className="relative min-h-screen bg-black text-white overflow-hidden">
-        <Sidebar />
-        <main className="pl-[7rem]">{children}</main>
-      </div>
+      <TvLinkProvider>
+        <style dangerouslySetInnerHTML={{ __html: TV_SCALE }} />
+        <div lang="es" className="relative min-h-screen bg-black text-white overflow-hidden">
+          <Sidebar />
+          <main className="pl-[7rem]">{children}</main>
+        </div>
+      </TvLinkProvider>
     </NavigationProvider>
   );
 }

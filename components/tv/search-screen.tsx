@@ -7,6 +7,7 @@ import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { usePagedRow } from "./catalog-row";
 import { FocusButton, FocusGroup, Screen } from "./focusable";
 import { useBackHandler } from "./navigation-provider";
+import { REMOTE_TEXT_EVENT, takePendingRemoteText } from "@/lib/tv/remote-text";
 import { CardGrid, ScrollArea } from "./page-frame";
 
 const KEYS = "abcdefghijklmnopqrstuvwxyz1234567890".split("");
@@ -57,6 +58,15 @@ export function SearchScreen() {
       ctrl.abort();
     };
   }, [query]);
+
+  // Text typed on the phone remote replaces the query, including text sent before search opened
+  useEffect(() => {
+    const pending = takePendingRemoteText();
+    if (pending !== null) setQuery(pending.slice(0, MAX_QUERY));
+    const onRemoteText = (e: Event) => setQuery(String((e as CustomEvent).detail ?? "").slice(0, MAX_QUERY));
+    window.addEventListener(REMOTE_TEXT_EVENT, onRemoteText);
+    return () => window.removeEventListener(REMOTE_TEXT_EVENT, onRemoteText);
+  }, []);
 
   // A physical keyboard types straight into the query
   useEffect(() => {

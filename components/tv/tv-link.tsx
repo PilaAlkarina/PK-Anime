@@ -1,0 +1,239 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import type { RemoteCommand, RemoteKey } from "@/lib/pairing/store";
+import { authClient } from "@/lib/auth-client";
+import { refreshAccount } from "@/lib/library/account";
+import { REMOTE_TEXT_EVENT, setPendingRemoteText } from "@/lib/tv/remote-text";
+
+const STORAGE_KEY = "pk_tv_link";
+const RECONNECT_MS = 3000;
+const TOAST_MS = 3500;
+
+export type TvLinkStatus = "idle" | "pending" | "linked";
+
+export interface TvLinkState {
+  status: TvLinkStatus;
+  code: string | null;
+  url: string | null;
+  /** SVG markup of the QR for `url` */
+  qr: string | null;
+  expiresAt: number | null;
+}
+
+const IDLE: TvLinkState = { status: "idle", code: null, url: null, qr: null, expiresAt: null };
+
+interface TvLink {
+  state: TvLinkState;
+  /** Shows a fresh QR, replacing a pending one */
+  startLinking: () => Promise<void>;
+  unlink: () => Promise<void>;
+}
+
+const TvLinkContext = createContext<TvLink>({
+  state: IDLE,
+  startLinking: async () => {},
+  unlink: async () => {},
+});
+
+export const useTvLink = () => useContext(TvLinkContext);
+
+// What the TV's own remote would send for each phone button. keyCode is legacy but some of
+// our listeners (and spatial navigation) still read it.
+const KEYS: Record<RemoteKey, { key: string; code?: string; keyCode: number }> = {
+  ArrowUp: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
+  ArrowDown: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
+  ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", keyCode: 37 },
+  ArrowRight: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 },
+  Enter: { key: "Enter", code: "Enter", keyCode: 13 },
+  Back: { key: "Escape", code: "Escape", keyCode: 27 },
+  PlayPause: { key: "MediaPlayPause", keyCode: 179 },
+  FastForward: { key: "MediaFastForward", keyCode: 417 },
+  Rewind: { key: "MediaRewind", keyCode: 412 },
+};
+
+function pressKey(key: RemoteKey) {
+  const init = { ...KEYS[key], bubbles: true, cancelable: true } as KeyboardEventInit;
+  const target = document.activeElement || document.body;
+  target.dispatchEvent(new KeyboardEvent("keydown", init));
+  target.dispatchEvent(new KeyboardEvent("keyup", init));
+}
+
+function readToken() {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(STORAGE_KEY, token);
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
+/**
+ * The TV side of the phone link: keeps the event stream open, runs the phone's commands as
+ * key presses (so every screen and the player react as to the TV's own remote), and picks up
+ * a session handed over from the phone.
+ */
+export function TvLinkProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [state, setState] = useState<TvLinkState>(IDLE);
+  const [toast, setToast] = useState<string | null>(null);
+  const tokenRef = useRef<string | null>(null);
+  const sourceRef = useRef<EventSource | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout>>();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    setTimeout(() => setToast((current) => (current === message ? null : current)), TOAST_MS);
+  }, []);
+
+  const close = () => {
+    clearTimeout(reconnectRef.current);
+    sourceRef.current?.close();
+    sourceRef.current = null;
+  };
+
+  const forget = useCallback(() => {
+    close();
+    tokenRef.current = null;
+    writeToken(null);
+    setState(IDLE);
+  }, []);
+
+  const runCommand = useCallback(
+    (command: RemoteCommand) => {
+      if (command.kind === "key") pressKey(command.key);
+      else if (command.kind === "navigate") router.push(command.href);
+      else if (command.kind === "signout") authClient.signOut().finally(() => refreshAccount());
+      else if (command.kind === "text") {
+        if (pathnameRef.current === "/search") {
+          window.dispatchEvent(new CustomEvent(REMOTE_TEXT_EVENT, { detail: command.text }));
+        } else {
+          setPendingRemoteText(command.text);
+          router.push("/search");
+        }
+      }
+    },
+    [router]
+  );
+
+  const acceptSession = useCallback(
+    async (name: string) => {
+      const res = await fetch("/api/pair/session/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tvToken: tokenRef.current }),
+      }).catch(() => null);
+      if (!res?.ok) return showToast("No se pudo iniciar sesión en la TV");
+      await refreshAccount();
+      showToast(`Sesión iniciada como ${name}`);
+    },
+    [showToast]
+  );
+
+  const sync = useCallback(
+    async (create: boolean) => {
+      const data = await fetch("/api/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tvToken: tokenRef.current, create }),
+      })
+        .then((res) => res.json())
+        .catch(() => null);
+      if (!data) return false;
+      if (!data.success || data.status === "missing") {
+        forget();
+        return false;
+      }
+      tokenRef.current = data.tvToken;
+      writeToken(data.tvToken);
+      setState({ status: data.status, code: data.code, url: data.url, qr: data.qr, expiresAt: data.expiresAt });
+      listen();
+      return true;
+    },
+    // listen is defined below; it only reads refs and stable callbacks
+    [forget]
+  );
+
+  const listen = () => {
+    if (sourceRef.current || !tokenRef.current) return;
+    const source = new EventSource(`/api/pair/events?tv=${encodeURIComponent(tokenRef.current)}`);
+    sourceRef.current = source;
+    source.onmessage = (e) => {
+      let event: any;
+      try {
+        event = JSON.parse(e.data);
+      } catch {
+        return;
+      }
+      if (event.type === "state") {
+        setState((s) => ({ ...s, status: event.status, code: event.code, expiresAt: event.expiresAt }));
+      } else if (event.type === "linked") {
+        setState({ ...IDLE, status: "linked" });
+        showToast("Móvil vinculado");
+      } else if (event.type === "unlinked") {
+        forget();
+        showToast("Móvil desvinculado");
+      } else if (event.type === "command") {
+        runCommand(event.command);
+      } else if (event.type === "session") {
+        acceptSession(event.name);
+      }
+    };
+    // EventSource retries on its own, but not after a 404 (a link the server dropped, e.g.
+    // after a restart): reconnect by hand, which also notices the link is gone
+    source.onerror = () => {
+      close();
+      reconnectRef.current = setTimeout(() => sync(false), RECONNECT_MS);
+    };
+  };
+
+  useEffect(() => {
+    tokenRef.current = readToken();
+    if (tokenRef.current) sync(false);
+    return close;
+  }, [sync]);
+
+  const startLinking = useCallback(async () => {
+    if (tokenRef.current && state.status === "pending") {
+      await fetch("/api/pair/unlink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tvToken: tokenRef.current }),
+      }).catch(() => {});
+      forget();
+    }
+    await sync(true);
+  }, [state.status, forget, sync]);
+
+  const unlink = useCallback(async () => {
+    const tvToken = tokenRef.current;
+    forget();
+    if (!tvToken) return;
+    await fetch("/api/pair/unlink", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tvToken }),
+    }).catch(() => {});
+  }, [forget]);
+
+  return (
+    <TvLinkContext.Provider value={{ state, startLinking, unlink }}>
+      {children}
+      {toast && (
+        <div className="fixed right-[4vw] bottom-[6vh] z-[80] px-6 py-4 rounded-2xl bg-zinc-900/95 text-xl font-bold tv-fade-in">
+          {toast}
+        </div>
+      )}
+    </TvLinkContext.Provider>
+  );
+}
