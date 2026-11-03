@@ -20,11 +20,14 @@ type BackHandler = () => boolean | void;
 
 interface LibraryNavigation {
   goBack: () => void;
+  /** router.replace that keeps the library's own history in step */
+  replace: (href: string) => void;
   registerBackHandler: (handler: BackHandler) => () => void;
 }
 
 const NavigationContext = createContext<LibraryNavigation>({
   goBack: () => {},
+  replace: () => {},
   registerBackHandler: () => () => {},
 });
 
@@ -64,6 +67,15 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     if (parent !== pathname) router.replace(parent);
   }, [router, pathname]);
 
+  const replace = useCallback(
+    (href: string) => {
+      const visited = historyRef.current;
+      visited[Math.max(0, visited.length - 1)] = href.split("?")[0];
+      router.replace(href);
+    },
+    [router]
+  );
+
   const goBackRef = useRef(goBack);
   goBackRef.current = goBack;
 
@@ -90,7 +102,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <NavigationContext.Provider value={{ goBack, registerBackHandler }}>{children}</NavigationContext.Provider>
+    <NavigationContext.Provider value={{ goBack, replace, registerBackHandler }}>{children}</NavigationContext.Provider>
   );
 }
 

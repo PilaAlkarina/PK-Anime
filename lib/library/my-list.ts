@@ -1,4 +1,5 @@
 import type { CatalogItem } from "@/lib/anilist/types";
+import { catalogSnapshot } from "./history";
 import { createStore } from "./storage";
 
 const store = createStore<CatalogItem[]>("pk_library_my_list", []);
@@ -15,6 +16,5 @@ export function toggleMyList(anime: CatalogItem) {
     store.set(list.filter((item) => item.id !== anime.id));
     return;
   }
-  const { airedEpisode, ...snapshot } = anime;
-  store.set([snapshot, ...list]);
+  store.set([catalogSnapshot(anime), ...list]);
 }

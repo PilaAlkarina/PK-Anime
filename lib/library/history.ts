@@ -14,12 +14,33 @@ const WATCHED_FRACTION = 0.9;
 
 const store = createStore<HistoryEntry[]>("pk_library_history", []);
 
+/** Only the card fields, so a full AnimeDetail doesn't bloat localStorage */
+export function catalogSnapshot(item: CatalogItem): CatalogItem {
+  return {
+    id: item.id,
+    malId: item.malId,
+    title: item.title,
+    romajiTitle: item.romajiTitle,
+    cover: item.cover,
+    color: item.color,
+    banner: item.banner,
+    format: item.format,
+    status: item.status,
+    episodes: item.episodes,
+    availableEpisodes: item.availableEpisodes,
+    score: item.score,
+    season: item.season,
+    seasonYear: item.seasonYear,
+    genres: item.genres,
+    nextEpisode: item.nextEpisode,
+  };
+}
+
 export const useWatchHistory = store.useValue;
 
 export function recordWatch(anime: CatalogItem, episode: number) {
-  const { airedEpisode, ...snapshot } = anime;
   const others = store.get().filter((e) => e.anime.id !== anime.id);
-  store.set([{ anime: snapshot, episode, updatedAt: Date.now() }, ...others].slice(0, MAX_ENTRIES));
+  store.set([{ anime: catalogSnapshot(anime), episode, updatedAt: Date.now() }, ...others].slice(0, MAX_ENTRIES));
 }
 
 export function removeFromHistory(animeId: number) {

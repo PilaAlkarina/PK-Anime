@@ -66,6 +66,7 @@ function SidebarItem({
 /** Left rail. Collapsed to icons; expands with labels while it has focus */
 export function Sidebar() {
   const pathname = usePathname();
+  const hidden = pathname.startsWith("/watch/");
   const activeHref = ITEMS.find((item) => isActive(pathname, item.href))?.href ?? "/";
   const { ref, focusKey, hasFocusedChild } = useFocusable({
     focusKey: "NAV",
@@ -74,6 +75,9 @@ export function Sidebar() {
     saveLastFocusedChild: false,
     preferredChildFocusKey: navKey(activeHref),
   });
+
+  // The player takes the whole screen
+  if (hidden) return null;
 
   return (
     <FocusContext.Provider value={focusKey}>

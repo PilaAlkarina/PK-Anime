@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatSecondsToTime, cn } from "@/lib/utils";
+import { getMediaAction } from "@/lib/tv/keys";
 import { SubtitleSettingsDialog, SubtitleStyles } from "./subtitle-settings-dialog";
 import { attachAvSyncGuard } from "./player-core/av-sync-guard";
 import { collectScopedSubtitles } from "./player-core/subtitle-scope";
@@ -118,6 +119,8 @@ export interface EmbedPlayerProps {
   autoskipOutro?: boolean;
   parentHost?: string | null;
   title?: string;
+  /** Same events as the postMessage bridge, for pages that render the player directly */
+  onPlayerEvent?: (name: string, data: any) => void;
 }
 
 export function EmbedPlayer({
@@ -131,6 +134,7 @@ export function EmbedPlayer({
   autoskipOutro = true,
   parentHost,
   title: initialTitle,
+  onPlayerEvent,
 }: EmbedPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -292,9 +296,13 @@ export function EmbedPlayer({
     } catch {}
   }, [progressKey, startAt]);
 
+  const onPlayerEventRef = useRef(onPlayerEvent);
+  onPlayerEventRef.current = onPlayerEvent;
+
   // Broadcast to parent page via PostMessage
   const postToParent = useCallback(
     (name: string, data: any, requestId?: string) => {
+      onPlayerEventRef.current?.(name, data);
       if (typeof window === "undefined" || window.parent === window) return;
       try {
         // Standard aniembed format from specification
@@ -1436,7 +1444,29 @@ export function EmbedPlayer({
       ) {
         return;
       }
+      // TV remotes have no pointer to wake the controls, so any key does
+      handleUserActivity();
+
+      const media = getMediaAction(e);
+      if (media) {
+        e.preventDefault();
+        if (media === "toggle" || (media === "play" && !isPlaying) || (media === "pause" && isPlaying)) {
+          togglePlay();
+        } else if (media === "forward") {
+          handleSeekRelative(10);
+        } else if (media === "rewind") {
+          handleSeekRelative(-10);
+        }
+        return;
+      }
+
       switch (e.key.toLowerCase()) {
+        case "enter":
+          // A focused control handles its own Enter
+          if (active?.tagName === "BUTTON") break;
+          e.preventDefault();
+          togglePlay();
+          break;
         case " ":
         case "k":
           e.preventDefault();
