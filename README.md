@@ -82,6 +82,8 @@ The site root is a personal anime library for TV browsers (Samsung Tizen, LG web
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
+| `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
+| `/link` | Phone page opened from the TV's QR: remote control, keyboard and sign-in |
 
 **Playback preferences.** *Ajustes* stores the preferred audio, an ordered list of subtitle languages, what to show over a dub (full, signs and songs only, or nothing), a preferred server and the subtitle format. When an episode starts, the player:
 
@@ -95,9 +97,13 @@ If the chosen server fails, the usual failover moves to the next server and pick
 
 **Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the playback preferences live in the browser's `localStorage`. Progress per episode is the one the player already saves.
 
+**List sync.** After signing in with MyAnimeList (see [MyAnimeList sign-in](#myanimelist-sign-in-optional)) the library merges this device with the user's list: *Seguir viendo* adds what the list is watching (the furthest episode wins), *Mi lista* adds planned entries and marks the ones that exist only on this device (*LOCAL*) or only on the list (*MAL*), and the anime page resumes from the list's progress. *Exportar* in *Mi lista* or *Cuenta* copies local-only entries as planned and local progress ahead of the list, without lowering anything already there. Watched episodes keep syncing from the player as before. The list access goes through `lib/trackers`, an adapter per service, so AniList can be added as a second provider.
+
+**Phone as remote.** *Cuenta → Vincular un móvil* shows a QR (and a short code). The phone that opens it becomes a remote control: D-pad, OK, Back, Home, play/pause, ±10 s and a text field that types into the TV's search. From the phone the user can also sign in and hand the session to the TV, so no password is typed with the TV remote. Commands reach the TV over Server-Sent Events. Links are kept in the server's memory, which suits a single self-hosted instance: a code lasts 10 minutes, a linked phone 24 hours without use, and restarting the server drops every link. The phone must reach the server at the same address the TV uses, so open the TV library through the server's LAN address or hostname, not `localhost`.
+
 **Compatibility.** The library avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
 
-**Known limitations.** The player's settings menu (server, quality, subtitles) is not reachable with the arrow keys, which control playback; use a pointer remote to open it. AniList has no per-episode metadata for every series, so some episodes show only their number.
+**Known limitations.** The player's settings menu (server, quality, subtitles) is not reachable with the arrow keys, which control playback; use a pointer remote to open it. Playback started only from the phone may need one press on the TV's own remote first, since TV browsers block autoplay with sound until the page has received a real key press. AniList has no per-episode metadata for every series, so some episodes show only their number.
 
 ---
 
@@ -249,6 +255,23 @@ Normalized AniList data for the TV library, cached on the server (rows 15 min, d
 GET /api/catalog/row?kind=genre&value=Romance&page=2
 ```
 
+#### List sync and pairing
+
+Cookie-authenticated routes for the TV library; they are left out of the open API CORS and reject cross-site writes.
+
+| Endpoint | Purpose |
+| :--- | :--- |
+| `GET /api/tracker/me` | Signed-in account, its provider and the providers configured on the server |
+| `GET /api/tracker/library` | The whole remote list; watching and planned entries come with catalog cards |
+| `POST /api/tracker/progress` | `{ anilistId | malId, episode }`: mark an episode watched (never lowers progress). `/api/mal/list-status` is an alias |
+| `POST /api/tracker/plan` | `{ items: [{ anilistId, malId }] }`: add up to 25 anime as planned, skipping those already listed |
+| `POST /api/pair` | The TV's link: an existing one, or a new QR with `create: true` |
+| `GET /api/pair/events?tv={token}` | Server-Sent Events for the TV: linked, unlinked, commands, session offers |
+| `POST /api/pair/claim` | `{ code }`: the phone takes over the link and gets its remote token |
+| `GET`, `POST /api/pair/remote` | Link status, and remote commands (`key`, `text`, `navigate`, `signout`) |
+| `POST /api/pair/session`, `/api/pair/session/accept` | The phone offers its sign-in; the TV picks it up |
+| `POST /api/pair/unlink` | Either side ends the link |
+
 ---
 
 ## Usage Examples
@@ -368,7 +391,7 @@ playerIframe.contentWindow.postMessage({ command: "getStatus" }, "*");
 ```
 aniflow-api/
 ├── app/
-│   ├── (library)/                # TV library at / (home, anime, watch, search, schedule, genres, my-list)
+│   ├── (library)/                # TV library at / (home, anime, watch, search, schedule, genres, my-list, account)
 │   ├── aniflow-doc/              # Documentation page with demo player
 │   ├── api/
 │   │   ├── anime/
@@ -377,18 +400,22 @@ aniflow-api/
 │   │   ├── auth/                 # Better Auth handler (MyAnimeList sign-in)
 │   │   ├── catalog/              # Cached AniList catalog for the TV library
 │   │   ├── m3u8/                 # Direct HLS stream aliases
-│   │   ├── mal/                  # MAL authorize shim and watched-episode sync
+│   │   ├── mal/                  # MAL authorize shim; list-status aliases tracker/progress
+│   │   ├── pair/                 # Phone ↔ TV pairing, remote commands and session hand-over
 │   │   ├── play/                 # Stream resolver and ticket creation
-│   │   └── proxy/                # HLS proxy (m3u8, segments, subtitles, keys)
+│   │   ├── proxy/                # HLS proxy (m3u8, segments, subtitles, keys)
+│   │   └── tracker/              # List sync for the signed-in account
 │   ├── embed/
 │   │   ├── ani/[anilistId]/      # AniList embed routes
 │   │   └── mal/[malId]/          # MyAnimeList embed routes
 │   ├── meu8/
 │   │   ├── ani/[anilistId]/      # AniList direct M3U8 routes
 │   │   └── mal/[malId]/          # MyAnimeList direct M3U8 routes
+│   ├── link/                     # Phone remote page opened from the TV's QR
 │   ├── globals.css               # Global styles and theme
 │   └── layout.tsx                # Root layout shared by every route
 ├── components/
+│   ├── remote/                   # Phone remote UI
 │   ├── tv/                       # TV library screens and remote-control navigation
 │   └── player/
 │       ├── embed-player.tsx      # HLS player
@@ -396,7 +423,9 @@ aniflow-api/
 │       └── player-core/          # Player state and subtitle helpers
 ├── lib/
 │   ├── anilist/                  # AniList client, queries and cached catalog
-│   ├── library/                  # localStorage stores (Mi lista, history, preferences)
+│   ├── library/                  # Per-device stores, remote list merge and export
+│   ├── pairing/                  # In-memory phone ↔ TV links
+│   ├── trackers/                 # List service adapters (MyAnimeList)
 │   ├── tv/                       # Remote key mapping and scroll helpers
 │   ├── aniembed-extractor.ts     # Yuri and Zuri extraction
 │   ├── aniskip.ts                # AniSkip client
@@ -450,7 +479,7 @@ Visitors can sign in with MyAnimeList through [Better Auth](https://www.better-a
 | Variable | Description |
 | --- | --- |
 | `BETTER_AUTH_SECRET` | Random string of at least 32 characters, used to encrypt the cookies (`openssl rand -base64 32`). |
-| `BETTER_AUTH_URL` | Public origin of the site, e.g. `https://your-domain`. |
+| `BETTER_AUTH_URL` | Public origin of the site, e.g. `https://your-domain`. When hosted on a local network, use the address the TV and phones open (e.g. `http://192.168.1.50:3000`) and register that redirect URL in the MAL app. |
 | `MAL_CLIENT_ID` | Client ID of the MAL app. |
 | `MAL_CLIENT_SECRET` | Client secret of the MAL app. |
 
