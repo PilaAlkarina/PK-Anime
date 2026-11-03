@@ -1,9 +1,13 @@
-import { createStore } from "./storage";
+import {
+  getPlaybackPreferences,
+  updatePlaybackPreferences,
+  usePlaybackPreferences,
+  type AudioPreference,
+} from "@/lib/playback-preferences";
 
-export type AudioPreference = "sub" | "dub";
+export type { AudioPreference };
 
-const audioStore = createStore<AudioPreference>("pk_library_audio", "sub");
-
-export const useAudioPreference = audioStore.useValue;
-export const getAudioPreference = audioStore.get;
-export const setAudioPreference = audioStore.set;
+// Sub/Dub lives with the rest of the playback preferences
+export const useAudioPreference = () => usePlaybackPreferences().audio;
+export const getAudioPreference = () => getPlaybackPreferences().audio;
+export const setAudioPreference = (audio: AudioPreference) => updatePlaybackPreferences({ audio });

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Bookmark, CalendarDays, Home, LayoutGrid, Search, type LucideIcon } from "lucide-react";
+import { Bookmark, CalendarDays, Home, LayoutGrid, Search, Settings, type LucideIcon } from "lucide-react";
 import { FocusContext, navigateByDirection, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 import { useTvFocusable } from "./focusable";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/schedule", label: "Calendario", icon: CalendarDays },
   { href: "/genres", label: "Géneros", icon: LayoutGrid },
   { href: "/my-list", label: "Mi lista", icon: Bookmark },
+  { href: "/settings", label: "Ajustes", icon: Settings },
 ];
 
 const navKey = (href: string) => `nav:${href}`;

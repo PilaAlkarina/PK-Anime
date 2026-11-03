@@ -21,12 +21,17 @@ export function writeJSON(key: string, value: unknown) {
   } catch {}
 }
 
-export function createStore<T>(key: string, fallback: T) {
+/**
+ * `normalize` turns whatever is stored (null when nothing is) into a complete value, for
+ * stores whose shape grows over time or that migrate older keys. Its result is cached, so
+ * the hook sees a stable reference.
+ */
+export function createStore<T>(key: string, fallback: T, normalize?: (stored: unknown) => T) {
   const listeners = new Set<() => void>();
   let cached: T | undefined;
 
   const get = () => {
-    if (cached === undefined) cached = readJSON(key, fallback);
+    if (cached === undefined) cached = normalize ? normalize(readJSON<unknown>(key, null)) : readJSON(key, fallback);
     return cached;
   };
 

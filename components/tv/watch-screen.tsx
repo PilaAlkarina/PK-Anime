@@ -5,6 +5,7 @@ import { pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { recordWatch } from "@/lib/library/history";
 import { getAudioPreference, type AudioPreference } from "@/lib/library/preferences";
+import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
 import { useBackHandler, useLibraryNavigation } from "./navigation-provider";
 
@@ -32,6 +33,8 @@ export function WatchScreen({
   const total = anime.availableEpisodes ?? anime.episodes ?? 0;
   const hasNext = episode < total;
   const effectiveAudio = audio ?? "sub";
+  // Read only once the player mounts (after hydration), like the audio preference
+  const preferredServer = audio ? getPlaybackPreferences().preferredServer : "auto";
 
   useEffect(() => {
     setAudio(audioParam ?? getAudioPreference());
@@ -79,6 +82,9 @@ export function WatchScreen({
           malId={anime.malId}
           episodeNumber={episode}
           initialAudio={audio}
+          // Starting on the preferred server saves a reload; the player still moves to another
+          // one when only that one has the wanted subtitle language
+          initialServer={preferredServer === "auto" ? "flow" : preferredServer}
           title={anime.title}
           onPlayerEvent={onPlayerEvent}
         />

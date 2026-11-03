@@ -69,6 +69,7 @@ export function EmbedPageClient({
         episodeNumber={effectiveEpisode}
         initialAudio={effectiveAudio}
         initialServer={server}
+        autoSelectServer={!searchParams.get("server")}
         startAt={startAt}
         autoskipIntro={autoskipIntro}
         autoskipOutro={autoskipOutro}

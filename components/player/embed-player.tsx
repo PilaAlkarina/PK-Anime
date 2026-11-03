@@ -31,7 +31,10 @@ import { getMediaAction } from "@/lib/tv/keys";
 import { SubtitleSettingsDialog, SubtitleStyles } from "./subtitle-settings-dialog";
 import { attachAvSyncGuard } from "./player-core/av-sync-guard";
 import { collectScopedSubtitles } from "./player-core/subtitle-scope";
+import { choosePreferredServer, pickSubtitleTrack } from "./player-core/preferred-source";
+import { subtitleFontFamily, subtitleOutlineStyles } from "./player-core/subtitle-style";
 import { adaptSkipTimes } from "@/lib/skip-times-adapter";
+import { getPlaybackPreferences, updatePlaybackPreferences } from "@/lib/playback-preferences";
 
 export interface SubtitleTrack {
   id?: string;
@@ -108,6 +111,15 @@ export function isNativePlayerSource(s: VideoSourceData): boolean {
   );
 }
 
+/** English name of an ISO 639-1 code for player toasts ("es" → "Spanish") */
+function languageDisplayName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
 export interface EmbedPlayerProps {
   anilistId?: number | null;
   malId?: number | null;
@@ -121,6 +133,11 @@ export interface EmbedPlayerProps {
   title?: string;
   /** Same events as the postMessage bridge, for pages that render the player directly */
   onPlayerEvent?: (name: string, data: any) => void;
+  /**
+   * Let the playback preferences pick the server (preferred server, or the one that has the
+   * wanted subtitle language). Off when the embed URL names a server explicitly.
+   */
+  autoSelectServer?: boolean;
 }
 
 export function EmbedPlayer({
@@ -135,6 +152,7 @@ export function EmbedPlayer({
   parentHost,
   title: initialTitle,
   onPlayerEvent,
+  autoSelectServer = true,
 }: EmbedPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -198,8 +216,7 @@ export function EmbedPlayer({
       const savedVolume = parseFloat(localStorage.getItem("anime_player_volume") || "");
       if (!Number.isNaN(savedVolume)) setVolume(Math.min(1, Math.max(0, savedVolume)));
       if (localStorage.getItem("anime_player_muted") === "true") setIsMuted(true);
-      const savedStyles = localStorage.getItem("anime_subtitle_styles");
-      if (savedStyles) setSubtitleStyles(JSON.parse(savedStyles));
+      setSubtitleStyles(getPlaybackPreferences().subtitleStyles);
     } catch {}
   }, []);
 
@@ -280,6 +297,8 @@ export function EmbedPlayer({
 
   const lastProgressEmitRef = useRef<number>(0);
   const malSyncedRef = useRef<boolean>(false);
+  // Episode whose server the preferences already picked, so manual switches are left alone
+  const autoServerDoneRef = useRef<string | null>(null);
 
   // Watch position is saved in this browser, per anime and episode
   const progressKey = `anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`;
@@ -643,6 +662,42 @@ export function EmbedPlayer({
           selectedSource = allAvailableSources.find(typeMatch) || allAvailableSources[0];
         }
 
+        // Once per episode, let the preferences move playback to the preferred server or to
+        // the one that has the wanted subtitle language; the effect then reloads that server
+        const episodeKey = `${anilistId}:${malId}:${episodeNumber}`;
+        if (autoSelectServer && autoServerDoneRef.current !== episodeKey) {
+          autoServerDoneRef.current = episodeKey;
+          const audio = isDub ? "dub" : "sub";
+          const choice = await choosePreferredServer({
+            sources: cleanedIncoming,
+            audio,
+            currentServer: server,
+            prefs: getPlaybackPreferences(),
+            probeSubtitles: async (code) => {
+              const probe = new URLSearchParams(params);
+              probe.set("audio", audio);
+              probe.set("server", code);
+              const probeData = await fetch(`/api/play?${probe}`).then((r) => r.json());
+              // The API answers from another server when this one has nothing
+              return String(probeData?.server || "").toLowerCase().includes(code) && Array.isArray(probeData.subtitles)
+                ? probeData.subtitles
+                : [];
+            },
+          });
+          if (cancelled) return;
+          if (choice) {
+            const serverLabel = choice.server.charAt(0).toUpperCase() + choice.server.slice(1);
+            showToast(
+              "info",
+              choice.language
+                ? `Switched to ${serverLabel} for ${languageDisplayName(choice.language)} subtitles`
+                : `Switched to ${serverLabel}`
+            );
+            setServer(choice.server);
+            return;
+          }
+        }
+
         if (selectedSource) {
           setActiveSourceId(selectedSource.id);
           setStreamUrl(initialStream || selectedSource.videoUrl);
@@ -688,13 +743,7 @@ export function EmbedPlayer({
 
         if (mappedSubs.length > 0) {
           setAllAvailableSubtitles(mappedSubs);
-          const defaultSub =
-            mappedSubs.find((s) => s.default) ||
-            mappedSubs.find((s) => s.language?.toLowerCase().startsWith("en") || s.label?.toLowerCase().includes("english")) ||
-            mappedSubs[0];
-          if (defaultSub) {
-            setActiveSubtitleTrack(defaultSub.id || defaultSub.url);
-          }
+          setActiveSubtitleTrack(pickSubtitleTrack(mappedSubs, isDub ? "dub" : "sub", getPlaybackPreferences()));
         } else {
           setAllAvailableSubtitles([]);
           setActiveSubtitleTrack("");
@@ -1614,43 +1663,8 @@ export function EmbedPlayer({
   }, [showSettingsMenu]);
 
   // Subtitle typography helpers
-  const getSubtitleFontFamily = () => {
-    switch (subtitleStyles.fontFamily) {
-      case "anime":
-        return '"Trebuchet MS", "Segoe UI", sans-serif';
-      case "mono":
-        return 'ui-monospace, "Cascadia Code", monospace';
-      case "serif":
-        return 'Georgia, Cambria, "Times New Roman", serif';
-      default:
-        return 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    }
-  };
-
-  const getSubtitleOutlineStyles = (): React.CSSProperties => {
-    const outline = subtitleStyles.outline || "thick";
-    if (outline === "thick") {
-      return {
-        WebkitTextStroke: "2px #000000",
-        paintOrder: "stroke fill",
-        textShadow:
-          "0 0 2px #000000, 0 -2px 0 #000000, 0 2px 0 #000000, -2px 0 0 #000000, 2px 0 0 #000000, -1.5px -1.5px 0 #000000, 1.5px -1.5px 0 #000000, -1.5px 1.5px 0 #000000, 1.5px 1.5px 0 #000000, 0 2px 4px rgba(0, 0, 0, 0.9)",
-      };
-    }
-    if (outline === "thin") {
-      return {
-        WebkitTextStroke: "1px #000000",
-        paintOrder: "stroke fill",
-        textShadow:
-          "0 0 1px #000000, 0 -1px 0 #000000, 0 1px 0 #000000, -1px 0 0 #000000, 1px 0 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000, 0 1px 3px rgba(0, 0, 0, 0.8)",
-      };
-    }
-    return {
-      WebkitTextStroke: "0px transparent",
-      paintOrder: "normal",
-      textShadow: subtitleStyles.shadow ? "0 2px 4px rgba(0,0,0,0.9)" : "none",
-    };
-  };
+  const getSubtitleFontFamily = () => subtitleFontFamily(subtitleStyles.fontFamily);
+  const getSubtitleOutlineStyles = () => subtitleOutlineStyles(subtitleStyles);
 
   const isInsideIntro = Boolean(
     skipTimes.intro &&
@@ -1914,10 +1928,7 @@ export function EmbedPlayer({
 
       if (formattedSubs.length > 0) {
         setAllAvailableSubtitles(formattedSubs);
-        const defaultSub = formattedSubs.find((s) => s.default) || formattedSubs[0];
-        if (defaultSub) {
-          setActiveSubtitleTrack(defaultSub.id || defaultSub.url);
-        }
+        setActiveSubtitleTrack(pickSubtitleTrack(formattedSubs, newType, getPlaybackPreferences()));
       }
     }
 
@@ -1946,12 +1957,9 @@ export function EmbedPlayer({
 
           if (fetchedSubs.length > 0) {
             setAllAvailableSubtitles(fetchedSubs);
-            setActiveSubtitleTrack((prevTrack) => {
-              const match = fetchedSubs.find((sub) => sub.id === prevTrack || sub.url === prevTrack);
-              if (match) return match.id || match.url;
-              const def = fetchedSubs.find((sub) => sub.default) || fetchedSubs[0];
-              return def ? (def.id || def.url) : null;
-            });
+            // Generated ids (sub-0, sub-1…) repeat across servers, so pick by language again
+            // rather than keeping the previous id
+            setActiveSubtitleTrack(pickSubtitleTrack(fetchedSubs, newType, getPlaybackPreferences()));
             setSources((prev) =>
               prev.map((item) =>
                 item.id === src.id ? { ...item, subtitles: fetchedSubs } : item
@@ -3367,7 +3375,7 @@ export function EmbedPlayer({
                             const updated = { ...subtitleStyles, fontFamily: f.value as any };
                             setSubtitleStyles(updated);
                             try {
-                              localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+                              updatePlaybackPreferences({ subtitleStyles: updated });
                             } catch {}
                           }}
                           style={{ fontFamily: f.font }}
@@ -3405,7 +3413,7 @@ export function EmbedPlayer({
                             const updated = { ...subtitleStyles, fontSize: size.value };
                             setSubtitleStyles(updated);
                             try {
-                              localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+                              updatePlaybackPreferences({ subtitleStyles: updated });
                             } catch {}
                           }}
                           className={cn(
@@ -3442,7 +3450,7 @@ export function EmbedPlayer({
                             const updated = { ...subtitleStyles, color: c.value };
                             setSubtitleStyles(updated);
                             try {
-                              localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+                              updatePlaybackPreferences({ subtitleStyles: updated });
                             } catch {}
                           }}
                           className={cn(
@@ -3479,7 +3487,7 @@ export function EmbedPlayer({
                             const updated = { ...subtitleStyles, background: bg.value };
                             setSubtitleStyles(updated);
                             try {
-                              localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+                              updatePlaybackPreferences({ subtitleStyles: updated });
                             } catch {}
                           }}
                           className={cn(
@@ -3517,7 +3525,7 @@ export function EmbedPlayer({
                             };
                             setSubtitleStyles(updated);
                             try {
-                              localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+                              updatePlaybackPreferences({ subtitleStyles: updated });
                             } catch {}
                           }}
                           className={cn(
@@ -3846,7 +3854,7 @@ export function EmbedPlayer({
         onStylesChange={(updated) => {
           setSubtitleStyles(updated);
           try {
-            localStorage.setItem("anime_subtitle_styles", JSON.stringify(updated));
+            updatePlaybackPreferences({ subtitleStyles: updated });
           } catch {}
         }}
       />

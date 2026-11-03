@@ -81,10 +81,19 @@ The site root is a personal anime library for TV browsers (Samsung Tizen, LG web
 | `/schedule` | Episodes airing in the next 7 days, in the viewer's time zone |
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
+| `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
+
+**Playback preferences.** *Ajustes* stores the preferred audio, an ordered list of subtitle languages, what to show over a dub (full, signs and songs only, or nothing), a preferred server and the subtitle format. When an episode starts, the player:
+
+1. Plays the dub if one exists, otherwise the original audio.
+2. Walks the subtitle languages in order and plays from the first server that has the current one: the preferred server first, then the current server, then Flow, Kitty, Buzz, Yuri and Zuri. Yuri and Zuri only list subtitles when asked directly, so they are checked only if no other server has the language.
+3. Uses the provider's default track (or English) when no listed language exists anywhere.
+
+If the chosen server fails, the usual failover moves to the next server and picks its best match from the same list. Embeds that set `?server=` keep that server and only choose the track. Toggle *Buscar el idioma en otros servidores* off to never change server for subtitles.
 
 **Remote control.** Arrows move the focus, Enter selects, and Back goes to the previous screen without ever leaving the site. In the player, arrows seek (left/right) and change the volume (up/down), Enter and the remote's play/pause keys toggle playback, and fast-forward/rewind seek 10 s. Back keys recognised: Escape, Backspace, Tizen `10009` and webOS `461`. A pointer (LG Magic Remote, mouse) focuses whatever it moves over.
 
-**Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the Sub/Dub preference live in the browser's `localStorage`. Progress per episode is the one the player already saves.
+**Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the playback preferences live in the browser's `localStorage`. Progress per episode is the one the player already saves.
 
 **Compatibility.** The library avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
 
