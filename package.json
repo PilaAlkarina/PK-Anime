@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@consumet/extensions": "^1.8.8",
+    "@noriginmedia/norigin-spatial-navigation": "2.3.0",
     "anime-sdk": "^1.1.0",
     "axios": "^1.7.7",
     "better-auth": "^1.7.15",

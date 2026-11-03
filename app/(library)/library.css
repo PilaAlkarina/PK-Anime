@@ -1,0 +1,30 @@
+/*
+ * Library (TV) styles. Kept to properties old TV browsers support (Chromium 68+):
+ * no backdrop-filter, aspect-ratio, inset or flex gap.
+ */
+
+.tv-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tv-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes tv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tv-fade-in {
+  animation: tv-fade-in 0.35s ease-out both;
+}
+
+.tv-cover-shadow {
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.6);
+}
