@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, Captions, ChevronLeft, ChevronRight, ListPlus, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
+import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, episodesLabel, metaLine, statusLabel } from "@/lib/library/format";
@@ -16,6 +17,7 @@ import { subtitleLanguageName } from "@/components/player/player-core/subtitle-l
 import { useLibraryNavigation } from "@/components/tv/navigation-provider";
 import { HorizontalRow } from "./horizontal-row";
 import { PosterCard } from "./poster-card";
+import { TrailerDialog } from "./trailer-dialog";
 import { cn } from "@/lib/utils";
 
 const EPISODES_PER_RANGE = 50;
@@ -115,6 +117,8 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const [expanded, setExpanded] = useState(false);
   const [hideWatched, setHideWatched] = useState(false);
   const [jump, setJump] = useState("");
+  const [trailerOpen, setTrailerOpen] = useState(false);
+  const trailerSrc = trailerEmbedUrl(anime.trailer);
 
   const total = anime.availableEpisodes ?? anime.episodes ?? anime.streamingEpisodes.length;
   const titles = useMemo(() => episodeInfo(anime), [anime]);
@@ -177,6 +181,9 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   return (
     <div className="pb-12">
+      {trailerOpen && trailerSrc && (
+        <TrailerDialog src={trailerSrc} title={anime.title} onClose={() => setTrailerOpen(false)} />
+      )}
       <div className="relative h-56 md:h-[21rem] overflow-hidden bg-zinc-900">
         {image && (
           <img
@@ -241,53 +248,67 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
               </div>
             )}
 
-            {total > 0 && (
-              <div className="flex flex-wrap items-center gap-2.5 mt-2">
-                <Link
-                  href={watchHref(playEpisode)}
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-white text-black font-bold hover:bg-zinc-200"
-                >
-                  <Play className="w-4 h-4" fill="currentColor" />
-                  {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
-                  {remaining && <span className="font-medium text-zinc-600">· quedan {remaining} min</span>}
-                </Link>
-                <div role="group" aria-label="Audio" className="flex flex-1 sm:flex-none p-1 rounded-xl sm:rounded-full bg-zinc-900 border border-zinc-800">
-                  {(["sub", "dub"] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      aria-pressed={audio === value}
-                      onClick={() => setAudioPreference(value)}
-                      className={cn(
-                        "flex-1 h-10 px-4 rounded-lg sm:rounded-full text-sm",
-                        audio === value ? "bg-zinc-700 text-white font-semibold" : "text-zinc-400 hover:text-white"
-                      )}
-                    >
-                      {value === "sub" ? "Original" : "Doblaje"}
-                    </button>
-                  ))}
-                </div>
+            {/* Upcoming anime have no episodes yet but still a trailer and Mi lista */}
+            <div className="flex flex-wrap items-center gap-2.5 mt-2">
+              {total > 0 && (
+                <>
+                  <Link
+                    href={watchHref(playEpisode)}
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-white text-black font-bold hover:bg-zinc-200"
+                  >
+                    <Play className="w-4 h-4" fill="currentColor" />
+                    {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
+                    {remaining && <span className="font-medium text-zinc-600">· quedan {remaining} min</span>}
+                  </Link>
+                  <div role="group" aria-label="Audio" className="flex flex-1 sm:flex-none p-1 rounded-xl sm:rounded-full bg-zinc-900 border border-zinc-800">
+                    {(["sub", "dub"] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={audio === value}
+                        onClick={() => setAudioPreference(value)}
+                        className={cn(
+                          "flex-1 h-10 px-4 rounded-lg sm:rounded-full text-sm",
+                          audio === value ? "bg-zinc-700 text-white font-semibold" : "text-zinc-400 hover:text-white"
+                        )}
+                      >
+                        {value === "sub" ? "Original" : "Doblaje"}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {trailerSrc && (
                 <button
                   type="button"
-                  onClick={() => toggleMyList(anime)}
-                  aria-pressed={inMyList}
+                  onClick={() => setTrailerOpen(true)}
+                  aria-haspopup="dialog"
                   className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
                 >
-                  {inMyList ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
-                  {inMyList ? "En mi lista" : "Mi lista"}
+                  <Clapperboard className="w-5 h-5" />
+                  Tráiler
                 </button>
-                {remote && !remoteEntry && (
-                  <button
-                    type="button"
-                    onClick={addToRemote}
-                    className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
-                  >
-                    <ListPlus className="w-5 h-5" />
-                    {adding ? "Añadiendo…" : `Añadir a ${remote.provider.name}`}
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+              <button
+                type="button"
+                onClick={() => toggleMyList(anime)}
+                aria-pressed={inMyList}
+                className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
+              >
+                {inMyList ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                {inMyList ? "En mi lista" : "Mi lista"}
+              </button>
+              {remote && !remoteEntry && (
+                <button
+                  type="button"
+                  onClick={addToRemote}
+                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
+                >
+                  <ListPlus className="w-5 h-5" />
+                  {adding ? "Añadiendo…" : `Añadir a ${remote.provider.name}`}
+                </button>
+              )}
+            </div>
 
             <Link
               href="/settings"

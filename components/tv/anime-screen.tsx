@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, Captions, ListPlus, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
+import { trailerEmbedUrl } from "@/lib/anilist/trailer";
+import { TrailerOverlay } from "./trailer-overlay";
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
@@ -107,6 +109,8 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inMyList = isInMyList(myList, anime.id);
   const [adding, setAdding] = useState(false);
+  const [trailerSrc, setTrailerSrc] = useState<string | null>(null);
+  const hasTrailer = !!trailerEmbedUrl(anime.trailer);
 
   const total = anime.availableEpisodes ?? anime.episodes ?? anime.streamingEpisodes.length;
   const titles = useMemo(() => episodeInfo(anime), [anime]);
@@ -178,14 +182,17 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   return (
     <Screen>
+      {trailerSrc && <TrailerOverlay src={trailerSrc} title={anime.title} onClose={() => setTrailerSrc(null)} />}
       <div
         ref={scrollRef}
         className="fixed top-0 bottom-0 left-0 right-0 overflow-y-auto overflow-x-hidden tv-no-scrollbar"
       >
         <header className="relative pb-12">
-          <div className="absolute top-0 right-0 w-[78%] h-[75vh] overflow-hidden">
+          {/* AniList banners are about 1900×400, so the box keeps close to that shape instead of
+              blowing up and cropping the middle of it */}
+          <div className={cn("absolute top-0 right-0 overflow-hidden", anime.banner ? "w-full h-[24vw]" : "w-[78%] h-[75vh]")}>
             {anime.banner ? (
-              <img src={anime.banner} alt="" decoding="async" className="w-full h-full object-cover tv-fade-in" />
+              <img src={anime.banner} alt="" decoding="async" className="w-full h-full object-cover object-top tv-fade-in" />
             ) : (
               anime.cover && (
                 <img
@@ -244,6 +251,17 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               >
                 DUB
               </FocusButton>
+              {hasTrailer && (
+                <FocusButton
+                  variant="secondary"
+                  className="mr-4"
+                  // The player checks this origin before taking play/pause from the page
+                  onSelect={() => setTrailerSrc(trailerEmbedUrl(anime.trailer, window.location.origin))}
+                >
+                  <Clapperboard className="w-6 h-6 mr-3" />
+                  Tráiler
+                </FocusButton>
+              )}
               <FocusButton variant="secondary" onSelect={() => toggleMyList(anime)}>
                 {inMyList ? <BookmarkCheck className="w-6 h-6 mr-3" /> : <Bookmark className="w-6 h-6 mr-3" />}
                 {inMyList ? "En mi lista" : "Mi lista"}

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
 import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
+import { cleanTrailer } from "./trailer";
 import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
@@ -245,7 +246,7 @@ export const getAnime = unstable_cache(
         .filter((t) => !t.isMediaSpoiler && !t.isAdult)
         .slice(0, 8)
         .map((t) => t.name),
-      trailer: media.trailer,
+      trailer: cleanTrailer(media.trailer),
       startDate: media.startDate || { year: null, month: null, day: null },
       relations: (media.relations?.edges || [])
         .filter((e) => isListable(e.node))

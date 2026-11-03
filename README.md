@@ -82,7 +82,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | Route | Screen |
 | :--- | :--- |
 | `/` | Home: hero for the focused title, *Seguir viendo*, trending, current season, latest episodes, top rated, upcoming and genre rows |
-| `/anime/{anilistId}` | Details, Sub/Dub choice, *Mi lista*, episodes in blocks of 50, related titles and recommendations |
+| `/anime/{anilistId}` | Details, Sub/Dub choice, *Mi lista*, the trailer (YouTube or Dailymotion, when AniList has one), episodes in blocks of 50, related titles and recommendations. On TV the trailer plays full screen: OK and play/pause pause it, Back closes it |
 | `/watch/{anilistId}/{episode}` | Full-screen player with a countdown to the next episode |
 | `/search` | Advanced search: text plus filters (see below). On TV, an on-screen keyboard and a *Filtros* tab; on the web, the device keyboard with a filter sidebar (a sheet on phones) |
 | `/schedule` | Episodes airing in the next 7 days, in the viewer's time zone |
