@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { AnimeDetail, CatalogItem } from "@/lib/anilist/types";
 import { metaLine } from "@/lib/library/format";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
+import { cn } from "@/lib/utils";
 
 const details = new Map<number, AnimeDetail>();
 
@@ -42,13 +43,17 @@ export function Hero({ item }: { item: CatalogItem | null }) {
   return (
     <div className="fixed top-0 left-0 right-0 h-[56vh] overflow-hidden bg-black">
       {item.banner ? (
-        <img
-          key={item.banner}
-          src={item.banner}
-          alt=""
-          decoding="async"
-          className="absolute top-0 right-0 w-[78%] h-full object-cover tv-fade-in"
-        />
+        // AniList banners are about 1900×400; a box close to that shape keeps them sharp and whole
+        <div className="absolute top-0 left-0 right-0 h-[24vw] overflow-hidden">
+          <img
+            key={item.banner}
+            src={item.banner}
+            alt=""
+            decoding="async"
+            className="w-full h-full object-cover object-top tv-fade-in"
+          />
+          <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent" />
+        </div>
       ) : (
         item.cover && (
           <img
@@ -60,7 +65,12 @@ export function Hero({ item }: { item: CatalogItem | null }) {
           />
         )
       )}
-      <div className="absolute top-0 bottom-0 left-0 w-[70%] bg-gradient-to-r from-black via-black/85 to-transparent" />
+      <div
+        className={cn(
+          "absolute top-0 bottom-0 left-0 w-[70%] bg-gradient-to-r from-black to-transparent",
+          item.banner ? "via-black/70" : "via-black/85"
+        )}
+      />
       <div className="absolute left-0 right-0 bottom-0 h-[45%] bg-gradient-to-t from-black to-transparent" />
 
       <div key={item.id} className="relative pl-[10rem] pt-[9vh] w-[58%] tv-fade-in">

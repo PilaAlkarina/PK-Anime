@@ -205,7 +205,12 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
             )}
             <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent" />
           </div>
-          <div className="absolute top-0 left-0 w-[75%] h-[75vh] bg-gradient-to-r from-black via-black/90 to-transparent" />
+          <div
+            className={cn(
+              "absolute top-0 left-0 h-[75vh] bg-gradient-to-r from-black to-transparent",
+              anime.banner ? "w-[70%] via-black/70" : "w-[75%] via-black/90"
+            )}
+          />
 
           <div className="relative pl-[10rem] pt-[13vh] w-[62%]">
             <h1 className="text-6xl font-bold leading-tight line-clamp-2">{anime.title}</h1>
