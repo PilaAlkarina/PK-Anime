@@ -1,7 +1,13 @@
 import type { CatalogItem } from "@/lib/anilist/types";
-import type { TrackerEntry } from "@/lib/trackers/types";
+import type { EntryChanges, TrackerEntry } from "@/lib/trackers/types";
 import { catalogSnapshot, watchedEpisodes, type HistoryEntry } from "./history";
-import { findRemoteEntry, refreshRemoteLibrary, upsertRemoteEntry, type RemoteLibrary } from "./remote";
+import {
+  findRemoteEntry,
+  refreshRemoteLibrary,
+  removeRemoteEntry,
+  upsertRemoteEntry,
+  type RemoteLibrary,
+} from "./remote";
 
 const PLAN_BATCH = 25;
 
@@ -29,9 +35,9 @@ export interface ExportResult {
   failed: number;
 }
 
-async function post(url: string, body: unknown) {
+async function post(url: string, body: unknown, method = "POST") {
   const res = await fetch(url, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -80,5 +86,25 @@ export async function addToRemotePlan(anime: CatalogItem) {
   const entry: TrackerEntry | null | undefined = data?.results?.[0]?.entry;
   if (!data?.success || !entry) return false;
   upsertRemoteEntry(entry, catalogSnapshot(anime));
+  return true;
+}
+
+/** Sets the status and/or score on the remote list; false when the request failed */
+export async function updateRemoteEntry(anime: CatalogItem, changes: EntryChanges) {
+  const data = await post(
+    "/api/tracker/entry",
+    { anilistId: anime.id, malId: anime.malId, ...changes },
+    "PATCH"
+  ).catch(() => null);
+  if (!data?.success || !data.entry) return false;
+  upsertRemoteEntry(data.entry, catalogSnapshot(anime));
+  return true;
+}
+
+/** Takes the anime off the remote list; false when the request failed */
+export async function removeFromRemote(anime: CatalogItem) {
+  const data = await post("/api/tracker/entry", { anilistId: anime.id, malId: anime.malId }, "DELETE").catch(() => null);
+  if (!data?.success) return false;
+  removeRemoteEntry(anime);
   return true;
 }

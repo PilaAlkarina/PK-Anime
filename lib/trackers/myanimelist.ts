@@ -13,6 +13,14 @@ const TO_STATUS: Record<string, ListStatus> = {
   dropped: "dropped",
 };
 
+const FROM_STATUS: Record<ListStatus, string> = {
+  watching: "watching",
+  planning: "plan_to_watch",
+  completed: "completed",
+  paused: "on_hold",
+  dropped: "dropped",
+};
+
 interface MalListStatus {
   status: string;
   score?: number;
@@ -105,5 +113,28 @@ export const myAnimeList: Tracker = {
     const { entry } = await getAnimeState(token, malId);
     if (entry) return { added: false, entry };
     return { added: true, entry: await updateListStatus(token, malId, { status: "plan_to_watch" }) };
+  },
+
+  async updateEntry(token, ids, { status, score }) {
+    const malId = requireMalId(ids);
+    const fields: Record<string, string> = {};
+    if (status) fields.status = FROM_STATUS[status];
+    if (score !== undefined) fields.score = String(score ?? 0);
+    // MAL leaves the episode count alone when an anime is marked completed
+    if (status === "completed") {
+      const { total } = await getAnimeState(token, malId);
+      if (total) fields.num_watched_episodes = String(total);
+    }
+    return updateListStatus(token, malId, fields);
+  },
+
+  async removeEntry(token, ids) {
+    const res = await fetch(`${MAL_API}/anime/${requireMalId(ids)}/my_list_status`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    // 404: it wasn't on the list
+    if (!res.ok && res.status !== 404) throw new TrackerError(`MyAnimeList answered ${res.status}`, res.status);
   },
 };

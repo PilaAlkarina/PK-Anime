@@ -322,15 +322,36 @@ const getCardsByMalIdChunk = unstable_cache(
   { revalidate: DETAIL_TTL, tags: ["anilist"] }
 );
 
+// Cards by MAL ID (null: AniList has nothing listable for it). Chunks are cached by their exact
+// IDs, so one anime added to a list would shift every later chunk; this per-ID layer means only
+// the new IDs are looked up.
+const malCardCache = new Map<number, { card: CatalogItem | null; expires: number }>();
+const MAL_CARD_CACHE_MAX = 20_000;
+
 /** Catalog cards for MyAnimeList IDs, keyed by MAL ID; IDs AniList doesn't know are left out */
 export async function getCardsByMalIds(malIds: number[]): Promise<Map<number, CatalogItem>> {
+  const now = Date.now();
   const unique = Array.from(new Set(malIds)).sort((a, b) => a - b);
   const cards = new Map<number, CatalogItem>();
+  const missing: number[] = [];
+  for (const id of unique) {
+    const cached = malCardCache.get(id);
+    if (!cached || cached.expires < now) missing.push(id);
+    else if (cached.card) cards.set(id, cached.card);
+  }
+
   // One chunk at a time, to stay well inside AniList's rate limit on a cold cache
-  for (let i = 0; i < unique.length; i += MAL_ID_CHUNK) {
-    for (const card of await getCardsByMalIdChunk(unique.slice(i, i + MAL_ID_CHUNK))) {
-      if (card.malId) cards.set(card.malId, card);
+  const expires = now + DETAIL_TTL * 1000;
+  for (let i = 0; i < missing.length; i += MAL_ID_CHUNK) {
+    const chunk = missing.slice(i, i + MAL_ID_CHUNK);
+    const found = new Map<number, CatalogItem>();
+    for (const card of await getCardsByMalIdChunk(chunk)) if (card.malId) found.set(card.malId, card);
+    for (const id of chunk) {
+      const card = found.get(id) ?? null;
+      malCardCache.set(id, { card, expires });
+      if (card) cards.set(id, card);
     }
   }
+  if (malCardCache.size > MAL_CARD_CACHE_MAX) malCardCache.clear();
   return cards;
 }

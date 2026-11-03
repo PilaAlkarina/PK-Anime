@@ -8,10 +8,24 @@ import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilis
 import { formatTime, startOfDay } from "@/lib/library/format";
 import { useAccount } from "@/lib/library/account";
 import { useMyList } from "@/lib/library/my-list";
-import { mergeMyList, providerShortName, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
+import {
+  listFormats,
+  matchesFormat,
+  matchesScore,
+  matchesStatus,
+  SCORE_FILTERS,
+  sortList,
+  STATUS_FILTERS,
+  updateListView,
+  useListView,
+  type ListView,
+} from "@/lib/library/list-view";
+import { mergeMyList, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { usePagedRow } from "./catalog-row";
 import { FocusButton, FocusGroup, useTvFocusable } from "./focusable";
 import { ExportLocal } from "./export-local";
+import { STATUS_STYLES } from "./list-styles";
+import { MyListControls } from "./my-list-controls";
 import { CardGrid, PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 import { cn } from "@/lib/utils";
 
@@ -103,17 +117,45 @@ export function RowGridScreen({ row, subtitle }: { row: CatalogRow; subtitle?: s
   );
 }
 
+// Long remote lists are drawn a page at a time, so TVs don't build a thousand cards at once
+const LIST_PAGE = 60;
+
 export function MyListScreen() {
   const openAnime = useOpenAnime();
   const mounted = useMounted();
   const list = useMyList();
   const account = useAccount();
   const remote = useRemoteLibrary();
-  const items = mergeMyList(list, remote);
-  const short = remote ? providerShortName(remote.provider.id) : null;
+  const view = useListView();
+  const [shown, setShown] = useState(LIST_PAGE);
+  const items = useMemo(() => mergeMyList(list, remote), [list, remote]);
+
+  const statuses = remote
+    ? STATUS_FILTERS.map((value) => ({ value, count: items.filter((i) => matchesStatus(i, value)).length })).filter(
+        ({ value, count }) => value === "all" || count > 0
+      )
+    : [];
+  // A remembered filter can empty out (e.g. after exporting the local items); fall back to all
+  const status = statuses.some((s) => s.value === view.status) ? view.status : "all";
+  const inStatus = items.filter((i) => matchesStatus(i, status));
+  const formats = listFormats(inStatus);
+  const format = formats.some((f) => f.value === view.format) ? view.format : "any";
+  const scores = SCORE_FILTERS.filter(
+    (f) => f.value === "any" || inStatus.some((i) => matchesScore(i, f.value) && matchesFormat(i, format))
+  );
+  const score = scores.some((f) => f.value === view.score) ? view.score : "any";
+  const visible = sortList(
+    inStatus.filter((i) => matchesScore(i, score) && matchesFormat(i, format)),
+    view.sort
+  );
+
+  const change = (changes: Partial<ListView>) => {
+    updateListView(changes);
+    setShown(LIST_PAGE);
+  };
 
   const subtitle = remote
-    ? `Unida con tus pendientes de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo y «${short}» lo que solo está en tu lista.`
+    ? `Unida con tu lista de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo.`
     : account && !account.signedIn && account.providers.length > 0
       ? `Inicia sesión en Cuenta para unirla con tu lista de ${account.providers[0].name}.`
       : undefined;
@@ -121,24 +163,41 @@ export function MyListScreen() {
   return (
     <PageFrame title="Mi lista" subtitle={subtitle} ready={mounted}>
       {remote && (
-        <div className="mb-10">
+        <div className="mb-8 tv:mb-10">
           <ExportLocal />
         </div>
       )}
+      {remote && items.length > 0 && (
+        <MyListControls
+          statuses={statuses}
+          formats={formats}
+          scores={scores}
+          view={{ ...view, status, format, score }}
+          onChange={change}
+        />
+      )}
       <CardGrid
-        cards={items.map(({ item, origin, remoteStatus }) => ({
-          item,
-          badge:
-            origin === "local" && remote
-              ? "LOCAL"
-              : origin === "remote"
-                ? short ?? undefined
-                : remoteStatus && remoteStatus !== "planning"
-                  ? REMOTE_STATUS_LABELS[remoteStatus]
-                  : undefined,
-        }))}
+        cards={visible.slice(0, shown).map(({ item, origin, entry }) => {
+          const badgeStatus = origin === "local" && remote ? "local" : entry?.status;
+          return {
+            item,
+            score: entry?.score,
+            // Inside a status filter every card has that status, so the badge would only repeat it
+            ...(badgeStatus && (status === "all" || badgeStatus === "local")
+              ? {
+                  badge: badgeStatus === "local" ? "LOCAL" : REMOTE_STATUS_LABELS[badgeStatus],
+                  badgeClassName: STATUS_STYLES[badgeStatus].badge,
+                }
+              : {}),
+          };
+        })}
         onSelect={openAnime}
-        emptyMessage="Todavía no has guardado nada. Añade series desde su ficha con «Mi lista»."
+        onNearEnd={shown < visible.length ? () => setShown((n) => n + LIST_PAGE) : undefined}
+        emptyMessage={
+          items.length > 0
+            ? "Nada coincide con estos filtros."
+            : "Todavía no has guardado nada. Añade series desde su ficha con «Mi lista»."
+        }
       />
     </PageFrame>
   );

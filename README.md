@@ -106,7 +106,7 @@ If the chosen server fails, the usual failover moves to the next server and pick
 
 **Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the playback preferences live in the browser's `localStorage`. Progress per episode is the one the player already saves.
 
-**List sync.** After signing in with MyAnimeList (see [MyAnimeList sign-in](#myanimelist-sign-in-optional)) the library merges this device with the user's list: *Seguir viendo* adds what the list is watching (the furthest episode wins), *Mi lista* adds planned entries and marks the ones that exist only on this device (*LOCAL*) or only on the list (*MAL*), and the anime page resumes from the list's progress. *Exportar* in *Mi lista* or *Cuenta* copies local-only entries as planned and local progress ahead of the list, without lowering anything already there. Watched episodes keep syncing from the player as before. The list access goes through `lib/trackers`, an adapter per service, so AniList can be added as a second provider.
+**List sync.** After signing in with MyAnimeList (see [MyAnimeList sign-in](#myanimelist-sign-in-optional)) the library merges this device with the user's list: *Seguir viendo* adds what the list is watching (the furthest episode wins), *Mi lista* shows the whole list, colored by status (green Viendo, grey Pendiente, blue Completado, amber En pausa, red Abandonado) with each entry's score, and marks what exists only on this device (*LOCAL*). It filters by status, score and format and sorts by last update, your score, AniList's average, title or year; the choice is remembered on each device. Covers scored 9 get a gold frame, and 10s an iridescent one with a pulsing glow and a sweeping shine (still when the system asks for reduced motion). The anime page resumes from the list's progress and lets you change the status and score (0–10) or take the anime off the list. *Exportar* in *Mi lista* or *Cuenta* copies local-only entries as planned and local progress ahead of the list, without lowering anything already there. Watched episodes keep syncing from the player as before. The list access goes through `lib/trackers`, an adapter per service, so AniList can be added as a second provider.
 
 **Phone as remote.** *Cuenta → Vincular un móvil* shows a QR (and a short code). The phone that opens it becomes a remote control: D-pad, OK, Back, Home, play/pause, ±10 s and a text field that types into the TV's search. From the phone the user can also sign in and hand the session to the TV, so no password is typed with the TV remote. Commands reach the TV over Server-Sent Events. Links are kept in the server's memory, which suits a single self-hosted instance: a code lasts 10 minutes, a linked phone 24 hours without use, and restarting the server drops every link. The phone must reach the server at the same address the TV uses, so open the TV library through the server's LAN address or hostname, not `localhost`.
 
@@ -272,9 +272,11 @@ Cookie-authenticated routes for the TV library; they are left out of the open AP
 | Endpoint | Purpose |
 | :--- | :--- |
 | `GET /api/tracker/me` | Signed-in account, its provider and the providers configured on the server |
-| `GET /api/tracker/library` | The whole remote list; watching and planned entries come with catalog cards |
+| `GET /api/tracker/library` | The whole remote list, with status and score; entries AniList knows come with catalog cards |
 | `POST /api/tracker/progress` | `{ anilistId | malId, episode }`: mark an episode watched (never lowers progress). `/api/mal/list-status` is an alias |
 | `POST /api/tracker/plan` | `{ items: [{ anilistId, malId }] }`: add up to 25 anime as planned, skipping those already listed |
+| `PATCH /api/tracker/entry` | `{ anilistId | malId, status?, score? }`: set the status and/or score (0 or `null` clears it), adding the anime if needed. Marking it completed also fills in the episode count |
+| `DELETE /api/tracker/entry` | `{ anilistId | malId }`: take the anime off the list |
 | `POST /api/pair` | The TV's link: an existing one, or a new QR with `create: true` |
 | `GET /api/pair/events?tv={token}` | Server-Sent Events for the TV: linked, unlinked, commands, session offers |
 | `POST /api/pair/claim` | `{ code }`: the phone takes over the link and gets its remote token |

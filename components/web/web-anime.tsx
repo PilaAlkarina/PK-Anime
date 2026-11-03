@@ -9,13 +9,14 @@ import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, episodesLabel, metaLine, statusLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { isInMyList, toggleMyList, useMyList } from "@/lib/library/my-list";
-import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
+import { findRemoteEntry, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemotePlan } from "@/lib/library/sync";
 import { setAudioPreference, useAudioPreference } from "@/lib/library/preferences";
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import { useLibraryNavigation } from "@/components/tv/navigation-provider";
 import { HorizontalRow } from "./horizontal-row";
+import { ListEntryControls } from "./list-entry-controls";
 import { PosterCard } from "./poster-card";
 import { TrailerDialog } from "./trailer-dialog";
 import { cn } from "@/lib/utils";
@@ -320,11 +321,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
               <ChevronRight className="w-4 h-4 sm:hidden text-zinc-500" />
             </Link>
             {remote && remoteEntry && (
-              <p className="text-sm text-zinc-400">
-                En {remote.provider.name}: {REMOTE_STATUS_LABELS[remoteEntry.status]}
-                {remoteEntry.progress > 0 &&
-                  ` · ${remoteEntry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} episodios vistos`}
-              </p>
+              <ListEntryControls anime={anime} entry={remoteEntry} providerName={remote.provider.name} />
             )}
 
             {anime.description && (

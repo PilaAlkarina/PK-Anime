@@ -12,7 +12,7 @@ import { episodeProgress, type ContinueItem } from "./history";
 export interface RemoteLibrary {
   provider: { id: TrackerId; name: string };
   entries: TrackerEntry[];
-  /** Catalog cards for watching and planned entries, by AniList ID */
+  /** Catalog cards for the entries AniList knows, by AniList ID */
   anime: Map<number, CatalogItem>;
   byAnilistId: Map<number, TrackerEntry>;
   byMalId: Map<number, TrackerEntry>;
@@ -84,6 +84,15 @@ export function upsertRemoteEntry(entry: TrackerEntry, card?: CatalogItem) {
   set(build(library.provider, entries, anime));
 }
 
+/** Records a removal from the remote list without refetching it */
+export function removeRemoteEntry(anime: Pick<CatalogItem, "id" | "malId">) {
+  if (!library) return;
+  const entries = library.entries.filter(
+    (e) => e.anilistId !== anime.id && !(anime.malId && e.malId === anime.malId)
+  );
+  set(build(library.provider, entries, Array.from(library.anime.values())));
+}
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -143,23 +152,30 @@ export function mergeContinueWatching(local: ContinueItem[], remote: RemoteLibra
 
 export type ListOrigin = "local" | "remote" | "both";
 
+export interface MyListItem {
+  item: CatalogItem;
+  origin: ListOrigin;
+  entry: TrackerEntry | null;
+}
+
 /**
- * "Mi lista" from both sides: the local list plus what's planned remotely. `local` items exist
- * only on this device (not on the remote list in any status) and can be exported.
+ * "Mi lista" from both sides: the local list plus the whole remote list, in every status.
+ * `local` items exist only on this device and can be exported. Local items come first, then
+ * the remote ones, most recently updated first.
  */
-export function mergeMyList(local: CatalogItem[], remote: RemoteLibrary | null) {
-  const items: { item: CatalogItem; origin: ListOrigin; remoteStatus: ListStatus | null }[] = local.map((item) => {
+export function mergeMyList(local: CatalogItem[], remote: RemoteLibrary | null): MyListItem[] {
+  const items: MyListItem[] = local.map((item) => {
     const entry = findRemoteEntry(remote, item);
-    return { item, origin: remote ? (entry ? "both" : "local") : "local", remoteStatus: entry?.status ?? null };
+    return { item, origin: remote ? (entry ? "both" : "local") : "local", entry };
   });
   if (!remote) return items;
   const localIds = new Set(local.map((item) => item.id));
-  const planned = remote.entries
-    .filter((e) => e.status === "planning" && e.anilistId && !localIds.has(e.anilistId))
+  const others = remote.entries
+    .filter((e) => e.anilistId && !localIds.has(e.anilistId))
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-  for (const entry of planned) {
+  for (const entry of others) {
     const anime = remote.anime.get(entry.anilistId!);
-    if (anime) items.push({ item: anime, origin: "remote", remoteStatus: "planning" });
+    if (anime) items.push({ item: anime, origin: "remote", entry });
   }
   return items;
 }

@@ -28,3 +28,99 @@
 .tv-cover-shadow {
   box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.6);
 }
+
+/*
+ * Cards the viewer scored 9 or 10. The frame sits behind the cover, a little larger, so its
+ * gradient shows as a border; only opacity and transform are animated.
+ */
+.pk-flair {
+  position: absolute;
+  top: -0.22rem;
+  left: -0.22rem;
+  right: -0.22rem;
+  bottom: -0.22rem;
+  border-radius: 0.95rem;
+  pointer-events: none;
+}
+
+.pk-flair-9 {
+  background: linear-gradient(160deg, #fde68a 0%, #f59e0b 55%, #b45309 100%);
+  box-shadow: 0 0 1.1rem rgba(245, 158, 11, 0.35);
+}
+
+.pk-flair-10 {
+  top: -0.3rem;
+  left: -0.3rem;
+  right: -0.3rem;
+  bottom: -0.3rem;
+  border-radius: 1.05rem;
+  background: linear-gradient(135deg, #fde68a 0%, #f9a8d4 35%, #c4b5fd 68%, #93c5fd 100%);
+  box-shadow: 0 0 1.6rem rgba(244, 114, 182, 0.5), 0 0 3rem rgba(167, 139, 250, 0.3);
+}
+
+.pk-flair-10::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 2.6rem 0.45rem rgba(253, 230, 138, 0.5);
+  opacity: 0.2;
+  animation: pk-flair-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes pk-flair-pulse {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pk-shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 15%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 85%);
+  transform: translateX(-150%) skewX(-12deg);
+  animation: pk-shine 3.6s ease-in-out infinite;
+}
+
+@keyframes pk-shine {
+  0% {
+    transform: translateX(-150%) skewX(-12deg);
+  }
+  45%,
+  100% {
+    transform: translateX(330%) skewX(-12deg);
+  }
+}
+
+.pk-pill-9 {
+  background: linear-gradient(135deg, #fde68a, #f59e0b);
+  color: #1c1300;
+  box-shadow: 0 0 0.6rem rgba(245, 158, 11, 0.6);
+}
+
+.pk-pill-10 {
+  background: linear-gradient(135deg, #fde68a, #f9a8d4 50%, #c4b5fd);
+  color: #1a0b2e;
+  box-shadow: 0 0 0.8rem rgba(249, 168, 212, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-flair-10::after {
+    animation: none;
+    opacity: 0.6;
+  }
+  .pk-shine {
+    display: none;
+  }
+}

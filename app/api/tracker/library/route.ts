@@ -6,12 +6,9 @@ import { getTrackerSession, notSignedIn, trackerJson } from "@/lib/trackers/sess
 
 export const dynamic = "force-dynamic";
 
-// Statuses the library shows as cards ("Seguir viendo", "Mi lista"); others only need IDs
-const CARD_STATUSES = new Set(["watching", "planning"]);
-
 /**
- * GET /api/tracker/library: the whole remote list. Every entry comes with its IDs and
- * status; watching and planned ones also come with a catalog card in `anime`.
+ * GET /api/tracker/library: the whole remote list. Every entry comes with its IDs, status and
+ * score, and a catalog card in `anime` when AniList has the show ("Mi lista" lists them all).
  */
 export async function GET(request: NextRequest) {
   const session = await getTrackerSession(request);
@@ -19,11 +16,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const entries = await session.tracker.getList(session.accessToken);
-    const wanted = entries.filter((e) => CARD_STATUSES.has(e.status));
     const anime: CatalogItem[] = [];
     if (session.tracker.idKind === "mal") {
-      const cards = await getCardsByMalIds(wanted.map((e) => e.malId!).filter(Boolean));
-      for (const entry of wanted) {
+      const cards = await getCardsByMalIds(entries.map((e) => e.malId!).filter(Boolean));
+      for (const entry of entries) {
         const card = entry.malId ? cards.get(entry.malId) : undefined;
         if (!card) continue;
         entry.anilistId = card.id;

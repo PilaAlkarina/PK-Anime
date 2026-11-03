@@ -83,6 +83,9 @@ export interface GridCard {
   item: CatalogItem;
   key?: string;
   badge?: string;
+  badgeClassName?: string;
+  /** The viewer's own score, see AnimeCard */
+  score?: number | null;
 }
 
 /** Wrapping grid of covers; asks for more items when focus reaches the last rows */
@@ -113,6 +116,8 @@ export function CardGrid({
               key={card.key || card.item.id}
               item={card.item}
               badge={card.badge}
+              badgeClassName={card.badgeClassName}
+              score={card.score}
               onSelect={() => onSelect(card.item)}
             />
           ))}
@@ -130,6 +135,8 @@ export function CardGrid({
           key={card.key || card.item.id}
           item={card.item}
           badge={card.badge}
+          badgeClassName={card.badgeClassName}
+          score={card.score}
           onSelect={() => onSelect(card.item)}
           onFocused={(node, details) => {
             reveal(node, details);

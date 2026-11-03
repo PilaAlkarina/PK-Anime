@@ -1,0 +1,110 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
+import type { CatalogItem } from "@/lib/anilist/types";
+import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
+import { useEntryEditor } from "@/lib/library/use-entry-editor";
+import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
+import { FocusButton, FocusGroup } from "./focusable";
+import { StatusDot } from "./list-styles";
+import { useBackHandler } from "./navigation-provider";
+
+const STATUSES = Object.keys(REMOTE_STATUS_LABELS) as ListStatus[];
+const SCORES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/**
+ * Status and score of one anime on the remote list, edited in place on the anime page. Each
+ * choice is saved as soon as it's picked; Back (or "Listo") closes the panel.
+ */
+export function ListEntryPanel({
+  anime,
+  entry,
+  providerName,
+  onClose,
+  onReveal,
+}: {
+  anime: CatalogItem;
+  entry: TrackerEntry;
+  providerName: string;
+  onClose: () => void;
+  /** Scrolls a row of the panel into view as focus reaches it */
+  onReveal?: (node: HTMLElement) => void;
+}) {
+  const { saving, failed, update, remove } = useEntryEditor(anime);
+
+  useBackHandler(() => {
+    onClose();
+    return true;
+  });
+
+  useEffect(() => {
+    setFocus(`entry:status:${entry.status}`);
+    // Only on open; later changes keep focus where the viewer is
+  }, []);
+
+  // Removing asks for a second press, since it also drops the score and progress
+  const [confirming, setConfirming] = useState(false);
+  const removeAndClose = async () => {
+    if (!confirming) return setConfirming(true);
+    if (await remove()) onClose();
+  };
+
+  return (
+    <div className="mt-6 p-6 rounded-2xl bg-zinc-900/95 border-2 border-zinc-800">
+      <p className="text-lg text-zinc-400">Estado en {providerName}</p>
+      {/* Focus enters each row on the current choice, so OK on arrival changes nothing */}
+      <FocusGroup
+        className="flex flex-wrap mt-3"
+        onFocusInside={onReveal}
+        preferredChildFocusKey={`entry:status:${entry.status}`}
+      >
+        {STATUSES.map((status) => (
+          <FocusButton
+            key={status}
+            focusKey={`entry:status:${status}`}
+            variant="chip"
+            className="mr-3 mb-3"
+            active={entry.status === status}
+            onSelect={() => status !== entry.status && update({ status })}
+          >
+            <StatusDot status={status} className="w-3 h-3 mr-2.5" />
+            {REMOTE_STATUS_LABELS[status]}
+          </FocusButton>
+        ))}
+      </FocusGroup>
+
+      <p className="mt-3 text-lg text-zinc-400">Puntuación</p>
+      <FocusGroup
+        className="flex flex-wrap mt-3"
+        onFocusInside={onReveal}
+        preferredChildFocusKey={`entry:score:${entry.score ?? 0}`}
+      >
+        {SCORES.map((score) => (
+          <FocusButton
+            key={score}
+            focusKey={`entry:score:${score}`}
+            variant="chip"
+            className="mr-3 mb-3"
+            active={(entry.score ?? 0) === score}
+            onSelect={() => score !== (entry.score ?? 0) && update({ score: score || null })}
+          >
+            {score ? score : "Sin nota"}
+          </FocusButton>
+        ))}
+      </FocusGroup>
+
+      <FocusGroup className="flex items-center mt-4" onFocusInside={onReveal}>
+        <FocusButton variant="secondary" className="mr-4" onSelect={onClose}>
+          Listo
+        </FocusButton>
+        <FocusButton variant="secondary" onSelect={removeAndClose}>
+          {confirming ? "Pulsa otra vez para quitarlo" : `Quitar de ${providerName}`}
+        </FocusButton>
+        <span className="ml-6 text-lg text-zinc-400">
+          {saving ? "Guardando…" : failed ? `No se pudo guardar en ${providerName}` : ""}
+        </span>
+      </FocusGroup>
+    </div>
+  );
+}

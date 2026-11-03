@@ -6,6 +6,7 @@ import { useTvFocusable } from "./focusable";
 import { cn } from "@/lib/utils";
 import { useIsTv } from "@/components/ui-mode";
 import { PosterCard } from "@/components/web/poster-card";
+import { ScoreFrame, ScorePill, ScoreShine } from "./list-styles";
 
 interface AnimeCardProps {
   item: CatalogItem;
@@ -14,6 +15,10 @@ interface AnimeCardProps {
   onFocused?: (node: HTMLElement, details: FocusDetails) => void;
   /** Short label over the cover, e.g. "EP 5" */
   badge?: string;
+  /** Colors for the badge (a list status); a dark pill by default */
+  badgeClassName?: string;
+  /** The viewer's own score: shown in the corner, with a glowing frame for 9 and 10 */
+  score?: number | null;
   /** 0–1; draws a progress bar along the bottom */
   progress?: number;
   /** Landscape card with the artwork and two lines of text under it, for "Seguir viendo" */
@@ -24,11 +29,31 @@ interface AnimeCardProps {
 export function AnimeCard(props: AnimeCardProps) {
   const isTv = useIsTv();
   if (isTv) return <TvAnimeCard {...props} />;
-  const { item, onSelect, badge, progress } = props;
-  return <PosterCard item={item} onSelect={onSelect} badge={badge} progress={progress} />;
+  const { item, onSelect, badge, badgeClassName, score, progress } = props;
+  return (
+    <PosterCard
+      item={item}
+      onSelect={onSelect}
+      badge={badge}
+      badgeClassName={badgeClassName}
+      score={score}
+      progress={progress}
+    />
+  );
 }
 
-function TvAnimeCard({ item, focusKey, onSelect, onFocused, badge, progress, wide, className }: AnimeCardProps) {
+function TvAnimeCard({
+  item,
+  focusKey,
+  onSelect,
+  onFocused,
+  badge,
+  badgeClassName,
+  score,
+  progress,
+  wide,
+  className,
+}: AnimeCardProps) {
   const { ref, focused, pointerProps } = useTvFocusable({
     focusKey,
     onSelect,
@@ -71,6 +96,7 @@ function TvAnimeCard({ item, focusKey, onSelect, onFocused, badge, progress, wid
       title={item.title}
       className={cn("relative flex-shrink-0 w-[11rem] h-[15.5rem] cursor-pointer outline-none", className)}
     >
+      <ScoreFrame score={score} focused={focused} />
       <div
         className={cn(
           "relative w-full h-full rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
@@ -83,11 +109,18 @@ function TvAnimeCard({ item, focusKey, onSelect, onFocused, badge, progress, wid
         ) : (
           <div className="flex items-end w-full h-full p-3 text-lg font-bold leading-tight">{item.title}</div>
         )}
+        <ScoreShine score={score} />
         {badge && (
-          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 text-sm font-bold uppercase">
+          <span
+            className={cn(
+              "absolute top-2 left-2 px-2 py-0.5 rounded-md text-sm font-bold uppercase",
+              badgeClassName ?? "bg-black/80"
+            )}
+          >
             {badge}
           </span>
         )}
+        <ScorePill score={score} className="px-2 py-1 text-sm" />
         {progress !== undefined && progress > 0 && (
           <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/25">
             <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />

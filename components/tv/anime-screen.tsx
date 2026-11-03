@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, BookmarkCheck, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
+import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
+import { ListEntryPanel } from "./list-entry-panel";
+import { ScorePill, StatusDot } from "./list-styles";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import { TrailerOverlay } from "./trailer-overlay";
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
@@ -22,6 +25,8 @@ import { FocusButton, FocusGroup, Screen, isPointerFocus, useTvFocusable } from 
 import { cn } from "@/lib/utils";
 
 const EPISODES_PER_RANGE = 50;
+// The list button: "Añadir a …" or the status, which opens the editor
+const LIST_ENTRY_KEY = "anime:list-entry";
 
 // CHARACTER and OTHER relations link loosely related shows (shared characters, crossovers)
 const RELATION_LABELS: Record<string, string> = {
@@ -110,6 +115,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const inMyList = isInMyList(myList, anime.id);
   const [adding, setAdding] = useState(false);
   const [trailerSrc, setTrailerSrc] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState(false);
   const hasTrailer = !!trailerEmbedUrl(anime.trailer);
 
   const total = anime.availableEpisodes ?? anime.episodes ?? anime.streamingEpisodes.length;
@@ -272,9 +278,21 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                 {inMyList ? "En mi lista" : "Mi lista"}
               </FocusButton>
               {remote && !remoteEntry && (
-                <FocusButton variant="secondary" className="ml-4" onSelect={addToRemote}>
+                <FocusButton variant="secondary" className="ml-4" focusKey={LIST_ENTRY_KEY} onSelect={addToRemote}>
                   <ListPlus className="w-6 h-6 mr-3" />
                   {adding ? "Añadiendo…" : `Añadir a ${remote.provider.name}`}
+                </FocusButton>
+              )}
+              {remote && remoteEntry && (
+                <FocusButton
+                  variant="secondary"
+                  className="ml-4"
+                  focusKey={LIST_ENTRY_KEY}
+                  active={editingEntry}
+                  onSelect={() => setEditingEntry(!editingEntry)}
+                >
+                  <StatusDot status={remoteEntry.status} className="w-3.5 h-3.5 mr-3" />
+                  {REMOTE_STATUS_LABELS[remoteEntry.status]}
                 </FocusButton>
               )}
             </FocusGroup>
@@ -287,7 +305,26 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                 En {remote.provider.name}: {REMOTE_STATUS_LABELS[remoteEntry.status]}
                 {remoteEntry.progress > 0 &&
                   ` · ${remoteEntry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} episodios vistos`}
+                {remoteEntry.score ? (
+                  <>
+                    {" · Tu nota "}
+                    <ScorePill score={remoteEntry.score} inline className="px-2 py-1 text-lg" />
+                  </>
+                ) : null}
               </p>
+            )}
+            {remote && remoteEntry && editingEntry && (
+              <ListEntryPanel
+                anime={anime}
+                entry={remoteEntry}
+                providerName={remote.provider.name}
+                onReveal={revealRow}
+                onClose={() => {
+                  setEditingEntry(false);
+                  // After the render: removing swaps the button for "Añadir a …" under the same key
+                  setTimeout(() => setFocus(LIST_ENTRY_KEY));
+                }}
+              />
             )}
           </div>
         </header>
