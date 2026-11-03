@@ -105,3 +105,11 @@ query ($page: Int, $from: Int, $to: Int) {
 ${CARD_FRAGMENT}`;
 
 export const GENRES_QUERY = `query { GenreCollection }`;
+
+export const BY_MAL_IDS_QUERY = `
+query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(idMal_in: $ids, type: ANIME) { ...card }
+  }
+}
+${CARD_FRAGMENT}`;

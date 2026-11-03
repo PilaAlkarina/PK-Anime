@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, type RowSource } from "./queries";
 import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
@@ -285,3 +285,28 @@ export const getGenres = unstable_cache(
   ["anilist:genres"],
   { revalidate: GENRES_TTL, tags: ["anilist"] }
 );
+
+/** AniList allows 50 IDs per idMal_in page */
+const MAL_ID_CHUNK = 50;
+
+const getCardsByMalIdChunk = unstable_cache(
+  async (malIds: number[]): Promise<CatalogItem[]> => {
+    const { Page } = await anilistQuery<{ Page: RawPage }>(BY_MAL_IDS_QUERY, { ids: malIds });
+    return (Page.media || []).filter(isListable).map(toCatalogItem);
+  },
+  ["anilist:by-mal"],
+  { revalidate: DETAIL_TTL, tags: ["anilist"] }
+);
+
+/** Catalog cards for MyAnimeList IDs, keyed by MAL ID; IDs AniList doesn't know are left out */
+export async function getCardsByMalIds(malIds: number[]): Promise<Map<number, CatalogItem>> {
+  const unique = Array.from(new Set(malIds)).sort((a, b) => a - b);
+  const cards = new Map<number, CatalogItem>();
+  // One chunk at a time, to stay well inside AniList's rate limit on a cold cache
+  for (let i = 0; i < unique.length; i += MAL_ID_CHUNK) {
+    for (const card of await getCardsByMalIdChunk(unique.slice(i, i + MAL_ID_CHUNK))) {
+      if (card.malId) cards.set(card.malId, card);
+    }
+  }
+  return cards;
+}
