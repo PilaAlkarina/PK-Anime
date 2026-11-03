@@ -8,6 +8,8 @@ import { getAudioPreference, type AudioPreference } from "@/lib/library/preferen
 import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
 import { useBackHandler, useLibraryNavigation } from "./navigation-provider";
+import { useIsTv } from "@/components/ui-mode";
+import { ChevronLeft } from "lucide-react";
 
 const NEXT_EPISODE_COUNTDOWN = 8;
 
@@ -24,7 +26,8 @@ export function WatchScreen({
   episode: number;
   audio?: AudioPreference;
 }) {
-  const { replace } = useLibraryNavigation();
+  const { replace, goBack } = useLibraryNavigation();
+  const isTv = useIsTv();
   // The player only runs in the browser; mounting it after hydration also lets the
   // stored Sub/Dub preference apply without a server/client mismatch
   const [audio, setAudio] = useState<AudioPreference | null>(null);
@@ -40,10 +43,12 @@ export function WatchScreen({
     setAudio(audioParam ?? getAudioPreference());
   }, [audioParam]);
 
+  // Spatial navigation only runs in the TV layout
   useEffect(() => {
+    if (!isTv) return;
     pause();
     return () => resume();
-  }, []);
+  }, [isTv]);
 
   useEffect(() => {
     recordWatch(anime, episode);
@@ -89,12 +94,42 @@ export function WatchScreen({
           onPlayerEvent={onPlayerEvent}
         />
       )}
+      {/* Without a remote's Back key, the web layout needs a way out */}
+      {!isTv && (
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label="Volver a la ficha"
+          className="absolute top-3 left-3 z-[60] flex items-center justify-center w-11 h-11 rounded-full bg-black/60 text-white hover:bg-black/80"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      )}
       {nextIn !== null && (
-        <div className="absolute right-[5vw] bottom-[14vh] z-[60] w-[26rem] p-6 rounded-2xl bg-zinc-900/95 tv-fade-in">
-          <p className="text-lg text-zinc-400">Siguiente episodio</p>
-          <p className="mt-1 text-2xl font-bold">Episodio {episode + 1}</p>
-          <p className="mt-3 text-xl text-zinc-200">Empieza en {nextIn} s</p>
-          <p className="mt-1 text-base text-zinc-500">Pulsa Atrás para cancelar</p>
+        <div className="absolute right-4 bottom-24 z-[60] w-[min(26rem,calc(100vw-2rem))] p-5 rounded-2xl bg-zinc-900/95 tv:right-[5vw] tv:bottom-[14vh] tv:p-6 tv-fade-in">
+          <p className="text-sm text-zinc-400 tv:text-lg">Siguiente episodio</p>
+          <p className="mt-1 text-xl font-bold tv:text-2xl">Episodio {episode + 1}</p>
+          <p className="mt-2 text-base text-zinc-200 tv:mt-3 tv:text-xl">Empieza en {nextIn} s</p>
+          {isTv ? (
+            <p className="mt-1 text-base text-zinc-500">Pulsa Atrás para cancelar</p>
+          ) : (
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setNextIn(0)}
+                className="h-10 px-4 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200"
+              >
+                Ver ahora
+              </button>
+              <button
+                type="button"
+                onClick={() => setNextIn(null)}
+                className="h-10 px-4 rounded-full bg-white/10 text-sm font-medium hover:bg-white/20"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

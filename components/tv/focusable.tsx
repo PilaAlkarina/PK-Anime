@@ -8,6 +8,7 @@ import {
   type UseFocusableConfig,
 } from "@noriginmedia/norigin-spatial-navigation";
 import { cn } from "@/lib/utils";
+import { useIsTv } from "@/components/ui-mode";
 
 /** Set on focus that came from the mouse (or an LG Magic Remote pointer), see useTvFocusable */
 export const isPointerFocus = (details?: FocusDetails) => !!details?.pointer;
@@ -51,14 +52,7 @@ const VARIANTS: Record<ButtonVariant, { base: string; focused: string }> = {
   },
 };
 
-export function FocusButton({
-  onSelect,
-  focusKey,
-  variant = "secondary",
-  active = false,
-  className,
-  children,
-}: {
+interface FocusButtonProps {
   onSelect: () => void;
   focusKey?: string;
   variant?: ButtonVariant;
@@ -66,7 +60,49 @@ export function FocusButton({
   active?: boolean;
   className?: string;
   children: React.ReactNode;
-}) {
+}
+
+// The web layout's buttons: hover and keyboard focus instead of spatial focus
+const WEB_VARIANTS: Record<ButtonVariant, { base: string; active: string }> = {
+  primary: {
+    base: "h-11 px-6 rounded-full bg-white text-black text-[0.95rem] font-semibold hover:bg-zinc-200",
+    active: "",
+  },
+  secondary: {
+    base: "h-11 px-5 rounded-full bg-white/10 text-zinc-100 text-[0.95rem] font-medium hover:bg-white/20",
+    active: "bg-white text-black hover:bg-zinc-200",
+  },
+  chip: {
+    base: "h-10 px-4 rounded-full bg-white/10 text-zinc-200 text-sm font-medium hover:bg-white/20",
+    active: "bg-white text-black hover:bg-zinc-200",
+  },
+};
+
+function WebButton({ onSelect, variant = "secondary", active = false, className, children }: FocusButtonProps) {
+  const styles = WEB_VARIANTS[variant];
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={variant === "primary" ? undefined : active}
+      className={cn(
+        "inline-flex items-center justify-center whitespace-nowrap transition-colors duration-150",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+        styles.base,
+        active && styles.active,
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function FocusButton(props: FocusButtonProps) {
+  return useIsTv() ? <TvButton {...props} /> : <WebButton {...props} />;
+}
+
+function TvButton({ onSelect, focusKey, variant = "secondary", active = false, className, children }: FocusButtonProps) {
   const { ref, focused, pointerProps } = useTvFocusable({ focusKey, onSelect });
   const styles = VARIANTS[variant];
   return (
@@ -91,7 +127,11 @@ export function FocusButton({
  * Focus container for a page's content. Focuses its first child on mount, or as soon as
  * `ready` turns true for screens whose content loads on the client.
  */
-export function Screen({
+export function Screen(props: { ready?: boolean; className?: string; children: React.ReactNode }) {
+  return useIsTv() ? <TvScreen {...props} /> : <div className={props.className}>{props.children}</div>;
+}
+
+function TvScreen({
   ready = true,
   className,
   children,
@@ -116,19 +156,25 @@ export function Screen({
 }
 
 /** Groups focusables (a row, a grid, a button bar) so navigation remembers the last one used */
-export function FocusGroup({
-  className,
-  children,
-  onFocusInside,
-  focusKey: propFocusKey,
-  preferredChildFocusKey,
-}: {
+interface FocusGroupProps {
   className?: string;
   children: React.ReactNode;
   onFocusInside?: (node: HTMLElement) => void;
   focusKey?: string;
   preferredChildFocusKey?: string;
-}) {
+}
+
+export function FocusGroup(props: FocusGroupProps) {
+  return useIsTv() ? <TvFocusGroup {...props} /> : <div className={props.className}>{props.children}</div>;
+}
+
+function TvFocusGroup({
+  className,
+  children,
+  onFocusInside,
+  focusKey: propFocusKey,
+  preferredChildFocusKey,
+}: FocusGroupProps) {
   const { ref, focusKey, hasFocusedChild } = useFocusable({
     focusKey: propFocusKey,
     trackChildren: true,

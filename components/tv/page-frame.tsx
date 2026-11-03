@@ -7,6 +7,9 @@ import { revealVertically } from "@/lib/tv/scroll";
 import { AnimeCard } from "./anime-card";
 import { FocusGroup, Screen, isPointerFocus } from "./focusable";
 import { cn } from "@/lib/utils";
+import { useIsTv } from "@/components/ui-mode";
+import { PosterCard } from "@/components/web/poster-card";
+import { LoadMore } from "@/components/web/load-more";
 
 const ScrollContainerContext = createContext<RefObject<HTMLDivElement> | null>(null);
 
@@ -27,7 +30,10 @@ export function useRevealOnFocus(margin = 48) {
 
 /** A scrollable region that focusables inside it reveal themselves in */
 export function ScrollArea({ className, children }: { className?: string; children: React.ReactNode }) {
+  const isTv = useIsTv();
   const containerRef = useRef<HTMLDivElement>(null);
+  // The web layout scrolls the page itself
+  if (!isTv) return <div className={className}>{children}</div>;
   return (
     <ScrollContainerContext.Provider value={containerRef}>
       <div ref={containerRef} className={cn("overflow-y-auto overflow-x-hidden tv-no-scrollbar", className)}>
@@ -49,6 +55,17 @@ export function PageFrame({
   ready?: boolean;
   children: React.ReactNode;
 }) {
+  const isTv = useIsTv();
+  if (!isTv) {
+    return (
+      <div className="max-w-[1360px] mx-auto px-4 pt-6 pb-12 md:px-8 md:pt-10">
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{title}</h1>
+        {subtitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-relaxed text-zinc-400">{subtitle}</p>}
+        <div className="mt-8">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <Screen ready={ready}>
       <ScrollArea className="fixed top-0 bottom-0 left-[7rem] right-0">
@@ -80,10 +97,30 @@ export function CardGrid({
   onNearEnd?: () => void;
   emptyMessage?: string;
 }) {
+  const isTv = useIsTv();
   const reveal = useRevealOnFocus();
 
   if (cards.length === 0) {
-    return emptyMessage ? <p className="text-2xl text-zinc-400">{emptyMessage}</p> : null;
+    return emptyMessage ? <p className="text-lg text-zinc-400 tv:text-2xl">{emptyMessage}</p> : null;
+  }
+
+  if (!isTv) {
+    return (
+      <>
+        <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] sm:gap-x-5">
+          {cards.map((card) => (
+            <PosterCard
+              key={card.key || card.item.id}
+              item={card.item}
+              badge={card.badge}
+              onSelect={() => onSelect(card.item)}
+            />
+          ))}
+        </div>
+        {/* Remounted per page, so a marker still on screen after loading asks again */}
+        {onNearEnd && <LoadMore key={cards.length} onVisible={onNearEnd} />}
+      </>
+    );
   }
 
   return (

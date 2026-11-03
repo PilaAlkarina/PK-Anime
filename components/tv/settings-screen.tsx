@@ -99,18 +99,18 @@ function focusSoon(...keys: string[]) {
 
 function Setting({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="mb-10">
-      <h3 className="text-2xl font-bold">{label}</h3>
-      {hint && <p className="mt-2 max-w-[60rem] text-lg text-zinc-400 leading-snug">{hint}</p>}
-      <div className="mt-4">{children}</div>
+    <div className="mb-8 tv:mb-10">
+      <h3 className="text-base font-bold tv:text-2xl">{label}</h3>
+      {hint && <p className="mt-1 max-w-[60rem] text-sm text-zinc-400 leading-snug tv:mt-2 tv:text-lg">{hint}</p>}
+      <div className="mt-3 tv:mt-4">{children}</div>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-16">
-      <h2 className="mb-8 pb-3 text-lg font-bold uppercase tracking-widest text-zinc-500 border-b border-white/10">
+    <section className="mb-12 tv:mb-16">
+      <h2 className="mb-6 pb-2 text-sm font-bold uppercase tv:mb-8 tv:pb-3 tv:text-lg tracking-widest text-zinc-500 border-b border-white/10">
         {title}
       </h2>
       {children}
@@ -121,15 +121,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Options<T>({ value, options, onChange }: { value: T; options: Option<T>[]; onChange: (value: T) => void }) {
   const reveal = useRevealOnFocus(160);
   return (
-    <FocusGroup className="flex flex-wrap -mb-3" onFocusInside={(node) => reveal(node)}>
+    <FocusGroup className="flex flex-wrap -mb-2 tv:-mb-3" onFocusInside={(node) => reveal(node)}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
-          <FocusButton key={String(option.value)} variant="chip" className="mr-3 mb-3" active={selected} onSelect={() => onChange(option.value)}>
+          <FocusButton key={String(option.value)} variant="chip" className="mr-2 mb-2 tv:mr-3 tv:mb-3" active={selected} onSelect={() => onChange(option.value)}>
             {option.swatch && (
-              <span className="w-5 h-5 mr-3 rounded-full ring-2 ring-black/30" style={{ background: option.swatch }} />
+              <span className="w-4 h-4 mr-2 rounded-full tv:w-5 tv:h-5 tv:mr-3 ring-2 ring-black/30" style={{ background: option.swatch }} />
             )}
-            {selected && !option.swatch && <Check className="w-5 h-5 mr-2" />}
+            {selected && !option.swatch && <Check className="w-4 h-4 mr-1.5 tv:w-5 tv:h-5 tv:mr-2" />}
             {option.label}
           </FocusButton>
         );
@@ -161,30 +161,30 @@ function LanguageList({ languages }: { languages: string[] }) {
   return (
     <>
       {languages.length === 0 ? (
-        <p className="mb-6 text-xl text-zinc-400">
+        <p className="mb-6 text-base text-zinc-400 tv:text-xl">
           Sin idiomas elegidos: se usa la pista predeterminada de cada servidor.
         </p>
       ) : (
         <FocusGroup className="mb-6 max-w-[52rem] space-y-3" onFocusInside={(node) => reveal(node)}>
           {languages.map((code, index) => (
-            <div key={code} className="flex items-center h-16 pl-6 pr-2 rounded-2xl bg-white/5">
-              <span className="w-10 text-xl font-bold text-zinc-500">{index + 1}</span>
-              <span className="flex-1 text-2xl">
+            <div key={code} className="flex items-center h-14 pl-4 pr-1.5 rounded-xl bg-white/5 tv:h-16 tv:pl-6 tv:pr-2 tv:rounded-2xl">
+              <span className="w-7 text-base font-bold text-zinc-500 tv:w-10 tv:text-xl">{index + 1}</span>
+              <span className="flex-1 min-w-0 text-base tv:text-2xl">
                 {subtitleLanguageName(code)}
-                {index > 0 && <span className="ml-3 text-lg text-zinc-500">si no hay {subtitleLanguageName(languages[index - 1]).toLowerCase()}</span>}
+                {index > 0 && <span className="hidden sm:inline ml-3 text-sm text-zinc-500 tv:text-lg">si no hay {subtitleLanguageName(languages[index - 1]).toLowerCase()}</span>}
               </span>
               {/* Fixed slots keep the buttons in columns, so Up/Down moves straight between rows */}
-              <span className="w-[4.25rem] flex justify-center">
+              <span className="w-12 flex justify-center tv:w-[4.25rem]">
                 {index > 0 && (
                   <FocusButton variant="chip" className="px-3" onSelect={() => move(index, -1)}>
-                    <ArrowUp className="w-6 h-6" aria-label="Subir" />
+                    <ArrowUp className="w-5 h-5 tv:w-6 tv:h-6" aria-label="Subir" />
                   </FocusButton>
                 )}
               </span>
-              <span className="w-[4.25rem] flex justify-center">
+              <span className="w-12 flex justify-center tv:w-[4.25rem]">
                 {index < languages.length - 1 && (
                   <FocusButton variant="chip" className="px-3" onSelect={() => move(index, 1)}>
-                    <ArrowDown className="w-6 h-6" aria-label="Bajar" />
+                    <ArrowDown className="w-5 h-5 tv:w-6 tv:h-6" aria-label="Bajar" />
                   </FocusButton>
                 )}
               </span>
@@ -194,7 +194,7 @@ function LanguageList({ languages }: { languages: string[] }) {
                 focusKey={`lang-remove-${code}`}
                 onSelect={() => remove(index)}
               >
-                <X className="w-5 h-5 mr-2" />
+                <X className="w-4 h-4 mr-1.5 tv:w-5 tv:h-5 tv:mr-2" />
                 Quitar
               </FocusButton>
             </div>
@@ -203,17 +203,17 @@ function LanguageList({ languages }: { languages: string[] }) {
       )}
       {available.length > 0 && (
         <>
-          <p className="mb-3 text-lg text-zinc-400">Añadir idioma</p>
-          <FocusGroup className="flex flex-wrap -mb-3" onFocusInside={(node) => reveal(node)}>
+          <p className="mb-3 text-sm text-zinc-400 tv:text-lg">Añadir idioma</p>
+          <FocusGroup className="flex flex-wrap -mb-2 tv:-mb-3" onFocusInside={(node) => reveal(node)}>
             {available.map((lang, index) => (
               <FocusButton
                 key={lang.code}
                 variant="chip"
-                className="mr-3 mb-3"
+                className="mr-2 mb-2 tv:mr-3 tv:mb-3"
                 focusKey={index === 0 ? "lang-add-first" : `lang-add-${lang.code}`}
                 onSelect={() => add(lang.code, index)}
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-4 h-4 mr-1.5 tv:w-5 tv:h-5 tv:mr-2" />
                 {lang.name}
               </FocusButton>
             ))}
@@ -227,7 +227,7 @@ function LanguageList({ languages }: { languages: string[] }) {
 function SubtitlePreview({ styles }: { styles: SubtitleStyles }) {
   const blur = styles.background.includes("0.4");
   return (
-    <div className="relative mb-10 flex items-end justify-center w-[48rem] h-[27rem] rounded-2xl overflow-hidden bg-gradient-to-br from-sky-900 via-indigo-950 to-zinc-900">
+    <div className="relative mb-10 flex items-end justify-center w-full max-w-[48rem] h-[13rem] sm:h-[22rem] rounded-2xl tv:w-[48rem] tv:h-[27rem] overflow-hidden bg-gradient-to-br from-sky-900 via-indigo-950 to-zinc-900">
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.18),transparent_45%)]" />
       <div
         className={`relative mb-6 px-3.5 py-1.5 rounded-lg text-center whitespace-pre-line leading-snug tracking-wide ${

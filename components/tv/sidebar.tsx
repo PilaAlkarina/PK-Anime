@@ -27,13 +27,11 @@ function SidebarItem({
   label,
   icon: Icon,
   active,
-  expanded,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   active: boolean;
-  expanded: boolean;
 }) {
   const router = useRouter();
   const { ref, focused, pointerProps } = useTvFocusable({
@@ -48,29 +46,22 @@ function SidebarItem({
       type="button"
       {...pointerProps}
       className={cn(
-        "flex items-center h-14 w-full pl-5 pr-6 rounded-full outline-none transition-colors duration-150",
-        focused ? "bg-white text-black" : active ? "text-white" : "text-zinc-500"
+        "flex flex-col items-center w-[5.5rem] py-2.5 rounded-2xl outline-none transition-colors duration-150",
+        focused ? "bg-white text-black" : active ? "bg-white/15 text-white" : "text-zinc-400"
       )}
     >
       <Icon className="w-7 h-7 flex-shrink-0" strokeWidth={active || focused ? 2.5 : 2} />
-      <span
-        className={cn(
-          "ml-5 text-xl font-bold whitespace-nowrap transition-opacity duration-150",
-          expanded ? "opacity-100" : "opacity-0"
-        )}
-      >
-        {label}
-      </span>
+      <span className="mt-1.5 text-[0.95rem] font-semibold leading-tight whitespace-nowrap">{label}</span>
     </button>
   );
 }
 
-/** Left rail. Collapsed to icons; expands with labels while it has focus */
+/** Left rail: every section shows its name under the icon, so nothing has to be guessed */
 export function Sidebar() {
   const pathname = usePathname();
   const hidden = pathname.startsWith("/watch/");
   const activeHref = ITEMS.find((item) => isActive(pathname, item.href))?.href ?? "/";
-  const { ref, focusKey, hasFocusedChild } = useFocusable({
+  const { ref, focusKey } = useFocusable({
     focusKey: "NAV",
     trackChildren: true,
     // Entering the rail always lands on the current page's item
@@ -85,23 +76,15 @@ export function Sidebar() {
     <FocusContext.Provider value={focusKey}>
       <nav
         ref={ref}
-        className={cn(
-          "fixed top-0 bottom-0 left-0 z-40 flex flex-col justify-center pl-6 pr-4 transition-all duration-200",
-          hasFocusedChild
-            ? "w-[20rem] bg-gradient-to-r from-black via-black/95 to-transparent"
-            : "w-[7rem] bg-gradient-to-r from-black/80 to-transparent"
-        )}
+        className="fixed top-0 bottom-0 left-0 z-40 flex flex-col items-center justify-center w-[7rem] bg-black border-r border-white/10"
       >
-        <div className="absolute top-10 left-8 text-2xl font-bold tracking-tight text-white">
-          PK<span className="text-zinc-500">{hasFocusedChild ? " Anime" : ""}</span>
-        </div>
+        <div className="absolute top-10 text-2xl font-bold tracking-tight text-white">PK</div>
         <div className="space-y-2">
           {ITEMS.map((item) => (
             <SidebarItem
               key={item.href}
               {...item}
               active={item.href === activeHref}
-              expanded={hasFocusedChild}
             />
           ))}
         </div>

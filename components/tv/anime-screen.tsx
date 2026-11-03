@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, ListPlus, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, Captions, ListPlus, Play } from "lucide-react";
+import { usePlaybackPreferences } from "@/lib/playback-preferences";
+import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
@@ -98,6 +100,7 @@ function EpisodeTile({
 export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const router = useRouter();
   const audio = useAudioPreference();
+  const prefs = usePlaybackPreferences();
   const myList = useMyList();
   const history = useWatchHistory();
   const remote = useRemoteLibrary();
@@ -164,6 +167,11 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   }));
 
   const subtitle = anime.romajiTitle && anime.romajiTitle !== anime.title ? anime.romajiTitle : anime.nativeTitle;
+  const subtitlesLabel = !prefs.subtitlesEnabled
+    ? "desactivados"
+    : prefs.subtitleLanguages.length
+      ? subtitleLanguageName(prefs.subtitleLanguages[0])
+      : "los del servidor";
   const details = [statusLabel(anime.status), anime.studios[0], anime.duration ? `${anime.duration} min` : null]
     .filter(Boolean)
     .join(" · ");
@@ -247,8 +255,12 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                 </FocusButton>
               )}
             </FocusGroup>
+            <p className="flex items-center mt-5 text-lg text-zinc-400">
+              <Captions className="w-6 h-6 mr-3" />
+              Subtítulos: {subtitlesLabel} · se cambian en Ajustes
+            </p>
             {remote && remoteEntry && (
-              <p className="mt-5 text-lg text-zinc-400">
+              <p className="mt-2 text-lg text-zinc-400">
                 En {remote.provider.name}: {REMOTE_STATUS_LABELS[remoteEntry.status]}
                 {remoteEntry.progress > 0 &&
                   ` · ${remoteEntry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} episodios vistos`}

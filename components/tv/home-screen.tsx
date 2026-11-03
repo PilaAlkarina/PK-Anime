@@ -44,6 +44,25 @@ function PagedRow({
   );
 }
 
+function KeyHint({ keyLabel, children }: { keyLabel: string; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center ml-6 first:ml-0">
+      <span className="mr-2 px-2.5 rounded-lg border-2 border-zinc-500 font-bold leading-relaxed">{keyLabel}</span>
+      {children}
+    </span>
+  );
+}
+
+/** What the remote's keys do here, for whoever picks it up for the first time */
+function RemoteHints() {
+  return (
+    <div className="fixed top-[4vh] right-[3rem] z-30 flex items-center px-5 py-2 rounded-full bg-black/80 text-lg text-zinc-200">
+      <KeyHint keyLabel="◀ ▶ ▲ ▼">Moverse</KeyHint>
+      <KeyHint keyLabel="OK">Abrir</KeyHint>
+    </div>
+  );
+}
+
 export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
   // Initial focus waits for the stored history, so it lands on "Seguir viendo" when there is one
@@ -79,14 +98,18 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   const resumeCards: RowCard[] = resume.map(({ anime, episode, progress }) => ({
     item: anime,
     key: `${anime.id}`,
-    badge: `EP ${episode}`,
     progress,
+    wide: {
+      title: anime.title,
+      meta: progress > 0 ? `Episodio ${episode} · visto el ${Math.round(progress * 100)} %` : `Episodio ${episode}`,
+    },
     onSelect: () => router.push(`/watch/${anime.id}/${episode}`),
   }));
 
   return (
     <Screen ready={mounted}>
       <Hero item={hero} />
+      <RemoteHints />
       <div
         ref={listRef}
         className="fixed left-[7rem] right-0 bottom-0 top-[50vh] overflow-y-auto overflow-x-hidden tv-no-scrollbar"

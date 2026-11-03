@@ -49,20 +49,20 @@ export function ExportLocal() {
 
   return (
     <div>
-      <p className="text-xl text-zinc-400">
+      <p className="text-[0.95rem] text-zinc-400 tv:text-xl">
         {count === 0
           ? `Todo lo de este dispositivo está ya en ${name}.`
           : `Solo en este dispositivo: ${describe(pending.plan.length, pending.progress.length)}.`}
       </p>
       {count > 0 && (
-        <FocusGroup className="mt-5" onFocusInside={(node) => reveal(node)}>
+        <FocusGroup className="mt-4 tv:mt-5" onFocusInside={(node) => reveal(node)}>
           <FocusButton variant="primary" onSelect={run}>
-            <Upload className="w-6 h-6 mr-3" />
+            <Upload className="w-5 h-5 mr-2 tv:w-6 tv:h-6 tv:mr-3" />
             {running ? "Exportando…" : `Exportar a ${name}`}
           </FocusButton>
         </FocusGroup>
       )}
-      {result && <p className="mt-4 text-xl text-zinc-300">{summary(result)}</p>}
+      {result && <p className="mt-4 text-[0.95rem] text-zinc-300 tv:text-xl">{summary(result)}</p>}
     </div>
   );
 }

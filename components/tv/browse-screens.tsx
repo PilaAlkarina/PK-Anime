@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useIsTv } from "@/components/ui-mode";
 import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilist/types";
 import { formatTime, startOfDay } from "@/lib/library/format";
 import { useAccount } from "@/lib/library/account";
@@ -54,10 +56,26 @@ function GenreTile({ genre, index }: { genre: Genre; index: number }) {
 }
 
 export function GenresScreen({ genres }: { genres: Genre[] }) {
+  const isTv = useIsTv();
   return (
     <PageFrame title="Géneros">
       {genres.length === 0 ? (
-        <p className="text-2xl text-zinc-400">No se pudieron cargar los géneros.</p>
+        <p className="text-lg text-zinc-400 tv:text-2xl">No se pudieron cargar los géneros.</p>
+      ) : !isTv ? (
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] sm:gap-4">
+          {genres.map((genre, index) => (
+            <Link
+              key={genre.name}
+              href={`/genres/${encodeURIComponent(genre.name)}`}
+              className={cn(
+                "flex items-end h-20 sm:h-28 p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br text-lg sm:text-xl font-bold hover:brightness-125",
+                GENRE_COLORS[index % GENRE_COLORS.length]
+              )}
+            >
+              {genre.label}
+            </Link>
+          ))}
+        </div>
       ) : (
         <FocusGroup className="grid grid-cols-4 gap-6">
           {genres.map((genre, index) => (
@@ -174,7 +192,7 @@ export function ScheduleScreen() {
 
   return (
     <PageFrame title="Calendario" subtitle="Episodios que se emiten esta semana, en tu hora local" ready={mounted}>
-      <FocusGroup className="flex flex-wrap mb-10">
+      <FocusGroup className="flex flex-wrap mb-6 tv:mb-10">
         {days.map((day, index) => (
           <FocusButton
             key={day.getTime()}
@@ -188,9 +206,9 @@ export function ScheduleScreen() {
         ))}
       </FocusGroup>
       {failed ? (
-        <p className="text-2xl text-zinc-400">No se pudo cargar el calendario.</p>
+        <p className="text-lg text-zinc-400 tv:text-2xl">No se pudo cargar el calendario.</p>
       ) : entries === null ? (
-        <p className="text-2xl text-zinc-500">Cargando…</p>
+        <p className="text-lg text-zinc-500 tv:text-2xl">Cargando…</p>
       ) : (
         <CardGrid
           cards={dayEntries.map((e) => ({

@@ -31,7 +31,7 @@ Key points:
 - **Intro/outro skipping** using Re:ANIME timestamps and the AniSkip API, adjusted for episode duration.
 - **Subtitle proxy** with up to 16 languages. The selected track persists when you switch servers.
 - **Dark, minimal player** with a two-way `postMessage` interface for telemetry and remote control.
-- **TV library** at `/`: a Netflix-style catalog built on AniList, made for Smart TV browsers and remote controls. See [TV library](#tv-library).
+- **TV library** at `/`: a Netflix-style catalog built on AniList, with a remote-control interface for Smart TVs and a web one for computers and phones. See [TV library](#tv-library).
 
 ---
 
@@ -70,7 +70,14 @@ Some providers return the original Japanese audio when an English dub doesn't ex
 
 ## TV library
 
-The site root is a personal anime library for TV browsers (Samsung Tizen, LG webOS, Android TV), also usable with a keyboard or mouse on desktop. The interface is in Spanish. Catalog data comes from AniList through the cached `/api/catalog` endpoints, and episodes play in the same player as the embeds.
+The site root is a personal anime library for TV browsers (Samsung Tizen, LG webOS, Android TV), computers and phones. The interface is in Spanish. Catalog data comes from AniList through the cached `/api/catalog` endpoints, and episodes play in the same player as the embeds.
+
+**Two interfaces.** The server picks one per request from the User-Agent, so the first render already has the right layout:
+
+- **TV** (Smart TV and set-top browsers): left rail with labelled sections, spatial navigation with the remote, on-screen keyboard.
+- **Web** (everything else): top bar with sections, a search box (`/` focuses it) and Ajustes on computers. On phones (below 768 px) it becomes bottom tabs (Inicio, Buscar, Calendario, Mi lista, Perfil), search uses the phone's own keyboard and Ajustes lives under Perfil. Both screens have the same home sections in the same order.
+
+Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (stored in the `pk_ui` cookie), for a TV whose browser is not recognised; `?ui=auto` goes back to detection.
 
 | Route | Screen |
 | :--- | :--- |
@@ -101,7 +108,7 @@ If the chosen server fails, the usual failover moves to the next server and pick
 
 **Phone as remote.** *Cuenta → Vincular un móvil* shows a QR (and a short code). The phone that opens it becomes a remote control: D-pad, OK, Back, Home, play/pause, ±10 s and a text field that types into the TV's search. From the phone the user can also sign in and hand the session to the TV, so no password is typed with the TV remote. Commands reach the TV over Server-Sent Events. Links are kept in the server's memory, which suits a single self-hosted instance: a code lasts 10 minutes, a linked phone 24 hours without use, and restarting the server drops every link. The phone must reach the server at the same address the TV uses, so open the TV library through the server's LAN address or hostname, not `localhost`.
 
-**Compatibility.** The library avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
+**Compatibility.** The TV interface avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
 
 **Known limitations.** The player's settings menu (server, quality, subtitles) is not reachable with the arrow keys, which control playback; use a pointer remote to open it. Playback started only from the phone may need one press on the TV's own remote first, since TV browsers block autoplay with sound until the page has received a real key press. AniList has no per-episode metadata for every series, so some episodes show only their number.
 
@@ -417,6 +424,7 @@ aniflow-api/
 ├── components/
 │   ├── remote/                   # Phone remote UI
 │   ├── tv/                       # TV library screens and remote-control navigation
+│   ├── web/                      # Library screens for computers and phones
 │   └── player/
 │       ├── embed-player.tsx      # HLS player
 │       ├── embed-page-client.tsx # Embed page wrapper

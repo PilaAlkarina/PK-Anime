@@ -69,5 +69,12 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Library screens shared by both interfaces: `tv:text-2xl` applies only inside the TV
+    // layout (data-ui="tv" on its root), so the unprefixed class is the web size
+    ({ addVariant }: { addVariant: (name: string, selector: string) => void }) => {
+      addVariant("tv", '[data-ui="tv"] &');
+      addVariant("web", '[data-ui="web"] &');
+    },
+  ],
 };

@@ -5,9 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { init, pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import { isBackKey } from "@/lib/tv/keys";
 
+let initialized = false;
+
 // Must run before any useFocusable registers, and children's effects run before this
-// provider's, so it happens when the module loads on the client
-if (typeof window !== "undefined") {
+// provider's, so it happens while the provider first renders. Only the TV layout renders
+// the provider: in the web layout spatial navigation is never switched on.
+function initSpatialNavigation() {
+  if (initialized || typeof window === "undefined") return;
+  initialized = true;
   init({
     // Real DOM focus keeps inputs typeable and screen readers in sync; scrolling is ours
     shouldFocusDOMNode: true,
@@ -40,6 +45,7 @@ export function parentPath(pathname: string) {
 }
 
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
+  initSpatialNavigation();
   const router = useRouter();
   const pathname = usePathname();
   const historyRef = useRef<string[]>([]);
@@ -100,6 +106,27 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
       handlersRef.current = handlersRef.current.filter((h) => h !== handler);
     };
   }, []);
+
+  return (
+    <NavigationContext.Provider value={{ goBack, replace, registerBackHandler }}>{children}</NavigationContext.Provider>
+  );
+}
+
+/**
+ * The same navigation API for the web layout: the browser's own Back button and history
+ * do the work, so there are no Back-key handlers to run.
+ */
+export function WebNavigationProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const goBack = useCallback(() => {
+    if (window.history.length > 1) router.back();
+    else router.replace(parentPath(pathname));
+  }, [router, pathname]);
+
+  const replace = useCallback((href: string) => router.replace(href), [router]);
+  const registerBackHandler = useCallback(() => () => {}, []);
 
   return (
     <NavigationContext.Provider value={{ goBack, replace, registerBackHandler }}>{children}</NavigationContext.Provider>

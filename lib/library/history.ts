@@ -10,7 +10,7 @@ export interface HistoryEntry {
 
 const MAX_ENTRIES = 50;
 // A finished episode moves "Seguir viendo" on to the next one, matching the player's MAL sync
-const WATCHED_FRACTION = 0.9;
+export const WATCHED_FRACTION = 0.9;
 
 const store = createStore<HistoryEntry[]>("pk_library_history", []);
 

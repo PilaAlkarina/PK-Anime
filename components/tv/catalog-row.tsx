@@ -19,6 +19,8 @@ export interface RowCard {
   key?: string;
   badge?: string;
   progress?: number;
+  /** Landscape card with text under it (see AnimeCard) */
+  wide?: { title: string; meta: string };
   onSelect: () => void;
 }
 
@@ -110,6 +112,7 @@ export function CardRow({
                 item={card.item}
                 badge={card.badge}
                 progress={card.progress}
+                wide={card.wide}
                 onSelect={card.onSelect}
                 onFocused={(node, details) => handleFocus(index, card.item, node, details)}
                 className="mr-5"
