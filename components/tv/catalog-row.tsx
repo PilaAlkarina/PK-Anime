@@ -68,8 +68,8 @@ export function CardRow({
   title: string;
   cards: RowCard[];
   onCardFocus?: (item: CatalogItem) => void;
-  /** Lets the screen scroll this row into place */
-  onRowFocus?: (rowNode: HTMLElement) => void;
+  /** Lets the screen scroll this row into place; returns true when it scrolled */
+  onRowFocus?: (rowNode: HTMLElement) => boolean | void;
   onNearEnd?: () => void;
 }) {
   const rowRef = useRef<HTMLElement>(null);
@@ -82,13 +82,18 @@ export function CardRow({
     onCardFocus?.(item);
     // Pointer focus must not move things under the cursor
     if (isPointerFocus(details)) return;
-    if (rowRef.current) onRowFocus?.(rowRef.current);
+    const scrolledPage = rowRef.current ? onRowFocus?.(rowRef.current) === true : false;
     // The focused card takes the place of the first one, like on most TV apps. Waits a frame
-    // so the cards mounted above are laid out, or the browser clamps to the old width.
+    // so the cards mounted above are laid out, or the browser clamps to the old width. When
+    // the page is already animating, this one jumps: Chromium cancels concurrent smooth scrolls.
     requestAnimationFrame(() => {
       const scroller = scrollerRef.current;
       const firstCard = scroller?.firstElementChild?.firstElementChild as HTMLElement | null;
-      scrollToPosition(scroller, { left: node.offsetLeft - (firstCard?.offsetLeft ?? 0) });
+      scrollToPosition(
+        scroller,
+        { left: node.offsetLeft - (firstCard?.offsetLeft ?? 0) },
+        scrolledPage ? "auto" : "smooth"
+      );
     });
   };
 

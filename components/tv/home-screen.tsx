@@ -7,6 +7,7 @@ import { continueWatching, useWatchHistory } from "@/lib/library/history";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
+import { useMounted } from "./page-frame";
 import { scrollToPosition } from "@/lib/tv/scroll";
 
 // Waits this long after focus settles before swapping the hero artwork, so holding an
@@ -44,6 +45,8 @@ function PagedRow({
 
 export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
+  // Initial focus waits for the stored history, so it lands on "Seguir viendo" when there is one
+  const mounted = useMounted();
   const history = useWatchHistory();
   const resume = useMemo(() => continueWatching(history), [history]);
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
@@ -56,9 +59,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   };
 
   // The focused row slides up to the top of the list area, under the hero
-  const scrollToRow = (node: HTMLElement) => {
-    scrollToPosition(listRef.current, { top: node.offsetTop });
-  };
+  const scrollToRow = (node: HTMLElement) => scrollToPosition(listRef.current, { top: node.offsetTop });
 
   if (rows.length === 0) {
     return (
@@ -81,7 +82,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   }));
 
   return (
-    <Screen>
+    <Screen ready={mounted}>
       <Hero item={hero} />
       <div
         ref={listRef}

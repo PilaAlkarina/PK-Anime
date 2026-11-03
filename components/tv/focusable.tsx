@@ -24,7 +24,11 @@ export function useTvFocusable<P = object>({
   const result = useFocusable<P>({ ...config, onEnterPress: onSelect ? () => onSelect() : config.onEnterPress });
   const pointerProps = {
     tabIndex: -1,
-    onMouseEnter: () => result.focusSelf({ pointer: true }),
+    // mousemove with real movement, not mouseenter: when the content scrolls under a resting
+    // cursor the browser fires enter events (and zero-movement moves) that would steal focus
+    onMouseMove: (e: React.MouseEvent) => {
+      if ((e.movementX || e.movementY) && !result.focused) result.focusSelf({ pointer: true });
+    },
     onClick: onSelect,
   };
   return { ...result, pointerProps };

@@ -31,6 +31,7 @@ Key points:
 - **Intro/outro skipping** using Re:ANIME timestamps and the AniSkip API, adjusted for episode duration.
 - **Subtitle proxy** with up to 16 languages. The selected track persists when you switch servers.
 - **Dark, minimal player** with a two-way `postMessage` interface for telemetry and remote control.
+- **TV library** at `/`: a Netflix-style catalog built on AniList, made for Smart TV browsers and remote controls. See [TV library](#tv-library).
 
 ---
 
@@ -64,6 +65,30 @@ Some providers return the original Japanese audio when an English dub doesn't ex
   - Playback speed from 0.25x to 2.0x.
   - Adaptive bitrate, or a fixed resolution (1080p, 720p, 480p, 360p).
 - **Mobile:** tap to toggle controls, double-tap left or right to seek ±10 s, and automatic landscape lock in fullscreen.
+
+---
+
+## TV library
+
+The site root is a personal anime library for TV browsers (Samsung Tizen, LG webOS, Android TV), also usable with a keyboard or mouse on desktop. The interface is in Spanish. Catalog data comes from AniList through the cached `/api/catalog` endpoints, and episodes play in the same player as the embeds.
+
+| Route | Screen |
+| :--- | :--- |
+| `/` | Home: hero for the focused title, *Seguir viendo*, trending, current season, latest episodes, top rated, upcoming and genre rows |
+| `/anime/{anilistId}` | Details, Sub/Dub choice, *Mi lista*, episodes in blocks of 50, related titles and recommendations |
+| `/watch/{anilistId}/{episode}` | Full-screen player with a countdown to the next episode |
+| `/search` | On-screen keyboard (a physical keyboard also types) |
+| `/schedule` | Episodes airing in the next 7 days, in the viewer's time zone |
+| `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
+| `/my-list` | Saved series |
+
+**Remote control.** Arrows move the focus, Enter selects, and Back goes to the previous screen without ever leaving the site. In the player, arrows seek (left/right) and change the volume (up/down), Enter and the remote's play/pause keys toggle playback, and fast-forward/rewind seek 10 s. Back keys recognised: Escape, Backspace, Tizen `10009` and webOS `461`. A pointer (LG Magic Remote, mouse) focuses whatever it moves over.
+
+**Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the Sub/Dub preference live in the browser's `localStorage`. Progress per episode is the one the player already saves.
+
+**Compatibility.** The library avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
+
+**Known limitations.** The player's settings menu (server, quality, subtitles) is not reachable with the arrow keys, which control playback; use a pointer remote to open it. AniList has no per-episode metadata for every series, so some episodes show only their number.
 
 ---
 
@@ -199,6 +224,22 @@ Returns Re:ANIME's native skip markers, used by Flow and Kitty.
 GET /api/anime/flow-skip-times?anilistId=16498&episode=1
 ```
 
+#### Catalog
+
+Normalized AniList data for the TV library, cached on the server (rows 15 min, details 6 h, schedule 30 min, genres 1 day) so clients never hit AniList's rate limit. Errors use the same `{ success, code, error }` shape as the other endpoints.
+
+| Endpoint | Returns |
+| :--- | :--- |
+| `GET /api/catalog/home` | The home rows, fetched from AniList in a single query |
+| `GET /api/catalog/row?kind={kind}&value={value}&page={n}` | One page of a row. `kind`: `trending`, `season`, `next-season`, `top-rated`, `airing`, `upcoming`, `latest`, `genre`, `tag` or `search` (the last three need `value`) |
+| `GET /api/catalog/anime/{anilistId}` | Details, relations, recommendations and streaming episode titles |
+| `GET /api/catalog/schedule?from={unix}&to={unix}` | Airing episodes in a range of up to 8 days (default: the next 7) |
+| `GET /api/catalog/genres` | Genre names with Spanish labels |
+
+```http
+GET /api/catalog/row?kind=genre&value=Romance&page=2
+```
+
 ---
 
 ## Usage Examples
@@ -318,12 +359,14 @@ playerIframe.contentWindow.postMessage({ command: "getStatus" }, "*");
 ```
 aniflow-api/
 ├── app/
+│   ├── (library)/                # TV library at / (home, anime, watch, search, schedule, genres, my-list)
 │   ├── aniflow-doc/              # Documentation page with demo player
 │   ├── api/
 │   │   ├── anime/
 │   │   │   ├── flow-skip-times/  # Re:ANIME OP/ED skip extraction
 │   │   │   └── skip-times/       # AniSkip integration with duration adjustment
 │   │   ├── auth/                 # Better Auth handler (MyAnimeList sign-in)
+│   │   ├── catalog/              # Cached AniList catalog for the TV library
 │   │   ├── m3u8/                 # Direct HLS stream aliases
 │   │   ├── mal/                  # MAL authorize shim and watched-episode sync
 │   │   ├── play/                 # Stream resolver and ticket creation
@@ -335,14 +378,17 @@ aniflow-api/
 │   │   ├── ani/[anilistId]/      # AniList direct M3U8 routes
 │   │   └── mal/[malId]/          # MyAnimeList direct M3U8 routes
 │   ├── globals.css               # Global styles and theme
-│   ├── layout.tsx                # Root layout and site metadata
-│   └── page.tsx                  # Redirects / to /aniflow-doc
+│   └── layout.tsx                # Root layout shared by every route
 ├── components/
+│   ├── tv/                       # TV library screens and remote-control navigation
 │   └── player/
 │       ├── embed-player.tsx      # HLS player
 │       ├── embed-page-client.tsx # Embed page wrapper
 │       └── player-core/          # Player state and subtitle helpers
 ├── lib/
+│   ├── anilist/                  # AniList client, queries and cached catalog
+│   ├── library/                  # localStorage stores (Mi lista, history, preferences)
+│   ├── tv/                       # Remote key mapping and scroll helpers
 │   ├── aniembed-extractor.ts     # Yuri and Zuri extraction
 │   ├── aniskip.ts                # AniSkip client
 │   ├── buzz.ts                   # Buzz (MegaPlay) extraction and proxying
