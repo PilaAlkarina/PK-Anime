@@ -74,7 +74,6 @@
   background: linear-gradient(160deg, #fef3c7 0%, #fbbf24 45%, #d97706 80%, #92400e 100%);
   box-shadow:
     0 0 0 0.12rem rgb(var(--c-ink)),
-    0.45rem 0.45rem 0 0.12rem #78350f,
     0 0 1rem rgba(245, 158, 11, 0.3);
 }
 
@@ -91,9 +90,18 @@
 }
 
 /*
- * The 10's hard shadow is its own element, drawn before the frame so it can never paint over
- * it. Offset with its edges, not a transform, so the card's hover and focus moves still apply.
+ * The hard shadows are elements of their own, drawn before the frame so they never paint over
+ * it, and offset with their edges. They stay put when the card lifts on hover or TV focus while
+ * the frame and cover move up-left, so the shadow grows: the "koma" pop in trophy colors.
  */
+.pk-flair-9-shadow {
+  top: 0.23rem;
+  left: 0.23rem;
+  right: -0.67rem;
+  bottom: -0.67rem;
+  background: #78350f;
+}
+
 .pk-flair-10-shadow {
   top: 0.17rem;
   left: 0.17rem;

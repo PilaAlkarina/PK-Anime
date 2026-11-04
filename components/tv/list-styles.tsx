@@ -39,11 +39,11 @@ export function ScoreFrame({
 }) {
   const flair = flairOf(score);
   if (!flair) return null;
-  // Moves with the card's "koma" focus pop
+  // The frame lifts with the cover; its shadow stays, so it grows (see library.css)
   const move = cn("transition-transform duration-150", focused && "-translate-x-1 -translate-y-1", className);
   return (
     <>
-      {flair === 10 && <div aria-hidden className={cn("pk-flair pk-flair-10-shadow", move)} />}
+      <div aria-hidden className={cn("pk-flair", flair === 10 ? "pk-flair-10-shadow" : "pk-flair-9-shadow")} />
       <div aria-hidden className={cn("pk-flair", flair === 10 ? "pk-flair-10" : "pk-flair-9", move)} />
     </>
   );

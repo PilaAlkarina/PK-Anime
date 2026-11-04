@@ -6,7 +6,7 @@ import { useTvFocusable } from "./focusable";
 import { cn } from "@/lib/utils";
 import { useIsTv } from "@/components/ui-mode";
 import { PosterCard } from "@/components/web/poster-card";
-import { ScoreFrame, ScorePill, ScoreShine } from "./list-styles";
+import { ScoreFrame, ScorePill, ScoreShine, flairOf } from "./list-styles";
 import { EpisodeNumeral, RankNumeral } from "@/components/brand";
 
 interface AnimeCardProps {
@@ -116,7 +116,8 @@ function TvAnimeCard({
       <div
         className={cn(
           "relative w-full h-full rounded-xl overflow-hidden cover-fill transition-transform duration-150",
-          focused && "koma"
+          // A scored 9 or 10 lifts with its frame instead of getting the paper ring
+          focused && (flairOf(score) ? "-translate-x-1 -translate-y-1" : "koma")
         )}
         style={item.color ? ({ "--cover-color": item.color } as React.CSSProperties) : undefined}
       >

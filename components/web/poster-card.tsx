@@ -57,7 +57,13 @@ export function PosterCard({
           className="group-hover:-translate-x-[3px] group-hover:-translate-y-[3px] group-focus-visible:-translate-x-[3px] group-focus-visible:-translate-y-[3px] md:group-hover:-translate-x-1 md:group-hover:-translate-y-1 md:group-focus-visible:-translate-x-1 md:group-focus-visible:-translate-y-1"
         />
         <div
-          className="relative pt-[141%] rounded-xl overflow-hidden cover-fill transition duration-200 group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md"
+          className={cn(
+            "relative pt-[141%] rounded-xl overflow-hidden cover-fill transition duration-200",
+            // A scored 9 or 10 already has its frame and shadow: it only lifts with them
+            flairOf(score)
+              ? "group-hover:-translate-x-[3px] group-hover:-translate-y-[3px] group-focus-visible:-translate-x-[3px] group-focus-visible:-translate-y-[3px] md:group-hover:-translate-x-1 md:group-hover:-translate-y-1 md:group-focus-visible:-translate-x-1 md:group-focus-visible:-translate-y-1"
+              : "group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md"
+          )}
           style={item.color ? ({ "--cover-color": item.color } as React.CSSProperties) : undefined}
         >
           {item.cover ? (

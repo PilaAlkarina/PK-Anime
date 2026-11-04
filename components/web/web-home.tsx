@@ -43,7 +43,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
 
   return (
     <section aria-label="Destacado" aria-roledescription="carrusel" className="px-4 md:px-8">
-      <div className="relative overflow-hidden rounded-[18px] cover-fill md:border-[1.5px] md:border-line md:min-h-[27rem] md:flex md:items-end">
+      <div className="relative overflow-hidden rounded-[18px] cover-fill md:[--cover-color:rgb(var(--c-ink))] md:min-h-[27rem] md:flex md:items-end">
         <div className="relative pt-[56.25%] md:pt-0 md:absolute md:top-0 md:left-0 md:w-full md:h-full">
           {image && (
             <img
@@ -53,11 +53,13 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
               decoding="async"
               className={cn(
                 "absolute top-0 left-0 w-full h-full object-cover tv-fade-in",
+                // Fades into the ink fill instead of under a dark overlay: two layers clipped at
+                // the same rounded corner let the bright art show through as a thin arc
+                "md:[mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)] md:[-webkit-mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)]",
                 !item.banner && "md:object-contain md:object-right md:bg-zinc-900"
               )}
             />
           )}
-          <div className="hidden md:block absolute top-0 bottom-0 left-0 w-[72%] bg-gradient-to-r from-black/95 via-black/75 to-transparent" />
           <div
             aria-hidden="true"
             className="hidden md:block absolute top-0 bottom-0 left-[25%] w-[55%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
