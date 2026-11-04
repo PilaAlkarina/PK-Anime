@@ -35,21 +35,31 @@ export function useTvFocusable<P = object>({
   return { ...result, pointerProps };
 }
 
-type ButtonVariant = "primary" | "secondary" | "chip";
+// segment: one side of a segmented control, transparent on its track until selected
+type ButtonVariant = "primary" | "secondary" | "chip" | "segment";
 
-const VARIANTS: Record<ButtonVariant, { base: string; focused: string }> = {
-  // Focus is a "koma" pop: paper face and a hard accent shadow, the panel lifting off the page
+const VARIANTS: Record<ButtonVariant, { base: string; rest: string; focused: string }> = {
+  // Focus is a "koma" pop: paper face and a hard accent shadow, the panel lifting off the page.
+  // `rest` is left out while focused, so its shadow never fights the koma one
   primary: {
-    base: "h-14 px-8 rounded-full bg-red-500 text-black text-xl font-bold",
-    focused: "bg-white text-black shadow-hard-accent -translate-x-1 -translate-y-1",
+    base: "h-14 px-8 rounded-full text-xl font-bold",
+    rest: "bg-red-500 text-black shadow-hard",
+    focused: "bg-white text-black koma",
   },
   secondary: {
-    base: "h-14 px-6 rounded-full bg-white/10 text-zinc-200 text-xl",
-    focused: "bg-white text-black shadow-hard-accent -translate-x-1 -translate-y-1",
+    base: "h-14 px-6 rounded-full border-[1.5px] text-xl font-bold",
+    rest: "bg-ink-3 border-line text-white",
+    focused: "bg-white border-white text-black koma",
   },
   chip: {
-    base: "h-11 px-5 rounded-full bg-white/10 text-zinc-300 text-lg",
-    focused: "bg-white text-black shadow-hard-accent",
+    base: "h-11 px-5 rounded-full border-[1.5px] text-lg font-bold",
+    rest: "bg-ink-3 border-line text-zinc-200",
+    focused: "relative z-10 bg-white border-white text-black shadow-hard-accent",
+  },
+  segment: {
+    base: "h-11 px-5 rounded-full border-[1.5px] text-lg font-bold",
+    rest: "bg-transparent border-transparent text-zinc-400",
+    focused: "relative z-10 bg-white border-white text-black shadow-hard-accent",
   },
 };
 
@@ -70,12 +80,16 @@ const WEB_VARIANTS: Record<ButtonVariant, { base: string; active: string }> = {
     active: "",
   },
   secondary: {
-    base: "h-11 px-5 rounded-full bg-white/10 text-zinc-100 text-[0.95rem] font-medium hover:bg-white/20",
-    active: "bg-white text-black hover:bg-zinc-200",
+    base: "h-11 px-5 rounded-full bg-ink-3 border-[1.5px] border-line text-white text-[0.95rem] font-bold hover:bg-zinc-800",
+    active: "bg-white border-white text-black hover:bg-zinc-200",
   },
   chip: {
-    base: "h-10 px-4 rounded-full bg-white/10 text-zinc-200 text-sm font-medium hover:bg-white/20",
-    active: "bg-white text-black hover:bg-zinc-200",
+    base: "h-10 px-4 rounded-full bg-ink-3 border-[1.5px] border-line text-zinc-200 text-sm font-bold hover:bg-zinc-800",
+    active: "bg-white border-white text-black hover:bg-zinc-200",
+  },
+  segment: {
+    base: "h-10 px-4 rounded-full border-[1.5px] border-transparent text-zinc-400 text-sm font-bold hover:text-white",
+    active: "bg-white border-white text-black hover:text-black",
   },
 };
 
@@ -88,7 +102,7 @@ function WebButton({ onSelect, variant = "secondary", active = false, className,
       aria-pressed={variant === "primary" ? undefined : active}
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap transition-colors duration-150",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+        "outline-none focus-visible:koma-sm",
         styles.base,
         active && styles.active,
         className
@@ -114,7 +128,9 @@ function TvButton({ onSelect, focusKey, variant = "secondary", active = false, c
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap outline-none transition-transform duration-150",
         styles.base,
-        active && !focused && "bg-white/25 text-white",
+        !focused && styles.rest,
+        // Selected toggles and tabs: paper face, ink text
+        active && !focused && "bg-white border-white text-black",
         focused && styles.focused,
         className
       )}

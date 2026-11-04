@@ -20,6 +20,10 @@ export interface RowCard {
   key?: string;
   badge?: string;
   progress?: number;
+  /** Episode drawn as a big numeral on wide cards */
+  episode?: number;
+  /** Position in a trending row, drawn beside the cover */
+  rank?: number;
   /** Landscape card with text under it (see AnimeCard) */
   wide?: { title: string; meta: string };
   onSelect: () => void;
@@ -102,7 +106,7 @@ export function CardRow({
 
   return (
     <section ref={rowRef} className="pt-2">
-      <h2 className="pl-12 text-2xl font-bold text-zinc-100">
+      <h2 className="pl-12 text-3xl text-white">
         {title}
         <JapaneseLabel title={title} />
       </h2>
@@ -116,6 +120,8 @@ export function CardRow({
                 item={card.item}
                 badge={card.badge}
                 progress={card.progress}
+                episode={card.episode}
+                rank={card.rank}
                 wide={card.wide}
                 onSelect={card.onSelect}
                 onFocused={(node, details) => handleFocus(index, card.item, node, details)}

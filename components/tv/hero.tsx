@@ -5,6 +5,23 @@ import type { AnimeDetail, CatalogItem } from "@/lib/anilist/types";
 import { metaLine } from "@/lib/library/format";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { cn } from "@/lib/utils";
+import { MetaWithScore, Stamp } from "@/components/brand";
+
+/** Genres as bordered pills, the TV size */
+export function GenrePills({ genres, className }: { genres: string[]; className?: string }) {
+  return (
+    <div className={cn("flex flex-wrap", className)}>
+      {genres.map((g) => (
+        <span
+          key={g}
+          className="mr-2.5 mb-2 px-4 py-1 rounded-full border-[1.5px] border-line bg-zinc-900 text-lg font-medium text-zinc-200"
+        >
+          {GENRE_LABELS[g] || g}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const details = new Map<number, AnimeDetail>();
 
@@ -36,7 +53,7 @@ export function useAnimeDetail(id: number | null, delayMs = 300) {
 }
 
 /** Top half of the home screen: artwork and details of the focused anime */
-export function Hero({ item }: { item: CatalogItem | null }) {
+export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place in the trending row, 0 for none */ rank?: number }) {
   const detail = useAnimeDetail(item?.id ?? null);
   if (!item) return null;
 
@@ -77,15 +94,18 @@ export function Hero({ item }: { item: CatalogItem | null }) {
       />
       <div className="absolute left-0 right-0 bottom-0 h-[45%] bg-gradient-to-t from-black to-transparent" />
 
-      <div key={item.id} className="relative pl-[10rem] pt-[9vh] w-[58%] tv-fade-in">
-        <h1 className="text-5xl font-bold leading-tight line-clamp-2">{item.title}</h1>
-        <p className="mt-4 text-xl text-zinc-300">{metaLine(item)}</p>
-        {item.genres.length > 0 && (
-          <p className="mt-2 text-lg text-zinc-400">
-            {item.genres.slice(0, 4).map((g) => GENRE_LABELS[g] || g).join(" · ")}
-          </p>
+      <div key={item.id} className="relative pl-[10rem] pt-[8vh] w-[58%] tv-fade-in">
+        {rank > 0 && (
+          <Stamp japanese={`人気 No.${rank}`} className="mb-4 text-base">
+            TENDENCIA N.º {rank}
+          </Stamp>
         )}
-        <p className="mt-5 text-xl leading-relaxed text-zinc-300 line-clamp-3 min-h-[5.6rem]">
+        <h1 className="text-[4rem] leading-[1.1] line-clamp-2">{item.title}</h1>
+        <p className="mt-4 text-xl font-medium text-zinc-200">
+          <MetaWithScore before={metaLine(item, { score: false })} score={item.score} />
+        </p>
+        {item.genres.length > 0 && <GenrePills genres={item.genres.slice(0, 4)} className="mt-3" />}
+        <p className="mt-5 text-xl leading-relaxed text-zinc-200 line-clamp-3 min-h-[5.6rem]">
           {detail?.description}
         </p>
       </div>

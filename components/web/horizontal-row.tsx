@@ -41,7 +41,7 @@ export function HorizontalRow({
             type="button"
             aria-label={`Anteriores en ${title}`}
             onClick={() => scrollBy(-1)}
-            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full border border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full bg-ink-3 border-[1.5px] border-line text-white hover:bg-zinc-800"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -49,7 +49,7 @@ export function HorizontalRow({
             type="button"
             aria-label={`Siguientes en ${title}`}
             onClick={() => scrollBy(1)}
-            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full border border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full bg-ink-3 border-[1.5px] border-line text-white hover:bg-zinc-800"
           >
             <ChevronRight className="w-5 h-5" />
           </button>

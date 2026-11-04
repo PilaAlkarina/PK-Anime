@@ -1072,6 +1072,8 @@ export function EmbedPlayer({
             const cleanText = parts
               .slice(9)
               .join(",")
+              // {\p1} switches to vector drawing ("m 0 0 l 640 0 …") until {\p0}: shapes, not words
+              .replace(/\{[^}]*\\p[1-9][^}]*\}[^{]*/g, "")
               .replace(/\{[^}]*\}/g, "")
               .replace(/\\N/gi, "\n")
               .replace(/\\n/gi, "\n")
@@ -2315,6 +2317,8 @@ export function EmbedPlayer({
     selectedType === "dub"
       ? "Doblaje en inglés"
       : `Original · ${subtitlesOn && currentSub ? `Subtítulos en ${subtitleLabel(currentSub).toLowerCase()}` : "Sin subtítulos"}`;
+  // Phones: the pause line has room for the language only
+  const audioShort = selectedType === "dub" ? "Doblaje en inglés" : subtitlesOn && currentSub ? subtitleLabel(currentSub) : "Original";
   const episodeLine = `Episodio ${episodeNumber}${episodeTitle ? ` · ${episodeTitle}` : ""}`;
 
   // Tracks named by language; a name that still repeats gets numbered
@@ -2334,6 +2338,8 @@ export function EmbedPlayer({
   const showPauseScreen = pauseScreen && panelView === null && !fatalError;
   const showBar = !fatalError && !nextUp;
   const controlsVisible = showControls || showPauseScreen;
+  // Desktop keeps only play, time and Ajustes in the bar while the side panel is open
+  const panelOpen = panelView !== null && !tv;
 
   const iconButton = (extra?: string) =>
     cn(
@@ -2343,8 +2349,8 @@ export function EmbedPlayer({
     );
   const tvPill = (extra?: string) =>
     cn(
-      "flex items-center gap-3 h-16 px-[1.625rem] rounded-full bg-white/[0.12] text-zinc-200 text-[1.3125rem] font-semibold outline-none transition",
-      "focus:bg-white focus:text-black focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1",
+      "flex items-center gap-3 h-16 px-[1.625rem] rounded-full bg-ink-3/90 border-[1.5px] border-line text-zinc-200 text-[1.3125rem] font-bold outline-none transition",
+      "focus:bg-white focus:text-black focus:border-white focus:koma",
       extra
     );
 
@@ -2358,8 +2364,10 @@ export function EmbedPlayer({
       onSeek={handleSeek}
       onActivity={handleUserActivity}
       tv={tv}
-      showKnob={tv || showPauseScreen}
+      // TV shows the knob while playing; desktop while paused (and on hover)
+      showKnob={tv ? !showPauseScreen : showPauseScreen}
       showLabels={!tv && !showPauseScreen}
+      thin={showPauseScreen}
     />
   );
 
@@ -2480,7 +2488,7 @@ export function EmbedPlayer({
             seekFeedback.side === "left" ? "left-0 bg-gradient-to-r from-black/35 to-transparent" : "right-0 bg-gradient-to-l from-black/35 to-transparent"
           )}
         >
-          <div className={cn("flex items-center gap-2 rounded-full bg-black/75 font-semibold", tv ? "px-7 py-4 text-3xl" : "px-4 py-2.5 text-sm")}>
+          <div className={cn("flex items-center gap-2 rounded-full bg-black/75 border-[1.5px] border-line font-bold", tv ? "px-7 py-4 text-3xl" : "px-4 py-2.5 text-sm")}>
             {seekFeedback.side === "left" ? <RotateCcw className={tv ? "w-8 h-8" : "w-5 h-5"} /> : <RotateCw className={tv ? "w-8 h-8" : "w-5 h-5"} />}
             {seekFeedback.side === "left" ? `-${seekFeedback.amount} s` : `+${seekFeedback.amount} s`}
           </div>
@@ -2514,6 +2522,16 @@ export function EmbedPlayer({
         </div>
       )}
 
+      {/* Phones: the whole frame dims a little while the controls show */}
+      {!tv && (
+        <div
+          className={cn(
+            "absolute inset-0 z-[25] hidden touch:block bg-black/45 pointer-events-none transition-opacity duration-300",
+            showControls && showBar && !showPauseScreen ? "opacity-100" : "opacity-0"
+          )}
+        />
+      )}
+
       {/* Gradients behind the header and the controls */}
       <div
         className={cn(
@@ -2541,6 +2559,7 @@ export function EmbedPlayer({
           remaining={Math.max(0, duration - currentTime)}
           speed={playbackSpeed}
           audioLabel={audioLabel}
+          audioShort={audioShort}
           serverName={serverName}
           serverHealthy={!isLoading}
           next={nextEpisode}
@@ -2578,8 +2597,8 @@ export function EmbedPlayer({
       {!fatalError && (
         <header
           className={cn(
-            "absolute z-40 flex items-center transition-opacity duration-300",
-            tv ? "top-14 left-24 right-24 gap-6" : "top-3 sm:top-6 left-3 sm:left-8 right-3 sm:right-8 gap-3 sm:gap-4",
+            "absolute z-40 flex transition-opacity duration-300",
+            tv ? "items-start top-14 left-24 right-24 gap-6" : "items-center top-3 sm:top-6 left-3 sm:left-8 right-3 sm:right-8 gap-3 sm:gap-4",
             controlsVisible || nextUp ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
         >
@@ -2588,21 +2607,26 @@ export function EmbedPlayer({
               type="button"
               onClick={onBack}
               aria-label="Volver a la ficha"
-              className={iconButton("bg-black/60 hover:bg-black/80")}
+              className={iconButton(
+                cn(
+                  "border-[1.5px] border-line touch:bg-transparent touch:border-transparent",
+                  showPauseScreen || nextUp ? "bg-ink-3 hover:bg-zinc-800" : "bg-black/60 hover:bg-black/80"
+                )
+              )}
             >
-              <ChevronLeft className="w-6 h-6" strokeWidth={2.4} />
+              <ChevronLeft className="w-[22px] h-[22px]" strokeWidth={2.4} />
             </button>
           )}
           {!showPauseScreen && (
-            <div className="flex flex-col min-w-0 flex-1">
+            <div className={cn("flex flex-col min-w-0 flex-1", tv ? "gap-1.5" : "gap-0.5")}>
               {nextUp ? (
-                <span className={cn("text-zinc-300 truncate", tv ? "text-2xl" : "text-base")}>
+                <span className={cn("font-medium text-zinc-200 truncate", tv ? "text-2xl" : "text-base")}>
                   {animeTitle} · Episodio {episodeNumber}
                 </span>
               ) : (
                 <>
                   <span className={cn("font-display truncate", tv ? "text-[1.875rem]" : "text-[15px] sm:text-xl")}>{animeTitle}</span>
-                  <span className={cn("text-zinc-300 truncate", tv ? "text-[1.375rem]" : "text-xs sm:text-[15px]")}>{episodeLine}</span>
+                  <span className={cn("font-medium text-zinc-200 truncate", tv ? "text-[1.375rem]" : "text-xs sm:text-[15px]")}>{episodeLine}</span>
                 </>
               )}
             </div>
@@ -2611,11 +2635,11 @@ export function EmbedPlayer({
             <>
               <span
                 className={cn(
-                  "items-center gap-2 rounded-full bg-black/60 text-zinc-300 shrink-0",
-                  tv ? "flex h-12 px-5 text-[1.1875rem] gap-2.5" : "hidden mouse:md:flex h-[34px] px-3.5 text-[13px]"
+                  "items-center gap-2 rounded-full border-[1.5px] border-line font-medium text-zinc-200 shrink-0",
+                  tv ? "flex h-12 px-5 text-[1.1875rem] gap-2.5 bg-black/70" : "hidden mouse:md:flex h-[34px] px-3.5 text-[13px] bg-black/60"
                 )}
               >
-                <span className={cn("rounded-full", tv ? "w-2.5 h-2.5" : "w-2 h-2", isLoading ? "bg-amber-400" : "bg-emerald-400")} />
+                <span className={cn("rounded-full", tv ? "w-2.5 h-2.5" : "w-2 h-2", isLoading ? "bg-amber-500" : "bg-green-400")} />
                 {serverName} · {audioLabel}
               </span>
               {!tv && (
@@ -2636,7 +2660,7 @@ export function EmbedPlayer({
       {/* Fatal error */}
       {fatalError && !isLoading && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6 text-center bg-black/90 animate-in fade-in duration-200">
-          <div className={cn("flex items-center justify-center rounded-full bg-zinc-900 text-amber-400", tv ? "w-20 h-20" : "w-14 h-14")}>
+          <div className={cn("flex items-center justify-center rounded-full bg-zinc-900 border-[1.5px] border-line text-amber-500", tv ? "w-20 h-20" : "w-14 h-14")}>
             <Tv className={tv ? "w-10 h-10" : "w-7 h-7"} />
           </div>
           <div className="max-w-md space-y-1.5">
@@ -2653,7 +2677,7 @@ export function EmbedPlayer({
                 setIsLoading(true);
                 setReloadCounter((prev) => prev + 1);
               }}
-              className={tv ? tvPill("bg-white text-black") : "h-11 px-5 rounded-full bg-white text-black text-sm font-semibold hover:bg-zinc-200"}
+              className={tv ? tvPill("bg-red-500 border-red-500 text-black") : "h-11 px-5 rounded-full bg-red-500 text-black text-sm font-bold hover:bg-red-400"}
             >
               Reintentar
             </button>
@@ -2665,12 +2689,12 @@ export function EmbedPlayer({
                 setIsLoading(true);
                 setServer((prev) => (prev === "flow" ? "zuri" : "flow"));
               }}
-              className={tv ? tvPill() : "h-11 px-5 rounded-full bg-white/10 text-sm font-semibold hover:bg-white/20"}
+              className={tv ? tvPill() : "h-11 px-5 rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800"}
             >
               Probar con {server === "flow" ? "Zuri" : "Flow"}
             </button>
             {onBack && !tv && (
-              <button type="button" onClick={onBack} className="h-11 px-5 rounded-full bg-white/10 text-sm font-semibold hover:bg-white/20">
+              <button type="button" onClick={onBack} className="h-11 px-5 rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800">
                 Volver a la ficha
               </button>
             )}
@@ -2692,9 +2716,9 @@ export function EmbedPlayer({
               } catch {}
             }
           }}
-          className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 h-9 px-4 rounded-full bg-black/80 hover:bg-black text-sm font-medium animate-in fade-in slide-in-from-top-2"
+          className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 h-9 px-4 rounded-full bg-black/80 hover:bg-black border-[1.5px] border-line text-sm font-medium animate-in fade-in slide-in-from-top-2"
         >
-          <VolumeX className="w-4 h-4 text-amber-300" />
+          <VolumeX className="w-4 h-4 text-amber-500" />
           Activar el sonido
         </button>
       )}
@@ -2710,13 +2734,13 @@ export function EmbedPlayer({
         >
           <div
             className={cn(
-              "flex items-center gap-2 rounded-full bg-zinc-900/95 border border-white/10 font-medium",
+              "flex items-center gap-2 rounded-full bg-zinc-900/95 border-[1.5px] border-line font-medium",
               tv ? "h-14 px-6 text-xl" : "h-9 px-4 text-sm"
             )}
           >
-            {activeStreamToast?.type === "refreshing" && <Loader2 className="w-4 h-4 text-amber-300 animate-spin shrink-0" />}
-            {activeStreamToast?.type === "success" && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {!activeStreamToast && <SkipForward className="w-4 h-4 text-amber-300 shrink-0" />}
+            {activeStreamToast?.type === "refreshing" && <Loader2 className="w-4 h-4 text-amber-500 animate-spin shrink-0" />}
+            {activeStreamToast?.type === "success" && <Check className="w-4 h-4 text-green-400 shrink-0" />}
+            {!activeStreamToast && <SkipForward className="w-4 h-4 text-amber-500 shrink-0" />}
             <span className="truncate">{activeStreamToast ? activeStreamToast.message : autoSkipToast}</span>
           </div>
         </div>
@@ -2733,20 +2757,21 @@ export function EmbedPlayer({
             else handleSkipOutro();
           }}
           className={cn(
-            "absolute z-40 flex items-center rounded-full bg-white text-black font-bold shadow-hard-accent outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
+            "absolute z-40 flex items-center rounded-full bg-white text-black font-bold outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
             tv
               ? cn(
-                  "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl focus:bg-white focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1",
+                  "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl font-black shadow-[6px_6px_0_rgb(var(--c-accent))] focus:koma",
                   showControls ? "bottom-[18.75rem]" : "bottom-24"
                 )
               : cn(
-                  "right-4 sm:right-10 h-10 sm:h-[46px] px-4 sm:px-5 gap-2.5 text-sm sm:text-[15px] hover:bg-zinc-200 focus-visible:ring-4 focus-visible:ring-white/40",
+                  "right-4 sm:right-10 h-10 sm:h-[46px] px-4 sm:px-5 gap-2.5 touch:gap-2 text-sm sm:text-[15px] hover:bg-zinc-200 focus-visible:ring-4 focus-visible:ring-white/40",
+                  "shadow-[4px_4px_0_rgb(var(--c-accent))] touch:shadow-[3px_3px_0_rgb(var(--c-accent))]",
                   showControls ? "bottom-24 mouse:bottom-28 mouse:sm:bottom-[8.5rem]" : "bottom-6 sm:bottom-10"
                 )
           )}
         >
           {isInsideIntro ? "Saltar intro" : "Saltar ending"}
-          <SkipForward className={cn("fill-current", tv ? "w-7 h-7" : "w-[18px] h-[18px]")} />
+          <SkipForward className={cn("fill-current", tv ? "w-7 h-7" : "w-[18px] h-[18px] touch:w-[15px] touch:h-[15px]")} />
         </button>
       )}
 
@@ -2766,7 +2791,7 @@ export function EmbedPlayer({
               handleSeekRelative(-10);
               handleUserActivity();
             }}
-            className={cn("flex items-center justify-center w-14 h-14 rounded-full bg-black/55", showControls && "pointer-events-auto")}
+            className={cn("flex items-center justify-center w-14 h-14 rounded-full bg-black/60 border-[1.5px] border-line", showControls && "pointer-events-auto")}
           >
             <RotateCcw className="w-[26px] h-[26px]" />
           </button>
@@ -2778,7 +2803,10 @@ export function EmbedPlayer({
               togglePlay();
               handleUserActivity();
             }}
-            className={cn("flex items-center justify-center w-[72px] h-[72px] rounded-full bg-white/95 text-black", showControls && "pointer-events-auto")}
+            className={cn(
+              "flex items-center justify-center w-[72px] h-[72px] rounded-full bg-white text-black shadow-[4px_4px_0_rgb(var(--c-accent))]",
+              showControls && "pointer-events-auto"
+            )}
           >
             {isPlaying ? <Pause className="w-[30px] h-[30px] fill-current" /> : <Play className="w-[30px] h-[30px] fill-current ml-1" />}
           </button>
@@ -2790,7 +2818,7 @@ export function EmbedPlayer({
               handleSeekRelative(10);
               handleUserActivity();
             }}
-            className={cn("flex items-center justify-center w-14 h-14 rounded-full bg-black/55", showControls && "pointer-events-auto")}
+            className={cn("flex items-center justify-center w-14 h-14 rounded-full bg-black/60 border-[1.5px] border-line", showControls && "pointer-events-auto")}
           >
             <RotateCw className="w-[26px] h-[26px]" />
           </button>
@@ -2806,7 +2834,9 @@ export function EmbedPlayer({
           className={cn(
             "absolute z-40 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
             tv
-              ? cn("left-24 right-24", showPauseScreen ? "bottom-[8.5rem]" : "bottom-[4.5rem]")
+              ? showPauseScreen
+                ? "left-[7.5rem] right-[7.5rem] bottom-[9.375rem]"
+                : "left-24 right-24 bottom-[4.5rem]"
               : "left-3 right-3 sm:left-7 sm:right-7 bottom-1 sm:bottom-5",
             panelView !== null && !tv && "sm:right-[428px]",
             controlsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
@@ -2814,25 +2844,32 @@ export function EmbedPlayer({
         >
           {tv ? (
             <>
-              <div className="flex justify-between mb-3.5 text-[1.375rem] font-semibold tabular-nums">
-                <span>{formatSecondsToTime(currentTime)}</span>
-                <span className="text-zinc-400">-{formatSecondsToTime(Math.max(0, duration - currentTime))}</span>
-              </div>
+              {/* Playing: elapsed and remaining above the bar. Paused: elapsed and total under it */}
+              {!showPauseScreen && (
+                <div className="flex justify-between mb-3.5 font-display text-[1.375rem] leading-[1.1] tabular-nums">
+                  <span>{formatSecondsToTime(currentTime)}</span>
+                  <span className="text-zinc-400">-{formatSecondsToTime(Math.max(0, duration - currentTime))}</span>
+                </div>
+              )}
               {timeline}
+              {showPauseScreen && (
+                <div className="flex justify-between mt-3.5 font-display text-[1.375rem] leading-[1.1] tabular-nums">
+                  <span>{formatSecondsToTime(currentTime)}</span>
+                  <span className="text-zinc-400">{formatSecondsToTime(duration)}</span>
+                </div>
+              )}
               {!showPauseScreen && (
                 <div className="flex items-center gap-4 mt-[4.25rem]">
                   <div data-nav="x" data-nav-exit="up" className="flex items-center gap-4">
                     <button type="button" onClick={togglePlay} className={tvPill()}>
-                      {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                       {isPlaying ? "Pausa" : "Reproducir"}
                     </button>
                     {canPlayNext && (
                       <button type="button" onClick={playNext} className={tvPill()}>
-                        <SkipForward className="w-6 h-6 fill-current" />
                         Episodio {nextEpisode!.number}
                       </button>
                     )}
-                    <button type="button" onClick={() => openPanel()} className={tvPill()}>
+                    <button type="button" onClick={() => openPanel("subtitles")} className={tvPill()}>
                       Audio y subtítulos
                     </button>
                     {onEpisodes && (
@@ -2840,13 +2877,17 @@ export function EmbedPlayer({
                         Episodios
                       </button>
                     )}
+                    <button type="button" onClick={() => openPanel()} className={tvPill()}>
+                      Más ajustes
+                    </button>
                   </div>
                   <span className="flex-1" />
                   <RemoteHints
+                    compact
                     hints={[
                       ["OK", showSkip ? (isInsideIntro ? "Saltar intro" : "Saltar ending") : isPlaying ? "Pausa" : "Reproducir"],
                       ["◀ ▶", "10 s"],
-                      ["▼", "Opciones"],
+                      ["⟵", "Salir"],
                     ]}
                   />
                 </div>
@@ -2854,7 +2895,12 @@ export function EmbedPlayer({
             </>
           ) : (
             <>
-              <div className="px-1 sm:px-3">{timeline}</div>
+              {/* Phones: elapsed and total flank the bar on one row */}
+              <div className="flex items-center gap-3 px-1 sm:px-3 touch:px-2">
+                <span className="hidden touch:inline text-xs font-bold tabular-nums">{formatSecondsToTime(currentTime)}</span>
+                <div className="flex-1 min-w-0">{timeline}</div>
+                <span className="hidden touch:inline text-xs font-bold tabular-nums text-zinc-400">{formatSecondsToTime(duration)}</span>
+              </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <button
                   type="button"
@@ -2865,7 +2911,7 @@ export function EmbedPlayer({
                 >
                   {isPlaying ? <Pause className="w-[26px] h-[26px] fill-current" /> : <Play className="w-[26px] h-[26px] fill-current ml-0.5" />}
                 </button>
-                {!showPauseScreen && (
+                {!showPauseScreen && !panelOpen && (
                   <>
                     <button
                       type="button"
@@ -2910,7 +2956,7 @@ export function EmbedPlayer({
                         onChange={(e) => handleVolumeChange(Number(e.target.value))}
                         aria-label="Volumen"
                         style={{
-                          background: `linear-gradient(to right, rgb(var(--c-paper)) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.25) ${(isMuted ? 0 : volume) * 100}%)`,
+                          background: `linear-gradient(to right, rgb(var(--c-paper)) ${(isMuted ? 0 : volume) * 100}%, rgb(var(--c-paper) / 0.18) ${(isMuted ? 0 : volume) * 100}%)`,
                         }}
                         className="w-24 h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
                       />
@@ -2921,14 +2967,31 @@ export function EmbedPlayer({
                   type="button"
                   onClick={toggleTimeDisplay}
                   title={showRemainingTime ? "Ver el tiempo transcurrido" : "Ver el tiempo que queda"}
-                  className="ml-1 mouse:sm:ml-4 px-1.5 py-1 rounded-md text-[13px] sm:text-[15px] font-semibold tabular-nums hover:bg-white/10"
+                  className={cn(
+                    "touch:hidden ml-1 px-1.5 py-1 rounded-md text-[13px] sm:text-[15px] font-bold tabular-nums hover:bg-white/10",
+                    showPauseScreen || panelOpen ? "mouse:sm:ml-1.5" : "mouse:sm:ml-[18px]"
+                  )}
                 >
                   {showRemainingTime ? `-${formatSecondsToTime(Math.max(0, duration - currentTime))}` : formatSecondsToTime(currentTime)}
                   <span className="text-zinc-400 font-medium"> / {formatSecondsToTime(duration)}</span>
                 </button>
                 <span className="flex-1" />
                 {showPauseScreen ? (
-                  <span className="hidden mouse:sm:inline text-[13px] text-zinc-400 pr-2">Espacio para continuar</span>
+                  <span className="hidden mouse:sm:flex items-center gap-2 pr-2 text-[13px] font-medium text-zinc-400">
+                    <span className="px-2 py-px rounded-md border-[1.5px] border-b-[3px] border-zinc-500 font-black text-zinc-200">Espacio</span>
+                    para continuar
+                  </span>
+                ) : panelOpen ? (
+                  <button
+                    type="button"
+                    onClick={closePanel}
+                    aria-label="Cerrar ajustes"
+                    aria-pressed
+                    title="Ajustes"
+                    className={iconButton("bg-white text-black hover:bg-zinc-200 shadow-[3px_3px_0_rgb(var(--c-accent))]")}
+                  >
+                    <Settings className="w-[22px] h-[22px]" />
+                  </button>
                 ) : (
                   <>
                     {canPlayNext && (
@@ -2936,14 +2999,14 @@ export function EmbedPlayer({
                         type="button"
                         onClick={playNext}
                         title="Siguiente episodio (N)"
-                        className="flex items-center gap-2 h-9 sm:h-10 px-3 sm:px-3.5 mr-1 rounded-full bg-white/10 hover:bg-white/20 text-[13px] sm:text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white"
+                        className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-3.5 mr-1 rounded-full bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800 text-[13px] sm:text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-white"
                       >
-                        <SkipForward className="w-4 h-4 sm:w-[18px] sm:h-[18px] fill-current" />
+                        <SkipForward className="w-[15px] h-[15px] sm:w-[18px] sm:h-[18px] fill-current" />
                         Episodio {nextEpisode!.number}
                       </button>
                     )}
                     {onEpisodes && (
-                      <button type="button" onClick={onEpisodes} aria-label="Episodios" title="Episodios" className={iconButton()}>
+                      <button type="button" onClick={onEpisodes} aria-label="Episodios" title="Episodios" className={iconButton("touch:order-[-1]")}>
                         <ListVideo className="w-[22px] h-[22px]" />
                       </button>
                     )}
@@ -2952,7 +3015,7 @@ export function EmbedPlayer({
                       onClick={() => (panelView === "subtitles" ? closePanel() : openPanel("subtitles"))}
                       aria-label="Subtítulos"
                       title="Subtítulos (C para activar o quitar)"
-                      className={iconButton(subtitlesOn ? undefined : "text-zinc-400")}
+                      className={iconButton(cn("touch:order-[-2]", !subtitlesOn && "text-zinc-400"))}
                     >
                       <Captions className="w-[22px] h-[22px]" />
                     </button>
@@ -2962,7 +3025,9 @@ export function EmbedPlayer({
                       aria-label="Ajustes"
                       aria-pressed={panelView !== null}
                       title="Ajustes"
-                      className={iconButton(cn("touch:hidden", panelView !== null && "bg-white text-black hover:bg-zinc-200"))}
+                      className={iconButton(
+                        cn("touch:hidden", panelView !== null && "bg-white text-black hover:bg-zinc-200 shadow-[3px_3px_0_rgb(var(--c-accent))]")
+                      )}
                     >
                       <Settings className="w-[22px] h-[22px]" />
                     </button>

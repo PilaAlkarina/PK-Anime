@@ -48,11 +48,19 @@ function SidebarItem({
       {...pointerProps}
       className={cn(
         "flex flex-col items-center w-[5.5rem] py-2.5 rounded-2xl outline-none transition-colors duration-150",
-        focused ? "bg-white text-black" : active ? "bg-white/15 text-white" : "text-zinc-400"
+        // The current section: raised ink, the icon in the accent and the label in paper
+        focused ? "bg-white text-black" : active ? "bg-ink-3 text-red-500" : "text-zinc-400"
       )}
     >
       <Icon className="w-7 h-7 flex-shrink-0" strokeWidth={active || focused ? 2.5 : 2} />
-      <span className="mt-1.5 text-[0.95rem] font-semibold leading-tight whitespace-nowrap">{label}</span>
+      <span
+        className={cn(
+          "mt-1.5 text-[0.95rem] leading-tight whitespace-nowrap",
+          active && !focused ? "font-black text-white" : "font-bold"
+        )}
+      >
+        {label}
+      </span>
     </button>
   );
 }
@@ -77,7 +85,7 @@ export function Sidebar() {
     <FocusContext.Provider value={focusKey}>
       <nav
         ref={ref}
-        className="fixed top-0 bottom-0 left-0 z-40 flex flex-col items-center justify-center w-[7rem] bg-black border-r border-white/10"
+        className="fixed top-0 bottom-0 left-0 z-40 flex flex-col items-center justify-center w-[7rem] bg-zinc-900 border-r border-line"
       >
         <div className="absolute top-9 flex flex-col items-center gap-2.5">
           <Hanko className="w-14 h-14 text-2xl" />

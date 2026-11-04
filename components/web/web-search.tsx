@@ -10,6 +10,7 @@ import { useFilterRow, useTags, useUrlFilters } from "@/lib/library/use-filters"
 import { usePagedRow } from "@/components/tv/catalog-row";
 import { CardGrid, useMounted } from "@/components/tv/page-frame";
 import { ActiveFilters, FilterPanel } from "./filter-panel";
+import { JapaneseLabel } from "@/components/brand";
 
 // What the library shows before anything is chosen
 const BROWSE_ALL: CatalogFilters = { ...EMPTY_FILTERS, sort: "POPULARITY_DESC" };
@@ -41,8 +42,11 @@ function StartPoints({ genres, onGenre, onRecent }: { genres: Genre[]; onGenre: 
       {mounted && recent.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base md:text-lg font-bold">Búsquedas recientes</h2>
-            <button type="button" onClick={clearRecentSearches} className="h-9 px-2 text-sm text-zinc-300 hover:text-white">
+            <h2 className="text-base md:text-lg">
+              Búsquedas recientes
+              <JapaneseLabel title="Búsquedas recientes" />
+            </h2>
+            <button type="button" onClick={clearRecentSearches} className="h-9 px-2 text-sm font-bold text-red-500 hover:text-red-400">
               Borrar
             </button>
           </div>
@@ -52,7 +56,7 @@ function StartPoints({ genres, onGenre, onRecent }: { genres: Genre[]; onGenre: 
                 key={r}
                 type="button"
                 onClick={() => onRecent(r)}
-                className="flex items-center gap-2 h-10 px-3.5 rounded-full bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 hover:bg-zinc-800"
+                className="flex items-center gap-2 h-10 px-3.5 rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-medium text-zinc-200 hover:bg-zinc-800"
               >
                 <Clock className="w-3.5 h-3.5 text-zinc-400" aria-hidden />
                 {r}
@@ -64,14 +68,17 @@ function StartPoints({ genres, onGenre, onRecent }: { genres: Genre[]; onGenre: 
       {/* Wide screens have the genres in the filter sidebar right next to this */}
       {genres.length > 0 && (
         <section className="md:hidden">
-          <h2 className="mb-3 text-base md:text-lg font-bold">Explorar por género</h2>
+          <h2 className="mb-3 text-base md:text-lg">
+            Explorar por género
+            <JapaneseLabel title="Explorar por género" />
+          </h2>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
             {genres.map((genre, index) => (
               <button
                 key={genre.name}
                 type="button"
                 onClick={() => onGenre(genre.name)}
-                className={`flex items-end h-[4.5rem] md:h-24 p-3.5 rounded-xl text-left font-bold hover:brightness-125 ${GENRE_COLORS[index % GENRE_COLORS.length]}`}
+                className={`flex items-end h-[4.5rem] md:h-24 p-3.5 rounded-xl border-[1.5px] border-line text-left text-base font-black text-white hover:brightness-125 ${GENRE_COLORS[index % GENRE_COLORS.length]}`}
               >
                 {genre.label}
               </button>
@@ -122,12 +129,18 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
       <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
         {filters.q ? (
           <>
-            <span className="md:hidden">Buscar</span>
+            <span className="md:hidden">
+              Buscar
+              <JapaneseLabel title="Buscar" />
+            </span>
             <span className="hidden md:inline">Resultados para «{filters.q}»</span>
           </>
         ) : (
           <>
-            <span className="md:hidden">Buscar</span>
+            <span className="md:hidden">
+              Buscar
+              <JapaneseLabel title="Buscar" />
+            </span>
             <span className="hidden md:inline">Biblioteca</span>
           </>
         )}
@@ -142,7 +155,7 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
             addRecentSearch(text);
             (document.activeElement as HTMLElement | null)?.blur();
           }}
-          className="flex flex-1 min-w-0 items-center gap-2.5 h-12 px-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 focus-within:border-zinc-500"
+          className="flex flex-1 min-w-0 items-center gap-2.5 h-12 px-3.5 rounded-xl bg-ink-3 border-[1.5px] border-line text-zinc-400 focus-within:border-zinc-500"
         >
           <Search className="w-5 h-5 flex-shrink-0" aria-hidden />
           <label htmlFor="page-search" className="sr-only">
@@ -156,7 +169,7 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
             value={text}
             onChange={(e) => typeText(e.target.value)}
             placeholder="Título del anime"
-            className="flex-1 min-w-0 bg-transparent text-base text-white placeholder:text-zinc-500 outline-none [&::-webkit-search-cancel-button]:hidden"
+            className="flex-1 min-w-0 bg-transparent text-base font-medium text-white placeholder:text-zinc-500 outline-none [&::-webkit-search-cancel-button]:hidden"
           />
           {text && (
             <button type="button" aria-label="Borrar texto" onClick={() => typeText("")} className="-mr-1.5 p-1.5 text-zinc-400">
@@ -168,12 +181,12 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
           type="button"
           onClick={() => setSheetOpen(true)}
           aria-haspopup="dialog"
-          className="relative flex flex-shrink-0 items-center justify-center gap-2 h-12 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-semibold"
+          className="relative flex flex-shrink-0 items-center justify-center gap-2 h-12 px-3 rounded-xl bg-ink-3 border-[1.5px] border-line text-sm font-bold"
         >
           <SlidersHorizontal className="w-5 h-5" aria-hidden />
           Filtros
           {count > 0 && (
-            <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-black text-xs font-bold">
+            <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-black text-xs font-bold">
               {count}
             </span>
           )}
@@ -218,7 +231,7 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
 
       {sheetOpen && (
         <div role="dialog" aria-modal="true" aria-label="Filtros" className="md:hidden fixed top-0 left-0 z-50 flex flex-col w-full h-full bg-black">
-          <div className="flex items-center justify-between h-16 px-4 border-b border-zinc-900">
+          <div className="flex items-center justify-between h-16 px-4 border-b border-line">
             <h2 className="text-lg font-bold">Filtros</h2>
             <div className="flex items-center gap-1">
               {hasAnyFilter({ ...filters, q: "" }) && (
@@ -243,11 +256,11 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pk-menu-scroll">
             <FilterPanel filters={filters} onChange={update} genres={genres} tags={tags} />
           </div>
-          <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-zinc-900">
+          <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-line">
             <button
               type="button"
               onClick={() => setSheetOpen(false)}
-              className="w-full h-12 rounded-xl bg-white text-black font-bold"
+              className="w-full h-12 rounded-xl bg-red-500 text-black font-bold hover:bg-red-400"
             >
               Ver resultados
             </button>

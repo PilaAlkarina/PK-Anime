@@ -18,13 +18,47 @@ interface TimelineProps {
   showLabels?: boolean;
   /** Knob always visible (paused, TV); otherwise it grows on hover */
   showKnob?: boolean;
+  /** Paused: a slightly thinner track and a smaller knob */
+  thin?: boolean;
 }
 
 const pct = (value: number, duration: number) => `${Math.min(100, Math.max(0, (value / duration) * 100))}%`;
+const ratio = (value: number, start: number, end: number) =>
+  end > start ? Math.min(1, Math.max(0, (value - start) / (end - start))) : 0;
+
+interface Piece {
+  start: number;
+  end: number;
+  /** Intro / ending pieces sit on the second accent */
+  label: string | null;
+}
+
+/** Splits the track into pieces at the intro and ending edges (each piece is drawn on its own) */
+function piecesOf(duration: number, ranges: { range: SkipRange; label: string }[]): Piece[] {
+  const pieces: Piece[] = [];
+  let at = 0;
+  const sorted = ranges
+    .map(({ range, label }) => ({
+      start: Math.max(0, Math.min(duration, range.start)),
+      end: Math.max(0, Math.min(duration, range.end)),
+      label,
+    }))
+    .filter((r) => r.end > r.start)
+    .sort((a, b) => a.start - b.start);
+  for (const r of sorted) {
+    const start = Math.max(at, r.start);
+    if (r.end <= start) continue;
+    if (start > at) pieces.push({ start: at, end: start, label: null });
+    pieces.push({ start, end: r.end, label: r.label });
+    at = r.end;
+  }
+  if (duration > at) pieces.push({ start: at, end: duration, label: null });
+  return pieces;
+}
 
 /**
- * Seek bar: played time in red over the buffered range, with intro and ending marked in amber.
- * Dragging moves only the knob; the video seeks once on release.
+ * Seek bar: played time in red over the buffered range, split into pieces at the intro and
+ * ending (marked in the second accent). Dragging moves only the knob; the video seeks once on release.
  */
 export function Timeline({
   currentTime,
@@ -37,6 +71,7 @@ export function Timeline({
   tv = false,
   showLabels = false,
   showKnob = false,
+  thin = false,
 }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -63,6 +98,7 @@ export function Timeline({
     intro && { range: intro, label: "Intro" },
     outro && { range: outro, label: "Ending" },
   ].filter(Boolean) as { range: SkipRange; label: string }[];
+  const pieces = duration > 0 ? piecesOf(duration, segments) : [];
 
   return (
     <div className="relative">
@@ -99,36 +135,58 @@ export function Timeline({
         onPointerLeave={() => setHover(null)}
         className={cn(
           "group/timeline relative flex items-center cursor-pointer touch-none select-none",
-          tv ? "h-8" : "h-6"
+          tv ? "h-8 [--seg-gap:5px]" : "h-6 [--seg-gap:3px] touch:[--seg-gap:2px]"
         )}
       >
         <div
           className={cn(
-            "relative w-full rounded-full bg-white/20 overflow-hidden transition-[height] duration-150",
-            tv ? "h-2.5" : "h-1.5 group-hover/timeline:h-2",
-            drag !== null && !tv && "h-2"
+            "relative w-full transition-[height] duration-150",
+            tv
+              ? thin
+                ? "h-2"
+                : "h-2.5"
+              : cn(thin ? "h-[5px]" : "h-1.5 mouse:group-hover/timeline:h-2", "touch:h-1", drag !== null && !thin && "mouse:h-2")
           )}
         >
-          {duration > 0 && (
-            <>
-              <div className="absolute inset-y-0 left-0 bg-white/30" style={{ width: pct(buffered, duration) }} />
-              {segments.map(({ range, label }) => (
+          {duration > 0 &&
+            pieces.map((piece, i) => {
+              // Gaps are carved out of the edges, so time still maps linearly onto the width
+              const left = i > 0 ? `calc(${pct(piece.start, duration)} + var(--seg-gap) / 2)` : pct(piece.start, duration);
+              const right =
+                i < pieces.length - 1
+                  ? `calc(${pct(duration - piece.end, duration)} + var(--seg-gap) / 2)`
+                  : pct(duration - piece.end, duration);
+              return (
                 <div
-                  key={label}
-                  className="absolute inset-y-0 bg-amber-400/60"
-                  style={{ left: pct(range.start, duration), width: pct(range.end - range.start, duration) }}
-                />
-              ))}
-              <div className="absolute inset-y-0 left-0 bg-red-500" style={{ width: pct(shown, duration) }} />
-            </>
-          )}
+                  key={`${piece.start}-${piece.end}`}
+                  className={cn("absolute inset-y-0 rounded-full overflow-hidden", piece.label ? "bg-amber-500/60" : "bg-white/[0.18]")}
+                  style={{ left, right }}
+                >
+                  {!piece.label && (
+                    <div
+                      className="absolute inset-y-0 left-0 bg-white/[0.32]"
+                      style={{ width: `${ratio(buffered, piece.start, piece.end) * 100}%` }}
+                    />
+                  )}
+                  <div
+                    className="absolute inset-y-0 left-0 bg-red-500"
+                    style={{ width: `${ratio(shown, piece.start, piece.end) * 100}%` }}
+                  />
+                </div>
+              );
+            })}
         </div>
 
         {duration > 0 && (
           <div
             className={cn(
-              "absolute top-1/2 rounded-full bg-white pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 shadow-[0_0_0_4px_rgb(var(--c-accent)/0.4)]",
-              tv ? "w-6 h-6" : "w-4 h-4",
+              "absolute top-1/2 rounded-full bg-white pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-transform duration-150",
+              tv
+                ? "w-[26px] h-[26px] shadow-[0_0_0_5px_rgb(var(--c-accent)/0.4)]"
+                : cn(
+                    "shadow-[0_0_0_4px_rgb(var(--c-accent)/0.4)]",
+                    thin ? "w-3.5 h-3.5" : "w-[18px] h-[18px] touch:w-3.5 touch:h-3.5"
+                  ),
               showKnob || drag !== null ? "scale-100" : "scale-0 group-hover/timeline:scale-100 touch:scale-100"
             )}
             style={{ left: pct(shown, duration) }}
@@ -137,17 +195,17 @@ export function Timeline({
 
         {tip !== null && duration > 0 && !tv && (
           <div
-            className="absolute bottom-full mb-2 px-2.5 py-1 rounded-lg bg-zinc-950/90 text-[13px] font-semibold tabular-nums whitespace-nowrap pointer-events-none -translate-x-1/2"
+            className="absolute bottom-full mb-2 px-2.5 py-1 rounded-md bg-white text-black text-[13px] font-bold tabular-nums whitespace-nowrap pointer-events-none -translate-x-1/2"
             style={{ left: `clamp(2.5rem, ${pct(tip, duration)}, calc(100% - 2.5rem))` }}
           >
-            {tipSegment && <span className="mr-1.5 text-amber-300">{tipSegment}</span>}
+            {tipSegment && <span className="mr-1.5 text-red-600">{tipSegment}</span>}
             {formatSecondsToTime(tip)}
           </div>
         )}
       </div>
 
       {showLabels && duration > 0 && segments.length > 0 && (
-        <div className="relative h-4 text-[11px] font-medium text-amber-300/90 pointer-events-none">
+        <div className="relative h-4 mt-1 text-[11px] font-bold tracking-[0.06em] text-amber-500 pointer-events-none touch:hidden">
           {segments.map(({ range, label }) => (
             <span key={label} className="absolute top-0" style={{ left: pct(range.start, duration) }}>
               {label}

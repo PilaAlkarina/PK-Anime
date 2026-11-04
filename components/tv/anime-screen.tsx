@@ -1,6 +1,7 @@
 "use client";
 
-import { JapaneseLabel } from "@/components/brand";
+import { EpisodeNumeral, JapaneseLabel, Keycap, MetaWithScore } from "@/components/brand";
+import { GenrePills } from "./hero";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
@@ -15,9 +16,8 @@ import { subtitleLanguageName } from "@/components/player/player-core/subtitle-l
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo } from "@/lib/anilist/episodes";
-import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, metaLine, statusLabel } from "@/lib/library/format";
-import { continueWatching, episodeProgress, useWatchHistory } from "@/lib/library/history";
+import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
@@ -50,6 +50,8 @@ function EpisodeTile({
   title,
   thumbnail,
   progress,
+  duration,
+  current,
   onSelect,
   onFocused,
 }: {
@@ -57,6 +59,9 @@ function EpisodeTile({
   title?: string;
   thumbnail?: string | null;
   progress: number;
+  duration: number | null;
+  /** The episode to resume: its numeral is filled with the accent */
+  current: boolean;
   onSelect: () => void;
   onFocused: (node: HTMLElement, details: FocusDetails) => void;
 }) {
@@ -65,11 +70,20 @@ function EpisodeTile({
     onFocus: (layout, _props, details) => onFocused(layout.node, details),
   });
 
+  const status =
+    progress >= WATCHED_FRACTION
+      ? "Visto"
+      : progress > 0 && duration
+        ? `Quedan ${Math.max(1, Math.round(duration * (1 - progress)))} min`
+        : duration
+          ? `${duration} min`
+          : null;
+
   return (
     <div ref={ref} {...pointerProps} className="outline-none cursor-pointer">
       <div
         className={cn(
-          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
+          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 border-[1.5px] border-line transition-transform duration-150",
           focused && "koma"
         )}
       >
@@ -81,14 +95,16 @@ function EpisodeTile({
             decoding="async"
             className="absolute top-0 left-0 w-full h-full object-cover"
           />
-        ) : (
-          <span className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-6xl font-bold text-white/25">
-            {number}
+        ) : null}
+        {status && (
+          <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-md bg-black/85 text-[0.95rem] font-bold text-white">
+            {status}
           </span>
         )}
+        <EpisodeNumeral n={number} current={current || focused} className="right-3 bottom-3 text-5xl" />
         {progress > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/25">
-            <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/[0.18]">
+            <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
         )}
       </div>
@@ -137,6 +153,8 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const listEntry = remote ? remoteEntry : localEntry;
   const listName = remote ? remote.provider.name : "Mi lista";
   const continuing = !!resume && resume.episode === playEpisode && resume.progress > 0;
+  // Only a real position (history or a list) marks an episode as the current one
+  const hasPosition = !!resume || listNext > 0;
 
   const [range, setRange] = useState(0);
   // Open on the block that holds the episode to resume
@@ -219,14 +237,24 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               anime.banner ? "w-[70%] via-black/70" : "w-[75%] via-black/90"
             )}
           />
+          <div
+            aria-hidden="true"
+            className="absolute top-0 left-[24%] w-[50%] h-[75vh] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
+          />
 
-          <div className="relative pl-[10rem] pt-[13vh] w-[62%]">
-            <h1 className="text-6xl font-bold leading-tight line-clamp-2">{anime.title}</h1>
-            {subtitle && <p className="mt-2 text-xl text-zinc-400 line-clamp-1">{subtitle}</p>}
-            <p className="mt-5 text-xl text-zinc-200">{metaLine(anime)}</p>
-            <p className="mt-2 text-lg text-zinc-400">
-              {[details, anime.genres.map((g) => GENRE_LABELS[g] || g).join(", ")].filter(Boolean).join(" · ")}
+          <div className="relative pl-[10rem] pt-[10vh] w-[62%]">
+            {/* What the remote's Back key does here */}
+            <p className="flex items-center text-lg font-medium text-zinc-200">
+              <Keycap className="mr-2.5">⟵</Keycap>
+              Volver
             </p>
+            <h1 className="mt-4 text-[4.5rem] leading-[1.1] line-clamp-2">{anime.title}</h1>
+            {subtitle && <p className="mt-2 text-xl font-medium text-zinc-400 line-clamp-1">{subtitle}</p>}
+            <p className="mt-5 text-2xl font-medium text-zinc-200">
+              <MetaWithScore before={metaLine(anime, { score: false })} score={anime.score} />
+            </p>
+            {details && <p className="mt-2 text-lg text-zinc-400">{details}</p>}
+            {anime.genres.length > 0 && <GenrePills genres={anime.genres} className="mt-4" />}
             {anime.description && (
               <p className="mt-6 text-xl leading-relaxed text-zinc-300 line-clamp-5">{anime.description}</p>
             )}
@@ -248,22 +276,20 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                   {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
                 </FocusButton>
               )}
-              <FocusButton
-                variant="secondary"
-                className="mr-2"
-                active={audio === "sub"}
-                onSelect={() => setAudioPreference("sub")}
-              >
-                SUB
-              </FocusButton>
-              <FocusButton
-                variant="secondary"
-                className="mr-4"
-                active={audio === "dub"}
-                onSelect={() => setAudioPreference("dub")}
-              >
-                DUB
-              </FocusButton>
+              {/* Segmented control: a raised track, the selected side in paper */}
+              <div role="group" aria-label="Audio" className="flex mr-4 p-1.5 rounded-full bg-ink-3 border-[1.5px] border-line">
+                {(["sub", "dub"] as const).map((value) => (
+                  <FocusButton
+                    key={value}
+                    variant="segment"
+                    className="h-[3.25rem] px-6 text-xl"
+                    active={audio === value}
+                    onSelect={() => setAudioPreference(value)}
+                  >
+                    {value === "sub" ? "Original" : "Doblaje"}
+                  </FocusButton>
+                ))}
+              </div>
               {hasTrailer && (
                 <FocusButton
                   variant="secondary"
@@ -372,6 +398,8 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                     // Episodes a list counts as watched show as finished
                     watchedUpTo >= number ? 1 : 0
                   )}
+                  duration={anime.duration}
+                  current={hasPosition && number === playEpisode}
                   onSelect={() => play(number)}
                   onFocused={revealTile}
                 />

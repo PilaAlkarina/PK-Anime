@@ -38,16 +38,24 @@ export function episodesLabel(item: Pick<CatalogItem, "status" | "episodes" | "a
   return total === 1 ? "1 episodio" : `${total} episodios`;
 }
 
-/** "Serie · 2026 · 12 episodios · 86%" */
-export function metaLine(item: CatalogItem) {
+/**
+ * "Serie · 2026 · 12 episodios · 86%". Pass `score: false` where the score is drawn apart
+ * (ScoreStar in components/brand.tsx)
+ */
+export function metaLine(item: CatalogItem, { score = true }: { score?: boolean } = {}) {
   return [
     formatLabel(item.format),
     item.seasonYear,
     episodesLabel(item),
-    item.score ? `${item.score}%` : null,
+    score && item.score ? `${item.score}%` : null,
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** AniList's 0–100 average as a mark out of ten, Spanish style: 86 → "8,6" */
+export function scoreOutOfTen(score: number) {
+  return (score / 10).toFixed(1).replace(".", ",");
 }
 
 const weekday = new Intl.DateTimeFormat("es", { weekday: "long" });

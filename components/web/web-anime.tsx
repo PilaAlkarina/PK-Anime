@@ -1,6 +1,6 @@
 "use client";
 
-import { JapaneseLabel } from "@/components/brand";
+import { EpisodeNumeral, JapaneseLabel, MetaWithScore, ScoreStar } from "@/components/brand";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
@@ -45,6 +45,7 @@ function EpisodeItem({
   thumbnail,
   progress,
   duration,
+  current,
   href,
 }: {
   number: number;
@@ -52,6 +53,8 @@ function EpisodeItem({
   thumbnail?: string | null;
   progress: number;
   duration: number | null;
+  /** The episode to resume: popped out, its numeral filled with the accent */
+  current: boolean;
   href: string;
 }) {
   const watched = progress >= WATCHED_FRACTION;
@@ -69,31 +72,39 @@ function EpisodeItem({
       href={href}
       className="group flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2 scroll-mt-24 outline-none"
     >
-      <div className="relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-lg sm:rounded-xl overflow-hidden bg-zinc-900 group-focus-visible:ring-2 group-focus-visible:ring-white">
-        {thumbnail ? (
+      <div
+        className={cn(
+          "relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200",
+          "group-hover:koma-sm sm:group-hover:koma-md group-focus-visible:koma-sm sm:group-focus-visible:koma-md",
+          current && "koma-sm sm:koma-md"
+        )}
+      >
+        {thumbnail && (
           <img src={thumbnail} alt="" loading="lazy" decoding="async" className="absolute top-0 left-0 w-full h-full object-cover" />
-        ) : (
-          <span className="absolute top-0 left-0 flex items-center justify-center w-full h-full text-2xl sm:text-4xl font-bold text-white/25">
-            {number}
+        )}
+        {/* Wider tiles carry the status on the artwork; phones show it under the title */}
+        {status && (
+          <span className="hidden sm:block absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/85 text-xs font-bold text-white">
+            {status}
           </span>
         )}
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
-        </span>
-        {watched && (
-          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/80 text-[0.7rem] font-bold">Visto</span>
-        )}
+        <EpisodeNumeral
+          n={number}
+          current={current}
+          outline="text-outline-hair sm:text-outline-thin"
+          className="top-1.5 left-2 text-2xl sm:top-auto sm:left-auto sm:right-2.5 sm:bottom-2.5 sm:text-[2.1rem]"
+        />
         {progress > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1 bg-white/25">
-            <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div className="absolute left-0 right-0 bottom-0 h-1 bg-white/[0.18]">
+            <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
         )}
       </div>
       <span className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-sm font-semibold line-clamp-2 group-hover:text-white text-zinc-100">
+        <span className="text-sm font-bold line-clamp-2 text-white">
           {number}. {title || `Episodio ${number}`}
         </span>
-        {status && <span className="text-xs text-zinc-400">{status}</span>}
+        {status && <span className="sm:hidden text-xs font-medium text-zinc-400">{status}</span>}
       </span>
     </Link>
   );
@@ -138,6 +149,8 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const listEntry = remote ? remoteEntry : localEntry;
   const listName = remote ? remote.provider.name : "Mi lista";
   const continuing = !!resume && resume.episode === playEpisode && resume.progress > 0;
+  // Only a real position (history or a list) marks an episode as the current one
+  const hasPosition = !!resume || listNext > 0;
   const remaining =
     continuing && anime.duration ? Math.max(1, Math.round(anime.duration * (1 - (resume?.progress ?? 0)))) : null;
 
@@ -198,11 +211,15 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
           />
         )}
         <div className="absolute left-0 right-0 bottom-0 h-3/4 bg-gradient-to-t from-black to-transparent" />
+        <div
+          aria-hidden="true"
+          className="absolute left-0 right-0 bottom-0 h-[62%] md:h-[76%] screentone-fine md:screentone [mask-image:linear-gradient(0deg,transparent,#000_40%,transparent_85%)]"
+        />
         <button
           type="button"
           onClick={goBack}
           aria-label="Volver"
-          className="md:hidden absolute top-3 left-3 flex items-center justify-center w-11 h-11 rounded-full bg-black/70"
+          className="md:hidden absolute top-3 left-3 flex items-center justify-center w-11 h-11 rounded-full bg-black/80 border-[1.5px] border-line"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -215,7 +232,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
               src={anime.cover}
               alt=""
               decoding="async"
-              className="hidden md:block w-[13.75rem] rounded-2xl shadow-[0_1.25rem_3rem_rgba(0,0,0,0.6)]"
+              className="hidden md:block w-[13.75rem] rounded-[18px] border-[1.5px] border-line shadow-[8px_8px_0_rgb(var(--c-ink))]"
             />
           )}
           <div className="flex flex-col gap-3 flex-[999_1_34rem] min-w-0">
@@ -223,11 +240,13 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
               <Link href="/" className="hover:text-white">
                 Inicio
               </Link>{" "}
-              / <span className="text-zinc-300">{anime.title}</span>
+              / <span>{anime.title}</span>
             </nav>
-            <h1 className="text-[1.6rem] md:text-[2.6rem] leading-tight font-extrabold tracking-tight">{anime.title}</h1>
-            {subtitle && <p className="-mt-1.5 text-sm md:text-base text-zinc-400">{subtitle}</p>}
-            <p className="text-sm md:text-[0.95rem] text-zinc-300">{metaLine(anime)}</p>
+            <h1 className="text-[1.6rem] md:text-[2.6rem] leading-[1.1]">{anime.title}</h1>
+            {subtitle && <p className="-mt-1.5 text-sm md:text-base font-medium text-zinc-400">{subtitle}</p>}
+            <p className="text-sm md:text-[0.95rem] font-medium text-zinc-300">
+              <MetaWithScore before={metaLine(anime, { score: false })} score={anime.score} />
+            </p>
             {(anime.genres.length > 0 || anime.tags.length > 0) && (
               <div className="flex flex-wrap gap-2">
                 {/* Each one opens the advanced search with it applied, ready to refine */}
@@ -235,7 +254,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                   <Link
                     key={g}
                     href={`/search?genre=${encodeURIComponent(g)}`}
-                    className="px-3 py-1 rounded-full bg-zinc-800 text-xs md:text-sm text-zinc-200 hover:bg-zinc-700"
+                    className="px-3 py-1 rounded-full border-[1.5px] border-line bg-zinc-900 text-xs md:text-[13px] font-medium text-zinc-200 hover:border-zinc-500 hover:text-white"
                   >
                     {GENRE_LABELS[g] || g}
                   </Link>
@@ -258,13 +277,13 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <>
                   <Link
                     href={watchHref(playEpisode)}
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-red-500 text-black font-bold shadow-hard hover:bg-red-400"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-red-500 text-black font-bold sm:shadow-hard hover:bg-red-400"
                   >
                     <Play className="w-4 h-4" fill="currentColor" />
                     {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
-                    {remaining && <span className="font-medium text-zinc-600">· quedan {remaining} min</span>}
+                    {remaining && <span className="font-medium">· quedan {remaining} min</span>}
                   </Link>
-                  <div role="group" aria-label="Audio" className="flex flex-1 sm:flex-none p-1 rounded-xl sm:rounded-full bg-zinc-900 border border-zinc-800">
+                  <div role="group" aria-label="Audio" className="flex flex-1 sm:flex-none p-1 rounded-xl sm:rounded-full bg-ink-3 border-[1.5px] border-line">
                     {(["sub", "dub"] as const).map((value) => (
                       <button
                         key={value}
@@ -272,8 +291,9 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                         aria-pressed={audio === value}
                         onClick={() => setAudioPreference(value)}
                         className={cn(
-                          "flex-1 h-10 px-4 rounded-lg sm:rounded-full text-sm",
-                          audio === value ? "bg-zinc-700 text-white font-semibold" : "text-zinc-400 hover:text-white"
+                          "flex-1 h-10 px-4 rounded-[9px] sm:rounded-full text-sm font-bold outline-none focus-visible:koma-sm",
+                          // Selected side in paper, like every segmented control
+                          audio === value ? "bg-white text-black" : "text-zinc-400 hover:text-white"
                         )}
                       >
                         {value === "sub" ? "Original" : "Doblaje"}
@@ -287,7 +307,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                   type="button"
                   onClick={() => setTrailerOpen(true)}
                   aria-haspopup="dialog"
-                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
+                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800"
                 >
                   <Clapperboard className="w-5 h-5" />
                   Tráiler
@@ -298,7 +318,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <button
                   type="button"
                   onClick={addToList}
-                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
+                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800"
                 >
                   {remote ? <ListPlus className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
                   {adding ? "Añadiendo…" : remote ? `Añadir a ${remote.provider.name}` : "Mi lista"}
@@ -308,7 +328,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
 
             <Link
               href="/settings"
-              className="flex items-center gap-2.5 h-12 px-3.5 rounded-xl bg-zinc-900 text-sm sm:h-auto sm:px-0 sm:bg-transparent sm:text-zinc-400 hover:text-white"
+              className="flex items-center gap-2.5 h-12 px-3.5 rounded-xl bg-zinc-900 border-[1.5px] border-line text-sm font-bold sm:h-auto sm:px-0 sm:bg-transparent sm:border-0 sm:font-medium sm:text-zinc-400 hover:text-white"
             >
               <Captions className="w-5 h-5 flex-shrink-0" />
               <span className="flex-1 sm:flex-none">Subtítulos: {subtitlesLabel}</span>
@@ -336,7 +356,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <button
                   type="button"
                   onClick={() => setExpanded((v) => !v)}
-                  className="md:hidden mt-1 text-sm font-semibold text-zinc-200"
+                  className="md:hidden mt-1 text-sm font-bold text-red-500"
                 >
                   {expanded ? "Menos" : "Más"}
                 </button>
@@ -366,7 +386,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                     type="checkbox"
                     checked={hideWatched}
                     onChange={(e) => setHideWatched(e.target.checked)}
-                    className="w-4 h-4 accent-red-600"
+                    className="w-4 h-4 accent-red-500"
                   />
                   Ocultar vistos
                 </label>
@@ -376,7 +396,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                       e.preventDefault();
                       goToEpisode(jump);
                     }}
-                    className="flex items-center gap-2 h-10 px-3 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-400"
+                    className="flex items-center gap-2 h-10 px-3 rounded-xl bg-ink-3 border-[1.5px] border-line text-sm font-medium text-zinc-400"
                   >
                     <label htmlFor="jump-episode">Ir al episodio</label>
                     <input
@@ -388,7 +408,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                       value={jump}
                       onChange={(e) => setJump(e.target.value)}
                       placeholder={String(playEpisode)}
-                      className="w-14 bg-transparent font-semibold text-white outline-none"
+                      className="w-14 bg-transparent font-bold tabular-nums text-white outline-none"
                     />
                   </form>
                 )}
@@ -405,8 +425,8 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                         aria-pressed={i === range}
                         onClick={() => setRange(i)}
                         className={cn(
-                          "h-9 px-4 rounded-full text-sm",
-                          i === range ? "bg-white text-black font-semibold" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                          "h-9 px-4 rounded-full border-[1.5px] text-sm font-bold",
+                          i === range ? "bg-white border-white text-black" : "bg-ink-3 border-line text-zinc-300 hover:bg-zinc-800"
                         )}
                       >
                         {from}–{to}
@@ -427,6 +447,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                       thumbnail={titles.get(number)?.thumbnail}
                       progress={progressOf(number)}
                       duration={anime.duration}
+                      current={hasPosition && number === playEpisode}
                       href={watchHref(number)}
                     />
                   ))}
@@ -436,25 +457,27 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
           )}
 
           <aside className="flex flex-col gap-7 flex-[1_1_18rem] min-w-0">
-            <section className="p-5 rounded-2xl bg-zinc-950 border border-zinc-900">
+            <section className="p-5 rounded-[18px] bg-zinc-900 border-[1.5px] border-line">
               <h2 className="mb-3 font-bold">
                 Información
                 <JapaneseLabel title="Información" />
               </h2>
               <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-y-2.5 text-sm">
-                {[
+                {(
+                  [
                   ["Estado", statusLabel(anime.status)],
                   ["Episodios", episodesLabel(anime)],
                   ["Duración", anime.duration ? `${anime.duration} min` : null],
                   ["Estudio", anime.studios.join(", ") || null],
                   ["Año", anime.seasonYear ? String(anime.seasonYear) : null],
-                  ["Puntuación", anime.score ? `${anime.score} %` : null],
-                ]
+                  ["Puntuación", anime.score ? <ScoreStar score={anime.score} /> : null],
+                  ] as [string, React.ReactNode][]
+                )
                   .filter(([, value]) => value)
                   .map(([label, value]) => (
                     <div key={label} className="contents">
-                      <dt className="text-zinc-400">{label}</dt>
-                      <dd>{value}</dd>
+                      <dt className="font-medium text-zinc-400">{label}</dt>
+                      <dd className="font-medium">{value}</dd>
                     </div>
                   ))}
               </dl>
@@ -470,16 +493,16 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                     <Link
                       key={`${r.relationType}-${r.item.id}`}
                       href={`/anime/${r.item.id}`}
-                      className="flex items-center gap-3 p-2 rounded-xl bg-zinc-950 hover:bg-zinc-900"
+                      className="flex items-center gap-3 p-2 rounded-xl bg-zinc-900 border-[1.5px] border-line hover:border-zinc-500"
                     >
                       <span
-                        className="w-11 h-[3.9rem] flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800"
+                        className="w-11 h-[3.9rem] flex-shrink-0 rounded-md overflow-hidden bg-zinc-800"
                         style={r.item.color ? { backgroundColor: r.item.color } : undefined}
                       >
                         {r.item.cover && <img src={r.item.cover} alt="" loading="lazy" className="w-full h-full object-cover" />}
                       </span>
                       <span className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-sm font-semibold line-clamp-2">{r.item.title}</span>
+                        <span className="text-sm font-bold line-clamp-2">{r.item.title}</span>
                         <span className="text-xs text-zinc-400">
                           {[RELATION_LABELS[r.relationType], r.item.seasonYear].filter(Boolean).join(" · ")}
                         </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Stamp, japaneseFor } from "@/components/brand";
+import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/components/brand";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,10 +37,12 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
     .map((g) => GENRE_LABELS[g] || g)
     .join(", ");
   const step = (by: number) => setIndex((i) => (i + by + items.length) % items.length);
+  const stampLabel = row.kind === "trending" ? `TENDENCIA N.º ${index + 1}` : `${row.title.toUpperCase()} · N.º ${index + 1}`;
+  const stampJapanese = japaneseFor(row.title) ? `${japaneseFor(row.title)} No.${index + 1}` : undefined;
 
   return (
     <section aria-label="Destacado" aria-roledescription="carrusel" className="px-4 md:px-8">
-      <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-zinc-900 md:min-h-[27rem] md:flex md:items-end">
+      <div className="relative overflow-hidden rounded-[18px] bg-zinc-900 md:border-[1.5px] md:border-line md:min-h-[27rem] md:flex md:items-end">
         <div className="relative pt-[56.25%] md:pt-0 md:absolute md:top-0 md:left-0 md:w-full md:h-full">
           {image && (
             <img
@@ -59,18 +61,35 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
             aria-hidden="true"
             className="hidden md:block absolute top-0 bottom-0 left-[25%] w-[55%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
           />
-          <span className="absolute top-3 left-3 md:hidden px-2.5 py-1 rounded-full bg-black/80 text-[0.7rem] font-bold tracking-widest text-red-300">
-            {row.title.toUpperCase()} · N.º {index + 1}
-          </span>
+          {/* Phones: the screentone sits along the bottom edge, with finer dots */}
+          <div
+            aria-hidden="true"
+            className="md:hidden absolute left-0 right-0 bottom-0 h-[60%] screentone-fine [mask-image:linear-gradient(0deg,transparent,#000_40%,transparent_85%)]"
+          />
+          <Stamp japanese={stampJapanese} backed className="absolute top-3 left-3 md:hidden text-[0.7rem]">
+            {stampLabel}
+          </Stamp>
+          {items.length > 1 && (
+            <div className="md:hidden absolute left-0 right-0 bottom-3 flex justify-center gap-1.5" aria-hidden>
+              {items.map((it, i) => (
+                <span
+                  key={it.id}
+                  className={cn("h-1.5 rounded-full transition-all", i === index ? "w-[18px] bg-red-500" : "w-1.5 bg-white/45")}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div key={item.id} className="hidden md:flex relative flex-col gap-3 max-w-[40rem] p-10 tv-fade-in">
-          <Stamp japanese={japaneseFor(row.title) ? `${japaneseFor(row.title)} No.${index + 1}` : undefined} className="text-xs">
-            {row.title.toUpperCase()} · N.º {index + 1}
+          <Stamp japanese={stampJapanese} className="text-[13px]">
+            {stampLabel}
           </Stamp>
-          <h1 className="text-[2.6rem] leading-[1.08] font-extrabold tracking-tight line-clamp-2">{item.title}</h1>
-          <p className="text-[0.95rem] text-zinc-300">{[metaLine(item), genres].filter(Boolean).join(" · ")}</p>
-          <p className="text-[0.95rem] leading-relaxed text-zinc-300 line-clamp-3 min-h-[4.5rem]">{detail?.description}</p>
+          <h1 className="text-[2.6rem] leading-[1.1] line-clamp-2">{item.title}</h1>
+          <p className="text-[0.95rem] font-medium text-zinc-200">
+            <MetaWithScore before={metaLine(item, { score: false })} score={item.score} after={genres} />
+          </p>
+          <p className="text-[0.95rem] leading-relaxed text-zinc-200 line-clamp-3 min-h-[4.5rem]">{detail?.description}</p>
           <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} />
         </div>
 
@@ -80,7 +99,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
               type="button"
               aria-label="Destacado anterior"
               onClick={() => step(-1)}
-              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-black/70 hover:bg-black"
+              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full border-[1.5px] border-line bg-black/80 hover:bg-black"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
@@ -88,7 +107,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
               type="button"
               aria-label="Destacado siguiente"
               onClick={() => step(1)}
-              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-black/70 hover:bg-black"
+              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full border-[1.5px] border-line bg-black/80 hover:bg-black"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -99,18 +118,12 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
       {/* Phones: details under the artwork, buttons full width */}
       <div key={`m-${item.id}`} className="md:hidden flex flex-col gap-3 mt-3">
         <div>
-          <h1 className="text-[1.4rem] leading-tight font-extrabold line-clamp-2">{item.title}</h1>
-          <p className="mt-1 text-sm text-zinc-400">{metaLine(item)}</p>
+          <h1 className="text-[1.4rem] leading-[1.15] line-clamp-2">{item.title}</h1>
+          <p className="mt-1 text-sm font-medium text-zinc-400">
+            <MetaWithScore before={metaLine(item, { score: false })} score={item.score} />
+          </p>
         </div>
         <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} compact />
-        <div className="flex justify-center gap-1.5" aria-hidden>
-          {items.map((it, i) => (
-            <span
-              key={it.id}
-              className={cn("h-1.5 rounded-full transition-all", i === index ? "w-5 bg-white" : "w-1.5 bg-white/40")}
-            />
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -156,7 +169,7 @@ function FeaturedActions({
       {!compact && (
         <Link
           href={`/anime/${item.id}`}
-          className="flex items-center h-12 px-5 rounded-full bg-white/15 font-semibold hover:bg-white/25"
+          className="flex items-center h-12 px-5 rounded-full bg-ink-3 border-[1.5px] border-line font-bold hover:bg-zinc-800"
         >
           Más información
         </Link>
@@ -168,7 +181,7 @@ function FeaturedActions({
           aria-pressed={inMyList}
           aria-label={inMyList ? "Quitar de Mi lista" : "Añadir a Mi lista"}
           className={cn(
-            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-white/15 hover:bg-white/25",
+            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800",
             compact ? "rounded-xl" : "rounded-full"
           )}
         >
@@ -180,7 +193,7 @@ function FeaturedActions({
           aria-label={`En tu lista: ${REMOTE_STATUS_LABELS[listEntry!.status]}. Cambiarlo en su ficha`}
           title={REMOTE_STATUS_LABELS[listEntry!.status]}
           className={cn(
-            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-white/15 hover:bg-white/25",
+            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800",
             compact ? "rounded-xl" : "rounded-full"
           )}
         >
@@ -191,8 +204,11 @@ function FeaturedActions({
   );
 }
 
-/** Wide card for "Seguir viendo": artwork, the episode and how far it got */
-function ResumeCard({ entry }: { entry: ContinueItem }) {
+/**
+ * Wide card for "Seguir viendo": artwork, the episode and how far it got. The `current` one (the
+ * latest) stands out like a selected panel, with its episode number in the accent
+ */
+function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?: boolean }) {
   const { anime, episode, progress } = entry;
   const image = anime.banner || anime.cover;
   return (
@@ -201,7 +217,11 @@ function ResumeCard({ entry }: { entry: ContinueItem }) {
       className="group flex-shrink-0 w-[15rem] md:w-[19rem] snap-start flex flex-col gap-2 outline-none"
     >
       <div
-        className="relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 ease-out group-hover:koma-sm group-focus-visible:ring-2 group-focus-visible:ring-white motion-reduce:transform-none"
+        className={cn(
+          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 ease-out",
+          "group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md",
+          current && "koma-sm md:koma-md"
+        )}
         style={anime.color ? { backgroundColor: anime.color } : undefined}
       >
         {image && (
@@ -210,19 +230,26 @@ function ResumeCard({ entry }: { entry: ContinueItem }) {
             alt=""
             loading="lazy"
             decoding="async"
-            className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06] motion-reduce:transform-none"
+            className="absolute top-0 left-0 w-full h-full object-cover"
           />
         )}
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-full bg-black/70 text-white transition duration-200 group-hover:scale-125 group-hover:bg-white group-hover:text-black">
+        {/* Phones have no hover: a play button says the card plays */}
+        <span className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-black/75 text-white">
           <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
         </span>
+        <EpisodeNumeral
+          n={episode}
+          current={current}
+          outline="text-outline-hair md:text-outline-thin"
+          className="top-2 left-2.5 text-[1.6rem] md:left-3 md:text-[1.9rem]"
+        />
         {progress > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1 bg-white/25">
-            <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div className="absolute left-0 right-0 bottom-0 h-1 md:h-[5px] bg-white/[0.18]">
+            <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
         )}
       </div>
-      <span className="text-sm font-semibold line-clamp-1">{anime.title}</span>
+      <span className="text-sm md:text-[0.95rem] font-bold line-clamp-1">{anime.title}</span>
       <span className="-mt-1.5 text-xs text-zinc-400">
         Episodio {episode}
         {progress > 0 && ` · visto el ${Math.round(progress * 100)} %`}
@@ -235,9 +262,13 @@ function CatalogRowSection({ row }: { row: CatalogRow }) {
   const { items, hasNextPage, loadMore } = usePagedRow(row);
   return (
     <HorizontalRow title={row.title} onNearEnd={hasNextPage ? loadMore : undefined} itemCount={items.length}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <div key={item.id} className="flex-shrink-0 w-[7.5rem] md:w-[10.5rem] snap-start">
-          <PosterCard item={item} badge={item.airedEpisode ? `EP ${item.airedEpisode.episode}` : undefined} />
+          <PosterCard
+            item={item}
+            badge={item.airedEpisode ? `EP ${item.airedEpisode.episode}` : undefined}
+            rank={row.kind === "trending" ? index + 1 : undefined}
+          />
         </div>
       ))}
     </HorizontalRow>
@@ -258,7 +289,12 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
   return (
     <div className="max-w-[1360px] mx-auto pb-10">
       <header className="md:hidden flex items-center justify-between h-16 px-4">
-        <span className="text-xl font-extrabold tracking-tight">PK Anime</span>
+        <span className="flex items-center gap-2.5">
+          <Hanko className="w-9 h-9 text-base" />
+          <span lang="ja" aria-hidden="true" className="text-xs font-black tracking-[0.3em] text-zinc-400">
+            アニメ
+          </span>
+        </span>
         <AccountAvatar />
       </header>
 
@@ -269,7 +305,7 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="mt-6 h-11 px-6 rounded-full bg-white text-black font-semibold hover:bg-zinc-200"
+            className="mt-6 h-11 px-6 rounded-full bg-red-500 text-black font-bold hover:bg-red-400"
           >
             Reintentar
           </button>
@@ -279,8 +315,8 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
           <Featured row={rows[0]} resume={resume} />
           {resume.length > 0 && (
             <HorizontalRow title="Seguir viendo">
-              {resume.map((entry) => (
-                <ResumeCard key={entry.anime.id} entry={entry} />
+              {resume.map((entry, index) => (
+                <ResumeCard key={entry.anime.id} entry={entry} current={index === 0} />
               ))}
             </HorizontalRow>
           )}

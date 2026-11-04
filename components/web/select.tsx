@@ -248,7 +248,7 @@ export function Select<T extends string | number>({
           className={cn(
             "inline-flex items-center justify-between gap-3 h-10 min-w-[8rem] pl-3 pr-2.5 rounded-lg",
             "bg-zinc-900 border text-sm text-zinc-100 text-left transition-colors",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+            "outline-none focus-visible:koma-sm",
             "disabled:opacity-60 disabled:cursor-not-allowed",
             open ? "border-zinc-400 bg-zinc-800" : "border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/60",
             buttonClassName

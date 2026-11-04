@@ -132,7 +132,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   }, [view]);
 
   const rowClass = cn(
-    "w-full flex items-center gap-3 px-4 text-left border-b border-white/[0.06] last:border-b-0 outline-none transition-colors",
+    "w-full flex items-center gap-3 px-3.5 text-left border-b border-line last:border-b-0 outline-none transition-colors",
     // TV only ever focuses; desktop hovers, and shows focus for keyboard users only
     tv ? "h-[4.25rem] text-[1.375rem] focus:bg-white focus:text-black" : "h-[50px] text-sm hover:bg-white/[0.06] focus-visible:bg-white/[0.1]"
   );
@@ -142,16 +142,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
       <span className="flex-1 font-medium">{label}</span>
       <span
         className={cn(
-          "relative inline-flex shrink-0 items-center rounded-full transition-colors",
+          "relative inline-flex shrink-0 items-center rounded-full border-[1.5px] transition-colors",
           tv ? "w-14 h-8" : "w-10 h-6",
-          on ? "bg-red-500" : "bg-zinc-700"
+          on ? "bg-red-500 border-red-500" : "bg-zinc-900 border-zinc-500"
         )}
       >
         <span
           className={cn(
-            "absolute rounded-full bg-white transition-transform",
-            tv ? "w-6 h-6 left-1" : "w-4 h-4 left-1",
-            on && (tv ? "translate-x-6" : "translate-x-4")
+            "absolute rounded-full transition-transform",
+            tv ? "w-[1.375rem] h-[1.375rem] left-0.5" : "w-[17px] h-[17px] left-px",
+            on ? cn("bg-black", tv ? "translate-x-[1.8125rem]" : "translate-x-[18px]") : "bg-zinc-400"
           )}
         />
       </span>
@@ -208,7 +208,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   };
   const serverDot = (id: string) => {
     const state = status.services.find((s) => s.id === id)?.state;
-    return state === "ok" ? "bg-emerald-400" : state === "degraded" ? "bg-amber-400" : state === "down" ? "bg-red-500" : "bg-zinc-500";
+    return state === "ok" ? "bg-green-400" : state === "degraded" ? "bg-amber-500" : state === "down" ? "bg-red-500" : "bg-zinc-500";
   };
 
   return (
@@ -220,27 +220,27 @@ export function SettingsPanel(props: SettingsPanelProps) {
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       className={cn(
-        "absolute inset-y-0 right-0 z-50 flex flex-col bg-zinc-900 border-l border-white/10 text-white overflow-y-auto overscroll-contain player-menu-scrollbar animate-in slide-in-from-right-8 fade-in duration-200",
-        tv ? "w-[36rem] p-8 gap-6" : "w-full sm:w-[400px] p-5 gap-5"
+        "absolute inset-y-0 right-0 z-50 flex flex-col bg-zinc-900 border-l-[1.5px] border-line text-white overflow-y-auto overscroll-contain player-menu-scrollbar animate-in slide-in-from-right-8 fade-in duration-200",
+        tv ? "w-[36rem] p-8 gap-6" : "w-full sm:w-[400px] py-6 px-5 gap-[18px]"
       )}
     >
       {view === "main" ? (
         <>
           <div className="flex items-center justify-between gap-3">
-            <h2 className={cn("font-bold", tv ? "text-3xl" : "text-[19px]")}>Ajustes de reproducción</h2>
+            <h2 className={cn("font-display leading-[1.1]", tv ? "text-3xl" : "text-[19px]")}>Ajustes de reproducción</h2>
             {!tv && (
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Cerrar ajustes"
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.16]"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800"
               >
-                <X className="w-[18px] h-[18px]" />
+                <X className="w-[18px] h-[18px]" strokeWidth={2.4} />
               </button>
             )}
           </div>
 
-          <div role="group" aria-label="Audio" className="flex gap-1 p-1 rounded-xl bg-ink-3">
+          <div role="group" aria-label="Audio" className="flex p-1 rounded-xl bg-ink-3 border-[1.5px] border-line">
             {(["sub", "dub"] as const).map((a) => (
               <button
                 key={a}
@@ -250,9 +250,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 disabled={a === "dub" && !props.hasDub}
                 onClick={() => props.onAudioChange(a)}
                 className={cn(
-                  "flex-1 rounded-[9px] font-semibold outline-none transition-colors disabled:opacity-40",
+                  "flex-1 rounded-[9px] outline-none transition-colors disabled:opacity-40",
                   tv ? "h-14 text-xl focus:bg-white focus:text-black" : "h-[38px] text-sm",
-                  props.audio === a ? "bg-white text-black" : cn("text-zinc-400", !tv && "hover:text-white focus-visible:bg-white/10")
+                  props.audio === a
+                    ? "bg-white text-black font-bold"
+                    : cn("text-zinc-400 font-medium", !tv && "hover:text-white focus-visible:bg-white/10")
                 )}
               >
                 {a === "sub" ? "Original" : "Doblaje en inglés"}
@@ -260,7 +262,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             ))}
           </div>
 
-          <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
+          <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
             {(
               [
                 ["subtitles", "Subtítulos", activeSubtitleLabel],
@@ -273,7 +275,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <button key={target} type="button" onClick={() => onViewChange(target)} className={cn(rowClass, "group")}>
                 <span className="flex-1 font-medium">{label}</span>
                 <span className="text-zinc-400 group-focus:text-zinc-600 truncate max-w-[45%]">{value}</span>
-                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
               </button>
             ))}
             {toggle("Saltar intro automáticamente", props.autoSkipIntro, props.onAutoSkipIntroChange)}
@@ -284,19 +286,28 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           <div className="flex flex-col gap-2 shrink-0">
             <div className="flex items-baseline justify-between">
-              <h3 className={cn("font-bold", tv ? "text-xl" : "text-sm")}>Servidor</h3>
+              <h3 className={cn("flex items-baseline gap-2 font-display leading-[1.1]", tv ? "text-2xl" : "text-base")}>
+                Servidor
+                <span
+                  lang="ja"
+                  aria-hidden="true"
+                  className={cn("font-sans font-medium tracking-[0.2em] text-zinc-400", tv ? "text-base" : "text-[11px]")}
+                >
+                  サーバー
+                </span>
+              </h3>
               {status.checkedAt &&
                 (tv ? (
-                  <span className="text-base text-zinc-400">
+                  <span className="text-base font-medium text-zinc-400 tabular-nums">
                     Estado · {status.checkedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 ) : (
-                  <a href="/status" target="_blank" rel="noopener" className="text-xs text-zinc-400 hover:text-white underline-offset-2 hover:underline">
+                  <a href="/status" target="_blank" rel="noopener" className="text-xs font-medium text-zinc-400 tabular-nums hover:text-white underline-offset-2 hover:underline">
                     Estado · {status.checkedAt.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                   </a>
                 ))}
             </div>
-            <div className="flex flex-col p-1 rounded-[14px] bg-ink-3">
+            <div className="flex flex-col p-1 rounded-xl bg-ink-3 border-[1.5px] border-line">
               {props.servers.length === 0 && (
                 <p className={cn("px-3 py-3 text-zinc-400", tv ? "text-lg" : "text-sm")}>No hay servidores para este audio</p>
               )}
@@ -308,14 +319,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   aria-pressed={server.active}
                   onClick={server.onSelect}
                   className={cn(
-                    "flex items-center gap-2.5 px-3 rounded-[10px] text-left outline-none transition-colors group",
+                    "flex items-center gap-2.5 px-2.5 rounded-[9px] text-left outline-none transition-colors group",
                     tv ? "h-16 text-[1.375rem] focus:bg-white focus:text-black" : "h-11 text-sm",
-                    server.active ? "bg-zinc-800 font-bold" : !tv && "hover:bg-white/[0.06] focus-visible:bg-white/[0.1]"
+                    server.active ? "bg-line font-bold" : cn("font-medium", !tv && "hover:bg-white/[0.06] focus-visible:bg-white/[0.1]")
                   )}
                 >
                   <span className={cn("rounded-full shrink-0", tv ? "w-3 h-3" : "w-2 h-2", serverDot(server.id))} />
                   <span className="flex-1">{server.name}</span>
-                  <span className={cn("font-normal text-zinc-400 group-focus:text-zinc-600", tv ? "text-base" : "text-xs")}>
+                  <span className={cn("font-medium text-zinc-400 group-focus:text-zinc-600", tv ? "text-base" : "text-xs")}>
                     {serverNote(server)}
                   </span>
                 </button>
@@ -331,27 +342,27 @@ export function SettingsPanel(props: SettingsPanelProps) {
               onClick={() => onViewChange(view === "style" ? "subtitles" : "main")}
               aria-label="Volver"
               className={cn(
-                "flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.16] outline-none focus:bg-white focus:text-black",
+                "flex items-center justify-center rounded-full bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800 outline-none focus:bg-white focus:text-black",
                 tv ? "w-14 h-14" : "w-10 h-10"
               )}
             >
               <ChevronLeft className={tv ? "w-7 h-7" : "w-5 h-5"} />
             </button>
-            <h2 className={cn("font-bold", tv ? "text-3xl" : "text-[19px]")}>{VIEW_TITLES[view]}</h2>
+            <h2 className={cn("font-display leading-[1.1]", tv ? "text-3xl" : "text-[19px]")}>{VIEW_TITLES[view]}</h2>
           </div>
 
           {view === "subtitles" && (
             <>
-              <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
+              <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
                 {option("off", "Desactivados", props.activeSubtitle === null, () => props.onSubtitleChange(null))}
                 {props.subtitles.map((s) =>
                   option(s.key, s.label, props.activeSubtitle === s.key, () => props.onSubtitleChange(s.key))
                 )}
               </div>
-              <button type="button" onClick={() => onViewChange("style")} className={cn(rowClass, "rounded-[14px] bg-ink-3 group")}>
+              <button type="button" onClick={() => onViewChange("style")} className={cn(rowClass, "rounded-xl bg-ink-3 border-[1.5px] last:border-b-[1.5px] border-line group")}>
                 <span className="flex-1 font-medium">Estilo de subtítulos</span>
                 <span className="text-zinc-400 group-focus:text-zinc-600">{styleLabel(props.subtitleStyles)}</span>
-                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
               </button>
             </>
           )}
@@ -386,7 +397,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           )}
 
           {view === "quality" && (
-            <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
+            <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
               {option("auto", "Automática", props.quality === -1, () => props.onQualityChange(-1), qualityLabel(props.qualities, -1).replace("Auto", "").replace(" · ", "") || undefined)}
               {[...props.qualities]
                 .sort((a, b) => b.height - a.height)
@@ -395,7 +406,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           )}
 
           {view === "speed" && (
-            <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
+            <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
               {SPEEDS.map((s) => option(s, speedLabel(s), Math.abs(props.speed - s) < 0.01, () => props.onSpeedChange(s)))}
             </div>
           )}
@@ -405,7 +416,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <p className={cn("text-zinc-400", tv ? "text-lg" : "text-sm")}>
                 Sube el volumen por encima del máximo del sistema, para episodios con el audio muy bajo.
               </p>
-              <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
+              <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
                 {BOOSTS.map((b) => option(b, `${Math.round(b * 100)} %`, Math.abs(props.boost - b) < 0.01, () => props.onBoostChange(b)))}
               </div>
             </>

@@ -39,7 +39,7 @@ export function AccountAvatar({ className }: { className?: string }) {
       href="/account"
       aria-label={user ? `Tu cuenta: ${user.name}` : "Cuenta"}
       className={cn(
-        "flex items-center justify-center w-10 h-10 rounded-full bg-zinc-700 text-white font-bold overflow-hidden hover:ring-2 hover:ring-white/40",
+        "flex items-center justify-center w-10 h-10 rounded-full bg-ink-3 border-[1.5px] border-line text-white font-black overflow-hidden hover:border-zinc-500",
         className
       )}
     >
@@ -98,7 +98,7 @@ function TopSearch() {
         e.preventDefault();
         go(query);
       }}
-      className="flex items-center gap-2.5 h-10 w-full max-w-[22rem] px-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 focus-within:border-zinc-500"
+      className="flex items-center gap-2.5 h-10 w-full max-w-[22rem] px-3.5 rounded-xl bg-ink-3 border-[1.5px] border-line text-zinc-400 focus-within:border-zinc-500"
     >
       <Search className="w-[1.1rem] h-[1.1rem] flex-shrink-0" aria-hidden />
       <label htmlFor="top-search" className="sr-only">
@@ -118,7 +118,7 @@ function TopSearch() {
         autoComplete="off"
         className="flex-1 min-w-0 bg-transparent text-[0.95rem] text-white placeholder:text-zinc-500 outline-none"
       />
-      <kbd className="px-1.5 rounded-md border border-zinc-700 text-xs font-semibold text-zinc-400">/</kbd>
+      <kbd className="px-1.5 rounded-md border-[1.5px] border-b-[3px] border-zinc-500 font-sans text-xs font-black text-zinc-200">/</kbd>
     </form>
   );
 }
@@ -126,11 +126,13 @@ function TopSearch() {
 function TopBar() {
   const pathname = usePathname();
   return (
-    <header className="hidden md:block sticky top-0 z-40 border-b border-zinc-900 bg-black/90">
+    <header className="hidden md:block sticky top-0 z-40 border-b border-line bg-black/90">
       <div className="flex items-center gap-7 max-w-[1360px] mx-auto px-8 h-16">
-        <Link href="/" className="flex items-center gap-2.5 font-display text-lg">
-          <Hanko decorative className="w-9 h-9 text-[0.95rem]" />
-          PK Anime
+        <Link href="/" aria-label="PK Anime, inicio" className="flex items-center gap-3">
+          <Hanko decorative className="w-9 h-9 text-base" />
+          <span lang="ja" aria-hidden="true" className="text-[13px] font-black tracking-[0.3em] text-zinc-400">
+            アニメ
+          </span>
         </Link>
         <nav aria-label="Secciones" className="flex items-center gap-1">
           {TOP_LINKS.map((link) => {
@@ -142,7 +144,7 @@ function TopBar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "px-3.5 py-2 rounded-full text-[0.95rem] transition-colors",
-                  active ? "bg-zinc-800 text-white font-semibold" : "text-zinc-400 hover:text-white"
+                  active ? "bg-red-500 text-black font-bold" : "text-zinc-400 font-medium hover:text-white"
                 )}
               >
                 {link.label}
@@ -152,7 +154,7 @@ function TopBar() {
         </nav>
         <div className="flex flex-1 items-center justify-end gap-2.5">
           {/* useSearchParams needs a boundary of its own */}
-          <Suspense fallback={<div className="h-10 w-full max-w-[22rem] rounded-xl bg-zinc-900" />}>
+          <Suspense fallback={<div className="h-10 w-full max-w-[22rem] rounded-xl bg-ink-3 border-[1.5px] border-line" />}>
             <TopSearch />
           </Suspense>
           <Link
@@ -177,7 +179,7 @@ function TabBar() {
   return (
     <nav
       aria-label="Secciones"
-      className="md:hidden fixed left-0 right-0 bottom-0 z-40 flex border-t border-zinc-800 bg-zinc-950 pb-[env(safe-area-inset-bottom)]"
+      className="md:hidden fixed left-0 right-0 bottom-0 z-40 flex border-t border-line bg-zinc-900 pb-[env(safe-area-inset-bottom)]"
     >
       {TABS.map(({ href, label, icon: Icon, also }) => {
         const active = isActive(pathname, href) || !!also?.some((path) => isActive(pathname, path));
@@ -188,11 +190,12 @@ function TabBar() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-1 h-16 text-xs",
-              active ? "text-white font-bold" : "text-zinc-400"
+              // The current tab: the icon in the accent, the label in paper
+              active ? "text-red-500" : "text-zinc-400"
             )}
           >
             <Icon className="w-6 h-6" strokeWidth={active ? 2.4 : 2} aria-hidden />
-            {label}
+            <span className={active ? "font-black text-white" : "font-bold"}>{label}</span>
           </Link>
         );
       })}

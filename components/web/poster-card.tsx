@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { ScoreFrame, ScorePill, ScoreShine } from "@/components/tv/list-styles";
 import { cn } from "@/lib/utils";
+import { RankNumeral } from "@/components/brand";
 
 /** Cover with the title under it; the web layout's card for grids and rows */
 export function PosterCard({
@@ -15,6 +16,7 @@ export function PosterCard({
   score,
   progress,
   meta,
+  rank,
   className,
 }: {
   item: CatalogItem;
@@ -28,6 +30,8 @@ export function PosterCard({
   score?: number | null;
   progress?: number;
   meta?: string;
+  /** Trending rank, drawn as an outlined numeral in the cover's bottom-left corner */
+  rank?: number;
   className?: string;
 }) {
   return (
@@ -43,11 +47,12 @@ export function PosterCard({
       }
       className={cn("group flex flex-col gap-2 min-w-0 outline-none", className)}
     >
-      {/* The frame for 9 and 10 sits behind the cover, so both lift together on hover */}
-      <div className="relative transition-transform duration-200 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.04] group-focus-visible:-translate-y-1.5 group-focus-visible:scale-[1.04] motion-reduce:transform-none">
+      {/* The frame for 9 and 10 sits behind the cover; hover and keyboard focus pop the cover
+          out like a comic panel ("koma") */}
+      <div className="relative">
         <ScoreFrame score={score} />
         <div
-          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 group-hover:koma-sm group-focus-visible:ring-2 group-focus-visible:ring-white"
+          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md"
           style={item.color ? { backgroundColor: item.color } : undefined}
         >
           {item.cover ? (
@@ -56,16 +61,11 @@ export function PosterCard({
               alt=""
               loading="lazy"
               decoding="async"
-              className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06] motion-reduce:transform-none"
+              className="absolute top-0 left-0 w-full h-full object-cover"
             />
           ) : (
             <span className="absolute top-0 left-0 flex items-end w-full h-full p-3 font-bold leading-tight">{item.title}</span>
           )}
-          {/* Darkens the bottom on hover so the cover reads as "open this" */}
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          />
           <ScoreShine score={score} />
           {badge && (
             <span
@@ -79,9 +79,12 @@ export function PosterCard({
           )}
           {/* Bottom corner: on phone-width covers the status badge takes the whole top */}
           <ScorePill score={score} className="top-auto bottom-2 px-1.5 py-1 text-xs" />
+          {rank !== undefined && (
+            <RankNumeral rank={rank} className="left-1.5 -bottom-1.5 text-[3.25rem] md:left-2 md:-bottom-2 md:text-[4.5rem]" />
+          )}
           {progress !== undefined && progress > 0 && (
-            <div className="absolute left-0 right-0 bottom-0 h-1 bg-white/25">
-              <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+            <div className="absolute left-0 right-0 bottom-0 h-1 bg-white/[0.18]">
+              <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>
           )}
         </div>

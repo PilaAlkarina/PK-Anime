@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useIsTv } from "@/components/ui-mode";
 import { PosterCard } from "@/components/web/poster-card";
 import { ScoreFrame, ScorePill, ScoreShine } from "./list-styles";
+import { EpisodeNumeral, RankNumeral } from "@/components/brand";
 
 interface AnimeCardProps {
   item: CatalogItem;
@@ -21,6 +22,10 @@ interface AnimeCardProps {
   score?: number | null;
   /** 0–1; draws a progress bar along the bottom */
   progress?: number;
+  /** Wide cards: the episode, as a big numeral in the corner */
+  episode?: number;
+  /** Trending rank, as an outlined numeral overlapping the cover's bottom-left corner */
+  rank?: number;
   /** Landscape card with the artwork and two lines of text under it, for "Seguir viendo" */
   wide?: { title: string; meta: string };
   className?: string;
@@ -29,7 +34,7 @@ interface AnimeCardProps {
 export function AnimeCard(props: AnimeCardProps) {
   const isTv = useIsTv();
   if (isTv) return <TvAnimeCard {...props} />;
-  const { item, onSelect, badge, badgeClassName, score, progress } = props;
+  const { item, onSelect, badge, badgeClassName, score, progress, rank } = props;
   return (
     <PosterCard
       item={item}
@@ -38,6 +43,7 @@ export function AnimeCard(props: AnimeCardProps) {
       badgeClassName={badgeClassName}
       score={score}
       progress={progress}
+      rank={rank}
     />
   );
 }
@@ -51,6 +57,8 @@ function TvAnimeCard({
   badgeClassName,
   score,
   progress,
+  episode,
+  rank,
   wide,
   className,
 }: AnimeCardProps) {
@@ -77,9 +85,12 @@ function TvAnimeCard({
           style={item.color ? { backgroundColor: item.color } : undefined}
         >
           {image && <img src={image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+          {episode !== undefined && (
+            <EpisodeNumeral n={episode} current={focused} className="top-2.5 left-3.5 text-[2.5rem]" />
+          )}
           {progress !== undefined && progress > 0 && (
-            <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/25">
-              <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+            <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/[0.18]">
+              <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>
           )}
         </div>
@@ -94,7 +105,12 @@ function TvAnimeCard({
       ref={ref}
       {...pointerProps}
       title={item.title}
-      className={cn("relative flex-shrink-0 w-[11rem] h-[15.5rem] cursor-pointer outline-none", className)}
+      className={cn(
+        "relative flex-shrink-0 w-[11rem] h-[15.5rem] cursor-pointer outline-none",
+        // Room for the rank numeral, which hangs off the cover's left edge
+        rank !== undefined && "ml-[2.1rem]",
+        className
+      )}
     >
       <ScoreFrame score={score} focused={focused} />
       <div
@@ -122,11 +138,14 @@ function TvAnimeCard({
         )}
         <ScorePill score={score} className="px-2 py-1 text-sm" />
         {progress !== undefined && progress > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/25">
-            <div className="h-full bg-red-600" style={{ width: `${Math.round(progress * 100)}%` }} />
+          <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/[0.18]">
+            <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
         )}
       </div>
+      {rank !== undefined && (
+        <RankNumeral rank={rank} current={focused} size="tv" className="-left-[2.4rem] -bottom-3.5 text-[6.5rem]" />
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ function CountdownRing({ value, from, size }: { value: number; from: number; siz
   return (
     <div className="relative flex items-center justify-center rounded-full bg-black/70" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true" className="absolute inset-0 -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={size * 0.055} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-white/[0.18]" strokeWidth={size * 0.055} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -46,7 +46,7 @@ function CountdownRing({ value, from, size }: { value: number; from: number; siz
           strokeDashoffset={circumference * (1 - value / from)}
         />
       </svg>
-      <span className="relative font-display tabular-nums" style={{ fontSize: size * 0.36 }}>
+      <span className="relative font-display tabular-nums" style={{ fontSize: size * 0.395 }}>
         {value}
       </span>
     </div>
@@ -63,21 +63,21 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
   }, [tv]);
 
   const primary = cn(
-    "flex items-center gap-2.5 rounded-full bg-red-500 text-black font-bold outline-none transition",
+    "flex shrink-0 items-center whitespace-nowrap rounded-full bg-red-500 text-black outline-none transition",
     tv
-      ? "h-[4.75rem] px-10 text-[1.625rem] focus:bg-white focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1"
-      : "h-12 sm:h-[52px] px-6 text-base hover:bg-red-400 shadow-hard"
+      ? "h-[4.75rem] px-10 gap-3.5 text-[1.625rem] font-black focus:shadow-[0_0_0_3px_rgb(var(--c-paper)),12px_12px_0_3px_rgb(var(--c-paper))] focus:-translate-x-1 focus:-translate-y-1"
+      : "h-12 sm:h-[52px] px-[26px] gap-2.5 text-base font-bold hover:bg-red-400 shadow-hard"
   );
   const secondary = cn(
-    "flex items-center gap-2 rounded-full font-semibold outline-none transition",
+    "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ink-3 border-[1.5px] border-line font-bold outline-none transition",
     tv
-      ? "h-[4.75rem] px-8 text-2xl bg-white/[0.12] text-zinc-200 focus:bg-white focus:text-black focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1"
-      : "h-12 sm:h-[52px] px-5 text-base bg-white/[0.14] hover:bg-white/25"
+      ? "h-[4.75rem] px-8 text-2xl text-zinc-200 focus:bg-white focus:text-black focus:border-white focus:koma"
+      : "h-12 sm:h-[52px] px-[22px] text-base hover:bg-zinc-800"
   );
 
   const malLine = props.markedOn && (
-    <span className={cn("flex items-center gap-2 text-zinc-400", tv ? "text-[1.375rem] gap-3.5" : "text-sm")}>
-      <Check className={cn("text-emerald-400", tv ? "w-7 h-7" : "w-4 h-4")} strokeWidth={2.6} />
+    <span className={cn("flex items-center gap-2 font-medium", tv ? "text-[1.375rem] gap-3.5 text-zinc-200" : "text-sm text-zinc-400")}>
+      <Check className={cn("text-green-400", tv ? "w-7 h-7" : "w-4 h-4")} strokeWidth={2.6} />
       Episodio {props.episode} marcado como visto en {props.markedOn}
     </span>
   );
@@ -100,9 +100,9 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
           type="button"
           onClick={props.onWatchCredits}
           aria-label="Ver los créditos"
-          className="absolute left-[5.5%] top-[18.5%] w-[48.6%] h-[48.6%] rounded-[18px] overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="absolute left-[5.5%] top-[18.5%] w-[48.6%] h-[48.6%] rounded-[18px] overflow-hidden border-[1.5px] border-line outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
-          <span className="absolute inset-x-0 bottom-0 h-[5px] bg-white/20">
+          <span className="absolute inset-x-0 bottom-0 h-[5px] bg-white/[0.18]">
             <span className="block h-full bg-red-500" style={{ width: `${Math.min(100, props.progress * 100)}%` }} />
           </span>
         </button>
@@ -110,7 +110,7 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
 
       {framed && (
         <div className="absolute left-[5.5%] w-[48.6%] top-[71%] flex items-center justify-between gap-4">
-          <button type="button" onClick={props.onWatchCredits} className="flex items-center gap-2 h-11 px-[18px] rounded-full bg-white/[0.12] hover:bg-white/20 text-[15px] font-semibold">
+          <button type="button" onClick={props.onWatchCredits} className="flex items-center gap-2 h-11 px-[18px] rounded-full bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800 text-[15px] font-bold">
             <Maximize className="w-[18px] h-[18px]" />
             Ver los créditos
           </button>
@@ -134,22 +134,37 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
         <div
           className={cn(
             "relative w-full aspect-video overflow-hidden bg-zinc-800 flex items-center justify-center",
-            tv ? "rounded-3xl" : "rounded-[18px]",
+            tv ? "rounded-[18px] border-[1.5px] border-line" : "rounded-[18px]",
             !framed && !tv && "hidden sm:flex"
           )}
         >
           {next.thumbnail && <img src={next.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+          {framed && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 screentone [mask-image:linear-gradient(0deg,#000,transparent_70%)]"
+            />
+          )}
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute font-display leading-none text-outline",
+              tv ? "left-[22px] bottom-3.5 text-[96px] ![-webkit-text-stroke-width:2.5px]" : "left-4 bottom-2.5 text-[64px]"
+            )}
+          >
+            {String(next.number).padStart(2, "0")}
+          </span>
           {countdown !== null && <CountdownRing value={countdown} from={props.countdownFrom} size={tv ? 156 : 112} />}
         </div>
-        <h2 className={cn("font-display leading-tight", tv ? "mt-1.5 text-[3.25rem]" : "mt-1 text-2xl sm:text-[34px]")}>
+        <h2 className={cn("font-display leading-[1.1]", tv ? "mt-1.5 text-[3.25rem]" : "mt-1 text-2xl sm:text-[34px]")}>
           Episodio {next.number}
         </h2>
         {(next.title || next.duration) && (
-          <p className={cn("text-zinc-200", tv ? "text-[1.75rem]" : "text-base sm:text-xl")}>
+          <p className={cn("font-medium text-zinc-200", tv ? "text-[1.75rem]" : "text-base sm:text-xl")}>
             {[next.title, next.duration ? `${next.duration} min` : null].filter(Boolean).join(" · ")}
           </p>
         )}
-        <div ref={actionsRef} data-nav="x" className={cn("flex flex-wrap", tv ? "gap-[1.125rem] mt-4" : "gap-2.5 mt-2")}>
+        <div ref={actionsRef} data-nav="x" className={cn("flex flex-wrap", tv ? "gap-[1.125rem] mt-[1.125rem]" : "gap-2.5 mt-2")}>
           <button type="button" onClick={props.onPlayNow} className={primary}>
             <Play className={cn("fill-current", tv ? "w-7 h-7" : "w-[18px] h-[18px]")} />
             Ver ahora
@@ -165,7 +180,7 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
           )}
         </div>
         {countdown !== null && !tv && (
-          <p className="mt-1 text-[13px] text-zinc-400">
+          <p className="mt-1.5 text-[13px] font-medium text-zinc-400">
             Empieza en {countdown} s. Puedes desactivar la reproducción automática en Ajustes.
           </p>
         )}

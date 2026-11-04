@@ -9,6 +9,7 @@ import { mergeContinueWatching, useRemoteLibrary } from "@/lib/library/remote";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
+import { Keycap } from "@/components/brand";
 import { useMounted } from "./page-frame";
 import { LibraryFooter } from "@/components/library-footer";
 import { scrollToPosition } from "@/lib/tv/scroll";
@@ -28,9 +29,10 @@ function PagedRow({
 }) {
   const router = useRouter();
   const { items, loadMore } = usePagedRow(row);
-  const cards: RowCard[] = items.map((item) => ({
+  const cards: RowCard[] = items.map((item, index) => ({
     item,
     badge: item.airedEpisode ? `EP ${item.airedEpisode.episode}` : undefined,
+    rank: row.kind === "trending" ? index + 1 : undefined,
     onSelect: () => router.push(`/anime/${item.id}`),
   }));
 
@@ -49,7 +51,7 @@ function PagedRow({
 function KeyHint({ keyLabel, children }: { keyLabel: string; children: React.ReactNode }) {
   return (
     <span className="flex items-center ml-6 first:ml-0">
-      <span className="mr-2 px-2.5 rounded-lg border-2 border-zinc-500 font-bold leading-relaxed">{keyLabel}</span>
+      <Keycap className="mr-2">{keyLabel}</Keycap>
       {children}
     </span>
   );
@@ -58,7 +60,7 @@ function KeyHint({ keyLabel, children }: { keyLabel: string; children: React.Rea
 /** What the remote's keys do here, for whoever picks it up for the first time */
 function RemoteHints() {
   return (
-    <div className="fixed top-[4vh] right-[3rem] z-30 flex items-center px-5 py-2 rounded-full bg-black/80 text-lg text-zinc-200">
+    <div className="fixed top-[4vh] right-[3rem] z-30 flex items-center px-5 py-2 rounded-full bg-zinc-900/90 border border-line text-lg text-zinc-200">
       <KeyHint keyLabel="◀ ▶ ▲ ▼">Moverse</KeyHint>
       <KeyHint keyLabel="OK">Abrir</KeyHint>
     </div>
@@ -101,10 +103,14 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
     );
   }
 
+  // The hero wears the "TENDENCIA N.º …" stamp while it shows a title from the trending row
+  const heroRank = hero && rows[0].kind === "trending" ? rows[0].items.findIndex((i) => i.id === hero.id) + 1 : 0;
+
   const resumeCards: RowCard[] = resume.map(({ anime, episode, progress }) => ({
     item: anime,
     key: `${anime.id}`,
     progress,
+    episode,
     wide: {
       title: anime.title,
       meta: progress > 0 ? `Episodio ${episode} · visto el ${Math.round(progress * 100)} %` : `Episodio ${episode}`,
@@ -114,7 +120,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
 
   return (
     <Screen ready={mounted}>
-      <Hero item={hero} />
+      <Hero item={hero} rank={heroRank} />
       <RemoteHints />
       <div
         ref={listRef}

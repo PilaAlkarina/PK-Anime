@@ -12,6 +12,7 @@ import { FocusButton, FocusGroup, Screen } from "./focusable";
 import { useBackHandler } from "./navigation-provider";
 import { REMOTE_TEXT_EVENT, takePendingRemoteText } from "@/lib/tv/remote-text";
 import { CardGrid, ScrollArea } from "./page-frame";
+import { JapaneseLabel } from "@/components/brand";
 import { TvFilterPanel } from "./tv-filter-panel";
 
 const KEYS = "abcdefghijklmnopqrstuvwxyz1234567890".split("");
@@ -20,7 +21,10 @@ function Results({ row, title, onSelect }: { row: CatalogRow; title: string; onS
   const { items, loadMore } = usePagedRow(row);
   return (
     <>
-      <h2 className="mb-8 text-3xl font-bold">{title}</h2>
+      <h2 className="mb-8 text-3xl">
+        {title}
+        <JapaneseLabel title={title} />
+      </h2>
       <CardGrid
         cards={items.map((item) => ({ item }))}
         onSelect={onSelect}
@@ -105,8 +109,11 @@ export function SearchScreen({ genres }: { genres: Genre[] }) {
   return (
     <Screen>
       <div className="fixed top-0 bottom-0 left-[7rem] w-[34rem] flex flex-col pl-12 pr-6 pt-[8vh]">
-        <h1 className="text-5xl font-bold">Buscar</h1>
-        <div className="flex items-center flex-shrink-0 h-16 mt-8 px-5 rounded-xl bg-white/10 text-2xl">
+        <h1 className="text-5xl">
+          Buscar
+          <JapaneseLabel title="Buscar" />
+        </h1>
+        <div className="flex items-center flex-shrink-0 h-16 mt-8 px-5 rounded-xl bg-ink-3 border-[1.5px] border-line text-2xl">
           {query ? <span className="truncate">{query}</span> : <span className="text-zinc-500">Título del anime</span>}
           <span className="w-0.5 h-8 ml-1 bg-white animate-pulse" />
         </div>
