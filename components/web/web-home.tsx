@@ -1,10 +1,10 @@
 "use client";
 
 import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/components/brand";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
@@ -21,18 +21,41 @@ import { AccountAvatar } from "./web-shell";
 import { cn } from "@/lib/utils";
 
 const FEATURED_COUNT = 5;
+/** Time each featured title stays before the carousel moves on */
+const ROTATE_MS = 8000;
 
-/** The first row's leading titles, one at a time; arrows and dots move between them */
+// The art fades into the ink fill instead of under a dark overlay: two layers clipped at the same
+// rounded corner let the bright art show through as a thin arc
+const FADE_MASK =
+  "md:[mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)] md:[-webkit-mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)]";
+
+/**
+ * The first row's leading titles as a carousel: it moves on by itself every few seconds (a bar
+ * fills up until then), crossfading the art. Hovering it, focusing inside it or the pause button
+ * holds it; with reduced motion it only moves when asked.
+ */
 function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) {
   const items = row.items.slice(0, FEATURED_COUNT);
   const [index, setIndex] = useState(0);
+  const [hovered, setHovered] = useState(false);
+  const [focusInside, setFocusInside] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const item = items[index];
   const detail = useAnimeDetail(item?.id ?? null, 0);
+  // Warms the next title's synopsis, so it is there when the carousel moves on
+  useAnimeDetail(items.length > 1 ? items[(index + 1) % items.length].id : null, 1500);
+
+  // Reduced motion: no autoplay until the viewer presses play
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setStopped(true);
+  }, []);
+
   if (!item) return null;
 
+  const rotating = items.length > 1;
+  const paused = stopped || hovered || focusInside;
   const resumeEntry = resume.find((r) => r.anime.id === item.id);
   const episode = resumeEntry?.episode ?? 1;
-  const image = item.banner || item.cover;
   const genres = item.genres
     .slice(0, 3)
     .map((g) => GENRE_LABELS[g] || g)
@@ -41,25 +64,53 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
   const stampLabel = row.kind === "trending" ? `TENDENCIA N.º ${index + 1}` : `${row.title.toUpperCase()} · N.º ${index + 1}`;
   const stampJapanese = japaneseFor(row.title) ? `${japaneseFor(row.title)} No.${index + 1}` : undefined;
 
+  // The bar that fills up until the next title; its animation's end moves the carousel. Keyed by
+  // index, so a manual move restarts it
+  const progress = (className: string) => (
+    <span
+      key={index}
+      className={cn("block h-full bg-red-500 origin-left featured-progress", paused && "[animation-play-state:paused]", className)}
+      style={{ animationDuration: `${ROTATE_MS}ms` }}
+      onAnimationEnd={() => step(1)}
+    />
+  );
+
   return (
-    <section aria-label="Destacado" aria-roledescription="carrusel" className="px-4 md:px-8">
+    <section
+      aria-label="Destacado"
+      aria-roledescription="carrusel"
+      className="px-4 md:px-8"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocusInside(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusInside(false);
+      }}
+    >
       <div className="relative overflow-hidden rounded-[18px] cover-fill md:[--cover-color:rgb(var(--c-ink))] md:min-h-[27rem] md:flex md:items-end">
         <div className="relative pt-[56.25%] md:pt-0 md:absolute md:top-0 md:left-0 md:w-full md:h-full">
-          {image && (
-            <img
-              key={image}
-              src={image}
-              alt=""
-              decoding="async"
-              className={cn(
-                "absolute top-0 left-0 w-full h-full object-cover tv-fade-in",
-                // Fades into the ink fill instead of under a dark overlay: two layers clipped at
-                // the same rounded corner let the bright art show through as a thin arc
-                "md:[mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)] md:[-webkit-mask-image:linear-gradient(90deg,rgb(0_0_0/0.05),rgb(0_0_0/0.25)_36%,#000_72%)]",
-                !item.banner && "md:object-contain md:object-right md:bg-zinc-900"
-              )}
-            />
-          )}
+          {/* Every title's art stays mounted and stacked, so moving on is a real crossfade with a
+              slow settle, never a flash of the empty fill */}
+          {items.map((it, i) => {
+            const art = it.banner || it.cover;
+            if (!art) return null;
+            const active = i === index;
+            return (
+              <img
+                key={it.id}
+                src={art}
+                alt=""
+                aria-hidden={!active}
+                decoding="async"
+                className={cn(
+                  "absolute top-0 left-0 w-full h-full object-cover transition-[opacity,transform] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                  active ? "opacity-100 scale-100" : "opacity-0 scale-[1.04]",
+                  FADE_MASK,
+                  !it.banner && "md:object-contain md:object-right md:bg-zinc-900"
+                )}
+              />
+            );
+          })}
           <div
             aria-hidden="true"
             className="hidden md:block absolute top-0 bottom-0 left-[25%] w-[55%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
@@ -72,19 +123,25 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
           <Stamp japanese={stampJapanese} backed className="absolute top-3 left-3 md:hidden text-[0.7rem]">
             {stampLabel}
           </Stamp>
-          {items.length > 1 && (
+          {rotating && (
+            // Phones: the active dot is the bar
             <div className="md:hidden absolute left-0 right-0 bottom-3 flex justify-center gap-1.5" aria-hidden>
               {items.map((it, i) => (
                 <span
                   key={it.id}
-                  className={cn("h-1.5 rounded-full transition-all", i === index ? "w-[18px] bg-red-500" : "w-1.5 bg-white/45")}
-                />
+                  className={cn(
+                    "h-1.5 rounded-full overflow-hidden transition-all",
+                    i === index ? "w-[22px] bg-white/30" : "w-1.5 bg-white/45"
+                  )}
+                >
+                  {i === index && progress("md:hidden")}
+                </span>
               ))}
             </div>
           )}
         </div>
 
-        <div key={item.id} className="hidden md:flex relative flex-col gap-3 max-w-[40rem] p-10 tv-fade-in">
+        <div key={item.id} className="hidden md:flex relative flex-col gap-3 max-w-[40rem] p-10 featured-in">
           <Stamp japanese={stampJapanese} className="text-[13px]">
             {stampLabel}
           </Stamp>
@@ -96,8 +153,27 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
           <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} />
         </div>
 
-        {items.length > 1 && (
+        {rotating && (
           <div className="absolute right-3 bottom-3 md:right-6 md:bottom-6 flex items-center gap-2">
+            {/* Computers: one segment per title, the current one filling up until the next */}
+            <div className="hidden md:flex items-center gap-1.5 mr-2" aria-hidden>
+              {items.map((it, i) => (
+                <span
+                  key={it.id}
+                  className={cn("w-7 h-1 rounded-full overflow-hidden", i < index ? "bg-white/70" : "bg-white/25")}
+                >
+                  {i === index && progress("hidden md:block")}
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              aria-label={stopped ? "Reanudar el carrusel" : "Pausar el carrusel"}
+              onClick={() => setStopped((s) => !s)}
+              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full border-[1.5px] border-line bg-black/80 hover:bg-black"
+            >
+              {stopped ? <Play className="w-4 h-4" fill="currentColor" /> : <Pause className="w-4 h-4" fill="currentColor" />}
+            </button>
             <button
               type="button"
               aria-label="Destacado anterior"
@@ -119,7 +195,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
       </div>
 
       {/* Phones: details under the artwork, buttons full width */}
-      <div key={`m-${item.id}`} className="md:hidden flex flex-col gap-3 mt-3">
+      <div key={`m-${item.id}`} className="md:hidden flex flex-col gap-3 mt-3 featured-in">
         <div>
           <h1 className="text-[1.4rem] leading-[1.15] line-clamp-2">{item.title}</h1>
           <p className="mt-1 text-sm font-medium text-zinc-400">

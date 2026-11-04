@@ -29,6 +29,37 @@
   box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.6);
 }
 
+/* Home carousel: the bar that fills until the next title, and each title's text coming in */
+.featured-progress {
+  transform: scaleX(0);
+  animation-name: featured-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes featured-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.featured-in {
+  animation: featured-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@keyframes featured-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featured-in {
+    animation: none;
+  }
+}
+
 /*
  * Cover boxes. The fill behind the art (the cover's own color, from --cover-color, or the
  * panel color) sits 1px inside, so the rounded edge of the image blends into the page and not
