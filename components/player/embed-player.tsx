@@ -140,6 +140,7 @@ export interface EmbedPlayerProps {
   initialAudio?: "sub" | "dub";
   initialServer?: string;
   startAt?: number;
+  /** Forced by the embed URL; when left out, the viewer's saved preference applies */
   autoskipIntro?: boolean;
   autoskipOutro?: boolean;
   parentHost?: string | null;
@@ -167,6 +168,9 @@ export interface EmbedPlayerProps {
 const NEXT_COUNTDOWN = 10;
 /** How long a pause lasts before the pause screen covers the frame */
 const PAUSE_SCREEN_DELAY = 2500;
+/** Time the next episode's player has to mount before full screen is given up */
+const FULLSCREEN_HANDOVER_MS = 1500;
+let mountedPlayers = 0;
 
 export function EmbedPlayer({
   anilistId,
@@ -175,8 +179,8 @@ export function EmbedPlayer({
   initialAudio = "sub",
   initialServer = "flow",
   startAt = 0,
-  autoskipIntro = true,
-  autoskipOutro = true,
+  autoskipIntro,
+  autoskipOutro,
   parentHost,
   title: initialTitle,
   onPlayerEvent,
@@ -215,8 +219,8 @@ export function EmbedPlayer({
   const [server, setServer] = useState<string>(initialServer.toLowerCase());
   const [sources, setSources] = useState<VideoSourceData[]>([]);
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
-  const [autoSkipState, setAutoSkipState] = useState<boolean>(autoskipIntro);
-  const [autoSkipOutroState, setAutoSkipOutroState] = useState<boolean>(autoskipOutro);
+  const [autoSkipState, setAutoSkipState] = useState<boolean>(autoskipIntro ?? true);
+  const [autoSkipOutroState, setAutoSkipOutroState] = useState<boolean>(autoskipOutro ?? true);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [animeTitle, setAnimeTitle] = useState<string>(initialTitle || "Anime");
   const [reloadCounter, setReloadCounter] = useState<number>(0);
@@ -311,7 +315,11 @@ export function EmbedPlayer({
     const update = () => setWideScreen(query.matches);
     update();
     query.addEventListener("change", update);
-    setAutoplayNext(getPlaybackPreferences().autoplayNext);
+    // Saved after mount, like the other preferences, so the first render matches the server's
+    const prefs = getPlaybackPreferences();
+    setAutoplayNext(prefs.autoplayNext);
+    if (autoskipIntro === undefined) setAutoSkipState(prefs.autoSkipIntro);
+    if (autoskipOutro === undefined) setAutoSkipOutroState(prefs.autoSkipOutro);
     return () => {
       ro.disconnect();
       query.removeEventListener("change", update);
@@ -1295,9 +1303,11 @@ export function EmbedPlayer({
 
   // Fullscreen toggler - locks to 16:9 landscape on mobile phones
   const toggleFullscreen = async () => {
-    const el = containerRef.current;
+    // The whole page goes full screen, not the player: moving to the next episode mounts a new
+    // player, and the browser would leave full screen with the old one
+    const el = document.documentElement;
     const video = videoRef.current;
-    if (!el) return;
+    if (!containerRef.current) return;
     const isFs = Boolean(
       document.fullscreenElement ||
       (document as any).webkitFullscreenElement
@@ -1784,6 +1794,8 @@ export function EmbedPlayer({
         } catch {}
       }
     };
+    // A player that follows another one in full screen starts out in it
+    handleFsChange();
     document.addEventListener("fullscreenchange", handleFsChange);
     document.addEventListener("webkitfullscreenchange", handleFsChange);
     return () => {
@@ -1791,6 +1803,18 @@ export function EmbedPlayer({
       document.removeEventListener("webkitfullscreenchange", handleFsChange);
     };
   }, [handleUserActivity]);
+
+  // Leaving the player leaves full screen too, but not when the next episode's player takes over
+  useEffect(() => {
+    mountedPlayers++;
+    return () => {
+      mountedPlayers--;
+      setTimeout(() => {
+        if (mountedPlayers > 0 || document.fullscreenElement !== document.documentElement) return;
+        document.exitFullscreen?.().catch(() => {});
+      }, FULLSCREEN_HANDOVER_MS);
+    };
+  }, []);
 
   const currentSub =
     activeSubtitleTrack === null
@@ -3002,9 +3026,15 @@ export function EmbedPlayer({
           boost={volumeBoost}
           onBoostChange={handleVolumeBoost}
           autoSkipIntro={autoSkipState}
-          onAutoSkipIntroChange={setAutoSkipState}
+          onAutoSkipIntroChange={(on) => {
+            setAutoSkipState(on);
+            updatePlaybackPreferences({ autoSkipIntro: on });
+          }}
           autoSkipOutro={autoSkipOutroState}
-          onAutoSkipOutroChange={setAutoSkipOutroState}
+          onAutoSkipOutroChange={(on) => {
+            setAutoSkipOutroState(on);
+            updatePlaybackPreferences({ autoSkipOutro: on });
+          }}
           autoplayNext={canPlayNext ? autoplayNext : undefined}
           onAutoplayNextChange={
             canPlayNext

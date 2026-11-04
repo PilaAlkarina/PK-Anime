@@ -27,13 +27,12 @@ export function EmbedPageClient({
   const startAt = parseFloat(startAtRaw) || 0;
   const parentHost = searchParams.get("parentHost") || null;
 
-  // autoskipIntro / skipIntro: 1 on (default), 0 off
-  const introParam = searchParams.get("autoskipIntro") ?? searchParams.get("skipIntro");
-  const autoskipIntro = introParam === "0" || introParam === "off" || introParam === "false" ? false : true;
-
-  // autoskipOutro / skipOutro: 1 on (default), 0 off
-  const outroParam = searchParams.get("autoskipOutro") ?? searchParams.get("skipOutro");
-  const autoskipOutro = outroParam === "0" || outroParam === "off" || outroParam === "false" ? false : true;
+  // autoskipIntro / skipIntro and autoskipOutro / skipOutro: 1 on, 0 off. Without them the
+  // viewer's saved preference applies (on until they change it)
+  const flag = (value: string | null) =>
+    value === null ? undefined : !(value === "0" || value === "off" || value === "false");
+  const autoskipIntro = flag(searchParams.get("autoskipIntro") ?? searchParams.get("skipIntro"));
+  const autoskipOutro = flag(searchParams.get("autoskipOutro") ?? searchParams.get("skipOutro"));
 
   // Check query audio override if present
   const queryAudio = searchParams.get("audio");

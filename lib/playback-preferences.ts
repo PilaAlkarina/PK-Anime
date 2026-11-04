@@ -22,6 +22,9 @@ export interface PlaybackPreferences {
   switchServerForSubtitles: boolean;
   preferredServer: ServerPreference;
   subtitleStyles: SubtitleStyles;
+  /** Jump over the opening / the ending when the provider marks them */
+  autoSkipIntro: boolean;
+  autoSkipOutro: boolean;
   /** Start the next episode after a short countdown when the ending begins */
   autoplayNext: boolean;
 }
@@ -42,6 +45,8 @@ export function defaultPlaybackPreferences(): PlaybackPreferences {
     switchServerForSubtitles: true,
     preferredServer: "auto",
     subtitleStyles: DEFAULT_SUBTITLE_STYLES,
+    autoSkipIntro: true,
+    autoSkipOutro: true,
     autoplayNext: true,
   };
 }

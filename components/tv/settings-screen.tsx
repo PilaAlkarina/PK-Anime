@@ -264,6 +264,33 @@ export function SettingsScreen() {
         </Setting>
       </Section>
 
+      <Section title="Reproducción">
+        <Setting label="Saltar la intro automáticamente">
+          <Options
+            value={prefs.autoSkipIntro}
+            options={ON_OFF}
+            onChange={(autoSkipIntro) => updatePlaybackPreferences({ autoSkipIntro })}
+          />
+        </Setting>
+        <Setting label="Saltar el ending automáticamente">
+          <Options
+            value={prefs.autoSkipOutro}
+            options={ON_OFF}
+            onChange={(autoSkipOutro) => updatePlaybackPreferences({ autoSkipOutro })}
+          />
+        </Setting>
+        <Setting
+          label="Reproducir el siguiente episodio"
+          hint="Al empezar el ending aparece el siguiente episodio con una cuenta atrás."
+        >
+          <Options
+            value={prefs.autoplayNext}
+            options={ON_OFF}
+            onChange={(autoplayNext) => updatePlaybackPreferences({ autoplayNext })}
+          />
+        </Setting>
+      </Section>
+
       <Section title="Subtítulos">
         <Setting label="Mostrar subtítulos">
           <Options
