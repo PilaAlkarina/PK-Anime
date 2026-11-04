@@ -1,5 +1,6 @@
 // Theme colors live in CSS variables (lib/themes.ts); these keep the usual Tailwind names
-const themed = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+// rgba with commas: older TV browsers (Chromium < 65) drop the space-separated syntax
+const themed = (name: string) => `rgba(var(--c-${name}), <alpha-value>)`;
 const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 const ramp = (name: string) => Object.fromEntries(SHADES.map((s) => [s, themed(`${name}-${s}`)]));
 
@@ -40,38 +41,38 @@ module.exports = {
         paper: { DEFAULT: themed("paper"), 2: themed("paper2") },
         accent2: themed("second"),
         brand: themed("accent"),
-        border: "hsl(var(--border, 0 0% 14.9%))",
-        input: "hsl(var(--input, 0 0% 14.9%))",
-        ring: "hsl(var(--ring, 0 0% 83.1%))",
-        background: "hsl(var(--background, 0 0% 0%))",
-        foreground: "hsl(var(--foreground, 0 0% 98%))",
+        border: "hsl(var(--border, 0, 0%, 14.9%))",
+        input: "hsl(var(--input, 0, 0%, 14.9%))",
+        ring: "hsl(var(--ring, 0, 0%, 83.1%))",
+        background: "hsl(var(--background, 0, 0%, 0%))",
+        foreground: "hsl(var(--foreground, 0, 0%, 98%))",
         primary: {
-          DEFAULT: "hsl(var(--primary, 0 0% 98%))",
-          foreground: "hsl(var(--primary-foreground, 0 0% 9%))",
+          DEFAULT: "hsl(var(--primary, 0, 0%, 98%))",
+          foreground: "hsl(var(--primary-foreground, 0, 0%, 9%))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary, 0 0% 9.4%))",
-          foreground: "hsl(var(--secondary-foreground, 0 0% 98%))",
+          DEFAULT: "hsl(var(--secondary, 0, 0%, 9.4%))",
+          foreground: "hsl(var(--secondary-foreground, 0, 0%, 98%))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive, 0 62.8% 30.6%))",
-          foreground: "hsl(var(--destructive-foreground, 0 0% 98%))",
+          DEFAULT: "hsl(var(--destructive, 0, 62.8%, 30.6%))",
+          foreground: "hsl(var(--destructive-foreground, 0, 0%, 98%))",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted, 0 0% 9.4%))",
-          foreground: "hsl(var(--muted-foreground, 0 0% 63.9%))",
+          DEFAULT: "hsl(var(--muted, 0, 0%, 9.4%))",
+          foreground: "hsl(var(--muted-foreground, 0, 0%, 63.9%))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent, 0 0% 9.4%))",
-          foreground: "hsl(var(--accent-foreground, 0 0% 98%))",
+          DEFAULT: "hsl(var(--accent, 0, 0%, 9.4%))",
+          foreground: "hsl(var(--accent-foreground, 0, 0%, 98%))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover, 0 0% 4.7%))",
-          foreground: "hsl(var(--popover-foreground, 0 0% 98%))",
+          DEFAULT: "hsl(var(--popover, 0, 0%, 4.7%))",
+          foreground: "hsl(var(--popover-foreground, 0, 0%, 98%))",
         },
         card: {
-          DEFAULT: "hsl(var(--card, 0 0% 1.2%))",
-          foreground: "hsl(var(--card-foreground, 0 0% 98%))",
+          DEFAULT: "hsl(var(--card, 0, 0%, 1.2%))",
+          foreground: "hsl(var(--card-foreground, 0, 0%, 98%))",
         },
         "shad-canvas": "#000000",
         "shad-card": "#030303",

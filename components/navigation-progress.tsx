@@ -93,7 +93,7 @@ export function NavigationProgress() {
     <div aria-hidden className="fixed top-0 left-0 right-0 z-[70] h-[3px] pointer-events-none">
       <div
         className={cn(
-          "h-full bg-red-500 origin-left shadow-[0_0_8px_rgb(var(--c-accent)/0.6)]",
+          "h-full bg-red-500 origin-left shadow-[0_0_8px_rgba(var(--c-accent),0.6)]",
           state === "idle" && "opacity-0 scale-x-0 transition-none",
           state === "loading" && "opacity-100 nav-progress-creep",
           state === "done" && "opacity-0 scale-x-100 transition-[transform,opacity] duration-300 ease-out"

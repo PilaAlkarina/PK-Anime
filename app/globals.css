@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 98%;
+    --background: 0, 0%, 0%;
+    --foreground: 0, 0%, 98%;
 
-    --card: 0 0% 1.2%;
-    --card-foreground: 0 0% 98%;
+    --card: 0, 0%, 1.2%;
+    --card-foreground: 0, 0%, 98%;
 
-    --popover: 0 0% 4.7%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0, 0%, 4.7%;
+    --popover-foreground: 0, 0%, 98%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 0, 0%, 98%;
+    --primary-foreground: 0, 0%, 9%;
 
-    --secondary: 0 0% 9.4%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0, 0%, 9.4%;
+    --secondary-foreground: 0, 0%, 98%;
 
-    --muted: 0 0% 9.4%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 0, 0%, 9.4%;
+    --muted-foreground: 0, 0%, 63.9%;
 
-    --accent: 0 0% 9.4%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 0, 0%, 9.4%;
+    --accent-foreground: 0, 0%, 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0, 62.8%, 30.6%;
+    --destructive-foreground: 0, 0%, 98%;
 
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 0, 0%, 14.9%;
+    --input: 0, 0%, 14.9%;
+    --ring: 0, 0%, 83.1%;
 
     --radius: 0.75rem;
   }
@@ -89,13 +89,13 @@
   }
   /* Manga screentone: dots that fade along the mask set next to it */
   .screentone {
-    background-image: radial-gradient(rgb(var(--c-paper) / 0.16) 1.3px, transparent 1.7px);
+    background-image: radial-gradient(rgba(var(--c-paper), 0.16) 1.3px, transparent 1.7px);
     background-size: 10px 10px;
     pointer-events: none;
   }
   /* Phones: finer dots */
   .screentone-fine {
-    background-image: radial-gradient(rgb(var(--c-paper) / 0.16) 1.1px, transparent 1.5px);
+    background-image: radial-gradient(rgba(var(--c-paper), 0.16) 1.1px, transparent 1.5px);
     background-size: 8px 8px;
     pointer-events: none;
   }

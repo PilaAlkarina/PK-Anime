@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { siteUrl } from "@/lib/site";
 import { THEME_BOOT_SCRIPT, themeCss } from "@/lib/themes";
+import { LEGACY_POLYFILLS } from "@/lib/legacy-polyfills";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -39,6 +40,8 @@ export default function RootLayout({
     // The boot script sets data-theme before React hydrates
     <html lang="en" className="dark bg-black" suppressHydrationWarning>
       <head>
+        {/* First of all: older Smart TV browsers need these before any app code runs */}
+        <script dangerouslySetInnerHTML={{ __html: LEGACY_POLYFILLS }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: themeCss() }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

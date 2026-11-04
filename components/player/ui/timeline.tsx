@@ -182,9 +182,9 @@ export function Timeline({
             className={cn(
               "absolute top-1/2 rounded-full bg-white pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-transform duration-150",
               tv
-                ? "w-[26px] h-[26px] shadow-[0_0_0_5px_rgb(var(--c-accent)/0.4)]"
+                ? "w-[26px] h-[26px] shadow-[0_0_0_5px_rgba(var(--c-accent),0.4)]"
                 : cn(
-                    "shadow-[0_0_0_4px_rgb(var(--c-accent)/0.4)]",
+                    "shadow-[0_0_0_4px_rgba(var(--c-accent),0.4)]",
                     thin ? "w-3.5 h-3.5" : "w-[18px] h-[18px] touch:w-3.5 touch:h-3.5"
                   ),
               showKnob || drag !== null ? "scale-100" : "scale-0 group-hover/timeline:scale-100 touch:scale-100"

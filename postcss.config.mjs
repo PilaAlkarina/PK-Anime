@@ -2,6 +2,8 @@
 const config = {
   plugins: {
     tailwindcss: {},
+    // Old Smart TV browsers: legacy color syntax and inset fallbacks (see the file)
+    "./postcss-legacy.cjs": {},
     autoprefixer: {},
   },
 };

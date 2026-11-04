@@ -16,7 +16,7 @@ export function Hanko({ className, decorative = false }: { className?: string; d
       aria-hidden={decorative || undefined}
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-[22%] bg-red-500 text-black font-display -rotate-6",
-        "shadow-[inset_0_0_0_0.15em_rgb(var(--c-ink)/0.18)]",
+        "shadow-[inset_0_0_0_0.15em_rgba(var(--c-ink),0.18)]",
         className
       )}
     >
@@ -233,8 +233,8 @@ export function RankNumeral({
         current
           ? "text-red-500"
           : size === "tv"
-            ? "text-outline-thick [text-shadow:6px_6px_0_rgb(var(--c-accent)/0.55)]"
-            : "text-outline-thin [text-shadow:3px_3px_0_rgb(var(--c-accent)/0.55)] md:text-outline md:[text-shadow:4px_4px_0_rgb(var(--c-accent)/0.55)]",
+            ? "text-outline-thick [text-shadow:6px_6px_0_rgba(var(--c-accent),0.55)]"
+            : "text-outline-thin [text-shadow:3px_3px_0_rgba(var(--c-accent),0.55)] md:text-outline md:[text-shadow:4px_4px_0_rgba(var(--c-accent),0.55)]",
         className
       )}
     >

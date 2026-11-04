@@ -125,7 +125,9 @@ function mix(a: string, b: string, t: number): Rgb {
   return x.map((v, i) => Math.round(v + (y[i] - v) * t)) as Rgb;
 }
 
-const channels = (rgb: Rgb) => rgb.join(" ");
+// Comma-separated, for rgba(var(--c-…), a): the space-separated rgb(… / a) syntax is unknown to
+// Chromium before 65, which the browsers of 2018–2019 Samsung TVs (Tizen 4–5) are built on
+const channels = (rgb: Rgb) => rgb.join(", ");
 
 /** Tailwind shade → color, so existing classes (text-zinc-400, bg-red-500…) keep their role */
 function variables(p: Palette): Record<string, string> {

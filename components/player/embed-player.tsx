@@ -2987,7 +2987,7 @@ export function EmbedPlayer({
                         onChange={(e) => handleVolumeChange(Number(e.target.value))}
                         aria-label="Volumen"
                         style={{
-                          background: `linear-gradient(to right, rgb(var(--c-paper)) ${(isMuted ? 0 : volume) * 100}%, rgb(var(--c-paper) / 0.18) ${(isMuted ? 0 : volume) * 100}%)`,
+                          background: `linear-gradient(to right, rgb(var(--c-paper)) ${(isMuted ? 0 : volume) * 100}%, rgba(var(--c-paper), 0.18) ${(isMuted ? 0 : volume) * 100}%)`,
                         }}
                         className="w-24 h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
                       />
