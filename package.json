@@ -1,6 +1,6 @@
 {
-  "name": "aniflow-api",
-  "description": "AniFlow API — High-Performance Anime Streaming & Embed API",
+  "name": "pk-anime",
+  "description": "PK Anime: self-hosted anime library for Smart TVs, computers and phones, built on the AniFlow API",
   "version": "1.0.0",
   "private": true,
   "repository": {
