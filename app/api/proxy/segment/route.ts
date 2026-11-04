@@ -4,6 +4,7 @@ import https from "https";
 import axios from "axios";
 import { isSafePublicUrl } from "@/shared/validators";
 import { findTsStartOffset, looksLikeTextErrorPayload } from "@/lib/stream-proxy/media-buffer";
+import { withHttpsFallback } from "@/lib/stream-proxy/https-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ async function fetchSegment(
   // One quick retry on transient failures (timeouts, resets, 5xx); 4xx is final.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await segmentAxios.get(targetUrl, { headers });
+      const res = await withHttpsFallback(targetUrl, (url) => segmentAxios.get(url, { headers }));
       let buf = new Uint8Array(res.data);
 
       // Some hosts wrap MPEG-TS in a fake image header (e.g. a 252-byte PNG header from

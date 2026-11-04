@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
+import { withHttpsFallback } from "@/lib/stream-proxy/https-fallback";
 import http from "http";
 import https from "https";
 import { decryptFlixStream, findAndStream } from "@/lib/reanime";
@@ -151,11 +152,14 @@ export async function GET(request: NextRequest) {
 
     let response: any;
     try {
-      response = await m3u8Axios.get(targetUrl, {
-        responseType: "text",
-        timeout: 15000,
-        headers,
-      });
+      // Segment URLs are still resolved against the https URL; the segment proxy falls back on its own
+      response = await withHttpsFallback(targetUrl, (url) =>
+        m3u8Axios.get(url, {
+          responseType: "text",
+          timeout: 15000,
+          headers,
+        })
+      );
     } catch (fetchErr: any) {
       const status = fetchErr.response?.status;
       if (status === 401 || status === 403 || status === 410 || !response) {
@@ -164,11 +168,13 @@ export async function GET(request: NextRequest) {
           targetUrl = fresh.hls;
           if (fresh.pk) pk = fresh.pk;
           try {
-            response = await m3u8Axios.get(targetUrl, {
-              responseType: "text",
-              timeout: 15000,
-              headers,
-            });
+            response = await withHttpsFallback(targetUrl, (url) =>
+              m3u8Axios.get(url, {
+                responseType: "text",
+                timeout: 15000,
+                headers,
+              })
+            );
           } catch {}
         }
       }
