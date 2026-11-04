@@ -76,6 +76,12 @@ export interface EpisodeDetail {
   number: number;
   title: string | null;
   thumbnail: string | null;
+  /** Exact air time (ISO, UTC) when known */
+  airDateUtc: string | null;
+  /** Air day in Japan ("2026-11-08"), when only the day is known */
+  airDay: string | null;
+  /** Minutes */
+  duration: number | null;
 }
 
 export interface AnimeDetail extends CatalogItem {
@@ -90,6 +96,8 @@ export interface AnimeDetail extends CatalogItem {
   relations: AnimeRelation[];
   recommendations: CatalogItem[];
   streamingEpisodes: StreamingEpisode[];
+  /** Exact air times of the episodes still to come */
+  upcomingAirings: AiringEpisode[];
   /** Filled by getAnimeWithEpisodes; empty when ani.zip has nothing or is unreachable */
   episodeDetails: EpisodeDetail[];
 }

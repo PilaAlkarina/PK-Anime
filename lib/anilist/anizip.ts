@@ -14,6 +14,11 @@ const TIMEOUT_MS = 4000;
 interface RawEpisode {
   title?: Record<string, string | null> | null;
   image?: string | null;
+  airDateUtc?: string | null;
+  /** TVDB's air day, and AniDB's (more often there for airing series) */
+  airDate?: string | null;
+  airdate?: string | null;
+  runtime?: number | null;
 }
 
 /** Throws when ani.zip can't be reached, so a failure isn't cached for the whole TTL */
@@ -34,9 +39,14 @@ export const getAniZipEpisodes = unstable_cache(
         number: Number(key),
         title: ep.title?.en || ep.title?.["x-jat"] || null,
         thumbnail: ep.image || null,
+        airDateUtc: ep.airDateUtc || null,
+        airDay: ep.airDate || ep.airdate || null,
+        // TVDB's runtime; AniDB's length is rounded up (25 for a 24-minute episode)
+        duration: ep.runtime || null,
       }))
       .sort((a, b) => a.number - b.number);
   },
-  ["anizip:episodes"],
+  // v3: air dates and durations
+  ["anizip:episodes:v3"],
   { revalidate: TTL }
 );

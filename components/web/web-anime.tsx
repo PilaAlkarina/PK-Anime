@@ -4,12 +4,12 @@ import { useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, MetaWithScore, ScoreStar } from "@/components/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
+import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
-import { episodeInfo } from "@/lib/anilist/episodes";
+import { episodeInfo, upcomingEpisodes, type UpcomingEpisode } from "@/lib/anilist/episodes";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
-import { airingLabel, episodesLabel, metaLine, statusLabel } from "@/lib/library/format";
+import { airingLabel, episodesLabel, metaLine, statusLabel, upcomingLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
@@ -112,6 +112,54 @@ function EpisodeItem({
   );
 }
 
+/**
+ * An announced episode that isn't out yet: EpisodeItem's layout, but not a link. Dashed outline,
+ * the artwork (if any) greyed under screentone, a lock, and when it airs.
+ */
+function UpcomingEpisodeItem({ episode }: { episode: UpcomingEpisode }) {
+  const when = upcomingLabel(episode.airingAt, episode.exactTime);
+  const meta = [when, episode.duration ? `${episode.duration} min` : null].filter(Boolean).join(" · ");
+  return (
+    <div
+      id={`ep-${episode.number}`}
+      aria-disabled="true"
+      aria-label={`Episodio ${episode.number}, aún no publicado: ${meta}`}
+      className="flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2 scroll-mt-24 cursor-default select-none"
+    >
+      <div className="relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 border-[1.5px] border-dashed border-zinc-600">
+        {episode.thumbnail && (
+          <img
+            src={episode.thumbnail}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute top-0 left-0 w-full h-full object-cover grayscale opacity-30"
+          />
+        )}
+        <div aria-hidden="true" className="absolute top-0 left-0 w-full h-full screentone-fine opacity-70" />
+        {/* Phones put the numeral top left, so the lock goes to the opposite corner there */}
+        <span className="absolute right-2 bottom-2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 flex items-center justify-center w-7 h-7 sm:w-11 sm:h-11 rounded-full bg-black/85 border-[1.5px] border-zinc-600 text-zinc-300">
+          <Lock className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+        </span>
+        <EpisodeNumeral
+          n={episode.number}
+          outline="text-outline-hair sm:text-outline-thin"
+          className="top-1.5 left-2 text-2xl sm:top-auto sm:left-auto sm:right-2.5 sm:bottom-2.5 sm:text-[2.1rem] opacity-50"
+        />
+      </div>
+      <span className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-sm font-bold line-clamp-2 text-zinc-400">
+          {episode.number}. {episode.title || `Episodio ${episode.number}`}
+        </span>
+        <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+          <Lock className="w-3 h-3 flex-shrink-0" />
+          {meta}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 /** Anime page for computers and phones */
 export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const { goBack } = useLibraryNavigation();
@@ -133,6 +181,9 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   const total = anime.availableEpisodes ?? anime.episodes ?? anime.streamingEpisodes.length;
   const titles = useMemo(() => episodeInfo(anime), [anime]);
+  // Announced episodes not out yet, shown locked after the available ones
+  const upcoming = useMemo(() => upcomingEpisodes(anime, total), [anime, total]);
+  const listed = total + upcoming.length;
 
   const entry = history.find((e) => e.anime.id === anime.id);
   const resume = useMemo(
@@ -168,12 +219,12 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const progressOf = (number: number) =>
     Math.max(entry ? episodeProgress(anime.id, number) : 0, watchedUpTo >= number ? 1 : 0);
 
-  const rangeCount = Math.ceil(total / EPISODES_PER_RANGE);
+  const rangeCount = Math.ceil(listed / EPISODES_PER_RANGE);
   const firstInRange = range * EPISODES_PER_RANGE + 1;
   const episodes = Array.from(
-    { length: Math.max(0, Math.min(EPISODES_PER_RANGE, total - firstInRange + 1)) },
+    { length: Math.max(0, Math.min(EPISODES_PER_RANGE, listed - firstInRange + 1)) },
     (_, i) => firstInRange + i
-  ).filter((n) => !hideWatched || progressOf(n) < WATCHED_FRACTION);
+  ).filter((n) => n > total || !hideWatched || progressOf(n) < WATCHED_FRACTION);
   const watchedCount = Array.from({ length: total }, (_, i) => i + 1).filter((n) => progressOf(n) >= WATCHED_FRACTION).length;
 
   const goToEpisode = (value: string) => {
@@ -379,23 +430,28 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
         </section>
 
         <div className="flex flex-wrap items-start gap-10 mt-10 md:mt-12">
-          {total > 0 && (
+          {listed > 0 && (
             <section className="flex-[999_1_40rem] min-w-0">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <h2 className="mr-auto text-lg md:text-[1.35rem] font-bold">
-                  Episodios <span className="font-sans font-medium text-zinc-400">· {total}</span>
+                  Episodios{" "}
+                  <span className="font-sans font-medium text-zinc-400">
+                    · {upcoming.length ? `${total} de ${listed}` : total}
+                  </span>
                   <JapaneseLabel title="Episodios" />
                   {watchedCount > 0 && <span className="ml-2 text-sm font-medium text-zinc-500">{watchedCount} vistos</span>}
                 </h2>
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
-                  <input
-                    type="checkbox"
-                    checked={hideWatched}
-                    onChange={(e) => setHideWatched(e.target.checked)}
-                    className="w-4 h-4 accent-red-500"
-                  />
-                  Ocultar vistos
-                </label>
+                {total > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={hideWatched}
+                      onChange={(e) => setHideWatched(e.target.checked)}
+                      className="w-4 h-4 accent-red-500"
+                    />
+                    Ocultar vistos
+                  </label>
+                )}
                 {total > 12 && (
                   <form
                     onSubmit={(e) => {
@@ -423,7 +479,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <div className="flex flex-wrap gap-2 mb-5">
                   {Array.from({ length: rangeCount }, (_, i) => {
                     const from = i * EPISODES_PER_RANGE + 1;
-                    const to = Math.min(total, from + EPISODES_PER_RANGE - 1);
+                    const to = Math.min(listed, from + EPISODES_PER_RANGE - 1);
                     return (
                       <button
                         key={i}
@@ -445,18 +501,22 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <p className="text-sm text-zinc-400">Has visto todos los episodios de este bloque.</p>
               ) : (
                 <div className="grid gap-3 sm:gap-x-4 sm:gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]">
-                  {episodes.map((number) => (
-                    <EpisodeItem
-                      key={number}
-                      number={number}
-                      title={titles.get(number)?.title}
-                      thumbnail={titles.get(number)?.thumbnail}
-                      progress={progressOf(number)}
-                      duration={anime.duration}
-                      current={hasPosition && number === playEpisode}
-                      href={watchHref(number)}
-                    />
-                  ))}
+                  {episodes.map((number) =>
+                    number > total ? (
+                      <UpcomingEpisodeItem key={number} episode={upcoming[number - total - 1]} />
+                    ) : (
+                      <EpisodeItem
+                        key={number}
+                        number={number}
+                        title={titles.get(number)?.title}
+                        thumbnail={titles.get(number)?.thumbnail}
+                        progress={progressOf(number)}
+                        duration={anime.duration}
+                        current={hasPosition && number === playEpisode}
+                        href={watchHref(number)}
+                      />
+                    )
+                  )}
                 </div>
               )}
             </section>

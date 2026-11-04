@@ -5,7 +5,7 @@ import { EpisodeNumeral, JapaneseLabel, Keycap, MetaWithScore } from "@/componen
 import { GenrePills } from "./hero";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
+import { Bookmark, Captions, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { ListEntryPanel } from "./list-entry-panel";
 import { LibraryFooter } from "@/components/library-footer";
@@ -16,8 +16,8 @@ import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
-import { episodeInfo } from "@/lib/anilist/episodes";
-import { airingLabel, metaLine, statusLabel } from "@/lib/library/format";
+import { episodeInfo, upcomingEpisodes, type UpcomingEpisode } from "@/lib/anilist/episodes";
+import { airingLabel, metaLine, statusLabel, upcomingLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
@@ -122,6 +122,63 @@ function EpisodeTile({
   );
 }
 
+/**
+ * An announced episode that isn't out yet. Still focusable, so the remote can reach it and read
+ * when it airs, but OK does nothing. Dashed outline, greyed artwork under screentone, a lock.
+ */
+function UpcomingEpisodeTile({
+  episode,
+  onFocused,
+}: {
+  episode: UpcomingEpisode;
+  onFocused: (node: HTMLElement, details: FocusDetails) => void;
+}) {
+  const { ref, focused, pointerProps } = useTvFocusable({
+    onSelect: () => {},
+    onFocus: (layout, _props, details) => onFocused(layout.node, details),
+  });
+  const when = upcomingLabel(episode.airingAt, episode.exactTime);
+
+  return (
+    <div ref={ref} {...pointerProps} aria-disabled="true" className="outline-none cursor-default">
+      <div
+        className={cn(
+          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 border-[1.5px] border-dashed transition-colors duration-150",
+          focused ? "border-zinc-300" : "border-zinc-600"
+        )}
+      >
+        {episode.thumbnail && (
+          <img
+            src={episode.thumbnail}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute top-0 left-0 w-full h-full object-cover grayscale opacity-30"
+          />
+        )}
+        <div aria-hidden="true" className="absolute top-0 left-0 w-full h-full screentone opacity-70" />
+        <span
+          className={cn(
+            "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-16 h-16 rounded-full bg-black/85 border-[1.5px]",
+            focused ? "border-zinc-300 text-white" : "border-zinc-600 text-zinc-300"
+          )}
+        >
+          <Lock className="w-7 h-7" />
+        </span>
+        <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-md bg-black/85 text-[0.95rem] font-bold text-zinc-200">
+          {when}
+        </span>
+        <EpisodeNumeral n={episode.number} className="right-3 bottom-3 text-5xl opacity-50" />
+      </div>
+      <p className={cn("mt-3 text-lg font-bold", focused ? "text-zinc-200" : "text-zinc-400")}>
+        Episodio {episode.number}
+        {episode.duration ? <span className="font-medium text-zinc-500"> · {episode.duration} min</span> : null}
+      </p>
+      <p className="text-base text-zinc-500 line-clamp-1">{episode.title || "Aún no publicado"}</p>
+    </div>
+  );
+}
+
 export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const router = useRouter();
   // The chosen card's cover flies into the cover shown when there is no banner
@@ -141,6 +198,9 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   const total = anime.availableEpisodes ?? anime.episodes ?? anime.streamingEpisodes.length;
   const titles = useMemo(() => episodeInfo(anime), [anime]);
+  // Announced episodes not out yet, shown locked after the available ones
+  const upcoming = useMemo(() => upcomingEpisodes(anime, total), [anime, total]);
+  const listed = total + upcoming.length;
 
   // History is only read after hydration (empty on the server), so progress never mismatches
   const entry = history.find((e) => e.anime.id === anime.id);
@@ -183,10 +243,10 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   const play = (episode: number) => router.push(`/watch/${anime.id}/${episode}?audio=${audio}`);
 
-  const rangeCount = Math.ceil(total / EPISODES_PER_RANGE);
+  const rangeCount = Math.ceil(listed / EPISODES_PER_RANGE);
   const firstInRange = range * EPISODES_PER_RANGE + 1;
   const episodes = Array.from(
-    { length: Math.max(0, Math.min(EPISODES_PER_RANGE, total - firstInRange + 1)) },
+    { length: Math.max(0, Math.min(EPISODES_PER_RANGE, listed - firstInRange + 1)) },
     (_, i) => firstInRange + i
   );
 
@@ -373,7 +433,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
           </div>
         </header>
 
-        {total > 0 && (
+        {listed > 0 && (
           <section className="relative pl-[10rem] pr-16">
             <h2 className="text-3xl font-bold">
               Episodios
@@ -383,7 +443,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               <FocusGroup className="flex flex-wrap mt-5">
                 {Array.from({ length: rangeCount }, (_, i) => {
                   const from = i * EPISODES_PER_RANGE + 1;
-                  const to = Math.min(total, from + EPISODES_PER_RANGE - 1);
+                  const to = Math.min(listed, from + EPISODES_PER_RANGE - 1);
                   return (
                     <FocusButton
                       key={i}
@@ -399,24 +459,28 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               </FocusGroup>
             )}
             <FocusGroup key={range} className="grid grid-cols-4 gap-x-6 gap-y-8 mt-6">
-              {episodes.map((number) => (
-                <EpisodeTile
-                  key={number}
-                  animeId={anime.id}
-                  number={number}
-                  title={titles.get(number)?.title}
-                  thumbnail={titles.get(number)?.thumbnail}
-                  progress={Math.max(
-                    entry ? episodeProgress(anime.id, number) : 0,
-                    // Episodes a list counts as watched show as finished
-                    watchedUpTo >= number ? 1 : 0
-                  )}
-                  duration={anime.duration}
-                  current={hasPosition && number === playEpisode}
-                  onSelect={() => play(number)}
-                  onFocused={revealTile}
-                />
-              ))}
+              {episodes.map((number) =>
+                number > total ? (
+                  <UpcomingEpisodeTile key={number} episode={upcoming[number - total - 1]} onFocused={revealTile} />
+                ) : (
+                  <EpisodeTile
+                    key={number}
+                    animeId={anime.id}
+                    number={number}
+                    title={titles.get(number)?.title}
+                    thumbnail={titles.get(number)?.thumbnail}
+                    progress={Math.max(
+                      entry ? episodeProgress(anime.id, number) : 0,
+                      // Episodes a list counts as watched show as finished
+                      watchedUpTo >= number ? 1 : 0
+                    )}
+                    duration={anime.duration}
+                    current={hasPosition && number === playEpisode}
+                    onSelect={() => play(number)}
+                    onFocused={revealTile}
+                  />
+                )
+              )}
             </FocusGroup>
           </section>
         )}

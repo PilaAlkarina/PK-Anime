@@ -74,6 +74,7 @@ interface RawDetail extends RawCard {
   tags: { name: string; isMediaSpoiler: boolean; isAdult: boolean }[] | null;
   trailer: { id: string; site: string } | null;
   streamingEpisodes: { title: string | null; thumbnail: string | null }[] | null;
+  airingSchedule: { nodes: (AiringEpisode | null)[] } | null;
   relations: { edges: { relationType: string; node: RawCard | null }[] } | null;
   recommendations: { nodes: { mediaRecommendation: RawCard | null }[] } | null;
 }
@@ -266,10 +267,12 @@ export const getAnime = unstable_cache(
         title: e.title || "",
         thumbnail: e.thumbnail,
       })),
+      upcomingAirings: (media.airingSchedule?.nodes || []).filter((n): n is AiringEpisode => !!n),
       episodeDetails: [],
     };
   },
-  ["anilist:anime"],
+  // v2: details now carry the airing schedule
+  ["anilist:anime:v2"],
   { revalidate: DETAIL_TTL, tags: ["anilist"] }
 );
 

@@ -79,3 +79,22 @@ export function airingLabel(unixSeconds: number, now = new Date()) {
 export function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
+
+/**
+ * When an episode not out yet airs: "Mañana · 14:00", "Domingo · 14:00", "15 nov. · 14:00".
+ * Without an exact time only the day. Past its time (the schedule lags a little): "Pendiente".
+ */
+const shortDay = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
+
+export function upcomingLabel(airingAt: number | null, exactTime: boolean, now = new Date()) {
+  if (airingAt === null) return "Sin fecha";
+  const date = new Date(airingAt * 1000);
+  if (exactTime && date.getTime() <= now.getTime()) return "Pendiente";
+  const days = Math.round((startOfDay(date) - startOfDay(now)) / 86_400_000);
+  if (days < 0) return "Pendiente";
+  const day =
+    days === 0 ? "Hoy" : days === 1 ? "Mañana" : days < 7 ? capitalize(weekday.format(date)) : shortDay.format(date);
+  return exactTime ? `${day} · ${formatTime(airingAt)}` : day;
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

@@ -129,6 +129,7 @@ query ($id: Int) {
     tags { name isMediaSpoiler isAdult }
     trailer { id site }
     streamingEpisodes { title thumbnail }
+    airingSchedule(notYetAired: true, perPage: 50) { nodes { episode airingAt } }
     relations { edges { relationType(version: 2) node { ...card } } }
     recommendations(perPage: 20, sort: [RATING_DESC]) { nodes { mediaRecommendation { ...card } } }
   }
