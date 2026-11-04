@@ -219,11 +219,11 @@ function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?:
     >
       <div
         className={cn(
-          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 ease-out",
+          "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200 ease-out",
           "group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md",
           current && "koma-sm md:koma-md"
         )}
-        style={anime.color ? { backgroundColor: anime.color } : undefined}
+        style={anime.color ? ({ "--cover-color": anime.color } as React.CSSProperties) : undefined}
       >
         {image && (
           <img

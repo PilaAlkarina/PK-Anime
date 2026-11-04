@@ -128,13 +128,13 @@ function TopBar() {
   return (
     <header className="hidden md:block sticky top-0 z-40 border-b border-line bg-black/90">
       <div className="flex items-center gap-7 max-w-[1360px] mx-auto px-8 h-16">
-        <Link href="/" aria-label="PK Anime, inicio" className="flex items-center gap-3">
+        <Link href="/" aria-label="PK Anime, inicio" className="flex shrink-0 items-center gap-3">
           <Hanko decorative className="w-9 h-9 text-base" />
-          <span lang="ja" aria-hidden="true" className="text-[13px] font-black tracking-[0.3em] text-zinc-400">
+          <span lang="ja" aria-hidden="true" className="hidden lg:inline whitespace-nowrap text-[13px] font-black tracking-[0.3em] text-zinc-400">
             アニメ
           </span>
         </Link>
-        <nav aria-label="Secciones" className="flex items-center gap-1">
+        <nav aria-label="Secciones" className="flex shrink-0 items-center gap-1">
           {TOP_LINKS.map((link) => {
             const active = isActive(pathname, link.href) || !!link.also?.some((path) => isActive(pathname, path));
             return (
@@ -143,7 +143,7 @@ function TopBar() {
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "px-3.5 py-2 rounded-full text-[0.95rem] transition-colors",
+                  "px-3.5 py-2 rounded-full text-[0.95rem] whitespace-nowrap transition-colors",
                   active ? "bg-red-500 text-black font-bold" : "text-zinc-400 font-medium hover:text-white"
                 )}
               >

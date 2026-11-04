@@ -83,7 +83,7 @@ function EpisodeTile({
     <div ref={ref} {...pointerProps} className="outline-none cursor-pointer">
       <div
         className={cn(
-          "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 border-[1.5px] border-line transition-transform duration-150",
+          "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill border-[1.5px] border-line transition-transform duration-150",
           focused && "koma"
         )}
       >

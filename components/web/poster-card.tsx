@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { CatalogItem } from "@/lib/anilist/types";
-import { ScoreFrame, ScorePill, ScoreShine } from "@/components/tv/list-styles";
+import { ScoreFrame, ScorePill, ScoreShine, flairOf } from "@/components/tv/list-styles";
 import { cn } from "@/lib/utils";
 import { RankNumeral } from "@/components/brand";
 
@@ -49,11 +49,16 @@ export function PosterCard({
     >
       {/* The frame for 9 and 10 sits behind the cover; hover and keyboard focus pop the cover
           out like a comic panel ("koma") */}
-      <div className="relative">
-        <ScoreFrame score={score} />
+      {/* A framed cover casts a hard shadow below: keep it off the title */}
+      <div className={cn("relative", flairOf(score) && "mb-2")}>
+        <ScoreFrame
+          score={score}
+          // Follows the cover's koma pop on hover and keyboard focus
+          className="group-hover:-translate-x-[3px] group-hover:-translate-y-[3px] group-focus-visible:-translate-x-[3px] group-focus-visible:-translate-y-[3px] md:group-hover:-translate-x-1 md:group-hover:-translate-y-1 md:group-focus-visible:-translate-x-1 md:group-focus-visible:-translate-y-1"
+        />
         <div
-          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md"
-          style={item.color ? { backgroundColor: item.color } : undefined}
+          className="relative pt-[141%] rounded-xl overflow-hidden cover-fill transition duration-200 group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md"
+          style={item.color ? ({ "--cover-color": item.color } as React.CSSProperties) : undefined}
         >
           {item.cover ? (
             <img

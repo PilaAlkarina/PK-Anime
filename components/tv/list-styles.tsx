@@ -24,10 +24,19 @@ export function StatusDot({ status, className }: { status: ListStatus | "local";
 export const flairOf = (score: number | null | undefined) => (score === 10 ? 10 : score === 9 ? 9 : null);
 
 /**
- * Glowing frame drawn just outside a card's cover (place it before the cover, in a relative
- * parent). Gold for 9; for 10 a gold-pink-violet frame with a pulsing glow.
+ * Frame just outside a card's cover (place it before the cover, in a relative parent): gold for
+ * 9; for 10 a gold-pink-violet frame with a pulsing glow. Both cast a hard shadow down-right, so
+ * the card needs room under the cover (see `flairOf`).
  */
-export function ScoreFrame({ score, focused }: { score: number | null | undefined; focused?: boolean }) {
+export function ScoreFrame({
+  score,
+  focused,
+  className,
+}: {
+  score: number | null | undefined;
+  focused?: boolean;
+  className?: string;
+}) {
   const flair = flairOf(score);
   if (!flair) return null;
   return (
@@ -36,7 +45,9 @@ export function ScoreFrame({ score, focused }: { score: number | null | undefine
       className={cn(
         "pk-flair transition-transform duration-150",
         flair === 10 ? "pk-flair-10" : "pk-flair-9",
-        focused && "scale-105"
+        // Moves with the card's "koma" focus pop
+        focused && "-translate-x-1 -translate-y-1",
+        className
       )}
     />
   );

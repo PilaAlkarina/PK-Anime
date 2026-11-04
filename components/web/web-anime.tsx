@@ -74,7 +74,7 @@ function EpisodeItem({
     >
       <div
         className={cn(
-          "relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200",
+          "relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200",
           "group-hover:koma-sm sm:group-hover:koma-md group-focus-visible:koma-sm sm:group-focus-visible:koma-md",
           current && "koma-sm sm:koma-md"
         )}

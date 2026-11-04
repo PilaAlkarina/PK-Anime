@@ -30,8 +30,34 @@
 }
 
 /*
- * Cards the viewer scored 9 or 10. The frame sits behind the cover, a little larger, so its
- * gradient shows as a border; only opacity and transform are animated.
+ * Cover boxes. The fill behind the art (the cover's own color, from --cover-color, or the
+ * panel color) sits 1px inside, so the rounded edge of the image blends into the page and not
+ * into a lighter fill, which drew thin light arcs on the corners; a hairline of ink on top
+ * cleans the image's own antialiased edge. Without an image the fill still shows. Children
+ * that aren't absolutely placed need `relative` to sit above the fill.
+ */
+.cover-fill::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: var(--cover-color, rgb(var(--c-zinc-900)));
+}
+
+.cover-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(var(--c-ink) / 0.55);
+  pointer-events: none;
+}
+
+/*
+ * Cards the viewer scored 9 or 10. Gold and iridescent on purpose: they're trophies and keep
+ * their colors in every theme. In the «Tinta y sello» way they also cast a hard printed shadow
+ * (iridescent for a 10), on top of a soft glow. The frame sits behind the cover, a little
+ * larger, so its gradient shows as a border; cards leave room under it for the title.
  */
 .pk-flair {
   position: absolute;
@@ -41,32 +67,43 @@
   bottom: -0.22rem;
   border-radius: 0.95rem;
   pointer-events: none;
+  isolation: isolate;
 }
 
 .pk-flair-9 {
-  background: linear-gradient(160deg, #fde68a 0%, #f59e0b 55%, #b45309 100%);
-  box-shadow: 0 0 1.1rem rgba(245, 158, 11, 0.35);
+  background: linear-gradient(160deg, #fef3c7 0%, #fbbf24 45%, #d97706 80%, #92400e 100%);
+  box-shadow:
+    0.4rem 0.4rem 0 #78350f,
+    0 0 1rem rgba(245, 158, 11, 0.3);
 }
 
 .pk-flair-10 {
-  top: -0.3rem;
-  left: -0.3rem;
-  right: -0.3rem;
-  bottom: -0.3rem;
-  border-radius: 1.05rem;
+  top: -0.28rem;
+  left: -0.28rem;
+  right: -0.28rem;
+  bottom: -0.28rem;
+  border-radius: 1.03rem;
   background: linear-gradient(135deg, #fde68a 0%, #f9a8d4 35%, #c4b5fd 68%, #93c5fd 100%);
-  box-shadow: 0 0 1.6rem rgba(244, 114, 182, 0.5), 0 0 3rem rgba(167, 139, 250, 0.3);
+  box-shadow: 0 0 1.4rem rgba(244, 114, 182, 0.4), 0 0 2.6rem rgba(167, 139, 250, 0.22);
+}
+
+/* Hard shadow in deeper iridescent tones, offset like the printed panels */
+.pk-flair-10::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  transform: translate(0.45rem, 0.45rem);
+  background: linear-gradient(135deg, #d97706 0%, #db2777 40%, #7c3aed 72%, #2563eb 100%);
 }
 
 .pk-flair-10::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 2.6rem 0.45rem rgba(253, 230, 138, 0.5);
+  box-shadow: 0 0 2.4rem 0.4rem rgba(253, 230, 138, 0.45);
   opacity: 0.2;
   animation: pk-flair-pulse 2.8s ease-in-out infinite;
 }
@@ -81,14 +118,16 @@
   }
 }
 
+/* Light sweeping across the cover of a 10 */
 .pk-shine {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   width: 45%;
+  z-index: 1;
   pointer-events: none;
-  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 15%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 85%);
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 15%, rgba(255, 255, 255, 0.45) 50%, rgba(255, 255, 255, 0) 85%);
   transform: translateX(-150%) skewX(-12deg);
   animation: pk-shine 3.6s ease-in-out infinite;
 }
@@ -103,16 +142,17 @@
   }
 }
 
+/* Score pills: same trophies, with a small hard shadow instead of a halo */
 .pk-pill-9 {
-  background: linear-gradient(135deg, #fde68a, #f59e0b);
+  background: linear-gradient(135deg, #fef3c7, #fbbf24 55%, #f59e0b);
   color: #1c1300;
-  box-shadow: 0 0 0.6rem rgba(245, 158, 11, 0.6);
+  box-shadow: 0.12rem 0.12rem 0 #78350f;
 }
 
 .pk-pill-10 {
   background: linear-gradient(135deg, #fde68a, #f9a8d4 50%, #c4b5fd);
   color: #1a0b2e;
-  box-shadow: 0 0 0.8rem rgba(249, 168, 212, 0.85);
+  box-shadow: 0.12rem 0.12rem 0 #7c3aed, 0 0 0.6rem rgba(249, 168, 212, 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {

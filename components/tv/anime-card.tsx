@@ -79,12 +79,12 @@ function TvAnimeCard({
       >
         <div
           className={cn(
-            "relative w-full h-[12.4rem] rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
+            "relative w-full h-[12.4rem] rounded-xl overflow-hidden cover-fill transition-transform duration-150",
             focused && "koma"
           )}
-          style={item.color ? { backgroundColor: item.color } : undefined}
+          style={item.color ? ({ "--cover-color": item.color } as React.CSSProperties) : undefined}
         >
-          {image && <img src={image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+          {image && <img src={image} alt="" loading="lazy" decoding="async" className="relative w-full h-full object-cover" />}
           {episode !== undefined && (
             <EpisodeNumeral n={episode} current={focused} className="top-2.5 left-3.5 text-[2.5rem]" />
           )}
@@ -115,15 +115,15 @@ function TvAnimeCard({
       <ScoreFrame score={score} focused={focused} />
       <div
         className={cn(
-          "relative w-full h-full rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
+          "relative w-full h-full rounded-xl overflow-hidden cover-fill transition-transform duration-150",
           focused && "koma"
         )}
-        style={item.color ? { backgroundColor: item.color } : undefined}
+        style={item.color ? ({ "--cover-color": item.color } as React.CSSProperties) : undefined}
       >
         {item.cover ? (
-          <img src={item.cover} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          <img src={item.cover} alt="" loading="lazy" decoding="async" className="relative w-full h-full object-cover" />
         ) : (
-          <div className="flex items-end w-full h-full p-3 text-lg font-bold leading-tight">{item.title}</div>
+          <div className="relative flex items-end w-full h-full p-3 text-lg font-bold leading-tight">{item.title}</div>
         )}
         <ScoreShine score={score} />
         {badge && (
