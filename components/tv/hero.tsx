@@ -94,8 +94,18 @@ function HeroArt({ item }: { item: CatalogItem }) {
     return () => clearTimeout(timer);
   }, [layers]);
 
+  // Two frames later, so the browser has painted the layer invisible first: a cached image is
+  // ready as soon as it mounts, and showing it right away would skip the fade
   const reveal = (layerSrc: string) =>
-    setLayers((current) => (current.some((l) => l.src === layerSrc && !l.shown) ? current.map((l) => (l.src === layerSrc ? { ...l, shown: true } : l)) : current));
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        setLayers((current) =>
+          current.some((l) => l.src === layerSrc && !l.shown)
+            ? current.map((l) => (l.src === layerSrc ? { ...l, shown: true } : l))
+            : current
+        )
+      )
+    );
 
   const top = layers[layers.length - 1];
   return (
