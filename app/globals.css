@@ -122,9 +122,19 @@
       opacity: 0;
     }
   }
+  /* Library pages coming in after a navigation (app/(library)/template.tsx) */
+  .page-in {
+    animation: page-in 0.32s ease-out backwards;
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .loading-slide,
-    .screen-in {
+    .screen-in,
+    .page-in {
       animation: none;
     }
   }
