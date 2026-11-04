@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { siteUrl } from "@/lib/site";
+import { THEME_BOOT_SCRIPT, themeCss } from "@/lib/themes";
 import "./globals.css";
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#0C0B10",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -35,8 +36,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark bg-black">
+    // The boot script sets data-theme before React hydrates
+    <html lang="en" className="dark bg-black" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <style dangerouslySetInnerHTML={{ __html: themeCss() }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -45,10 +49,10 @@ export default function RootLayout({
         />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Product+Sans:wght@400;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap"
         />
       </head>
-      <body className="min-h-screen bg-[#000000] text-white font-product-sans antialiased">
+      <body className="min-h-screen bg-black text-white font-product-sans antialiased">
         {children}
       </body>
     </html>

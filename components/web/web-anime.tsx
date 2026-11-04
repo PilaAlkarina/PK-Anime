@@ -1,5 +1,6 @@
 "use client";
 
+import { JapaneseLabel } from "@/components/brand";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bookmark, BookmarkCheck, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
@@ -247,7 +248,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <>
                   <Link
                     href={watchHref(playEpisode)}
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-white text-black font-bold hover:bg-zinc-200"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto h-12 px-6 rounded-xl sm:rounded-full bg-red-500 text-black font-bold shadow-hard hover:bg-red-400"
                   >
                     <Play className="w-4 h-4" fill="currentColor" />
                     {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
@@ -345,7 +346,8 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
             <section className="flex-[999_1_40rem] min-w-0">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <h2 className="mr-auto text-lg md:text-[1.35rem] font-bold">
-                  Episodios <span className="font-medium text-zinc-400">· {total}</span>
+                  Episodios <span className="font-sans font-medium text-zinc-400">· {total}</span>
+                  <JapaneseLabel title="Episodios" />
                   {watchedCount > 0 && <span className="ml-2 text-sm font-medium text-zinc-500">{watchedCount} vistos</span>}
                 </h2>
                 <label className="flex items-center gap-2 text-sm text-zinc-300">
@@ -424,7 +426,10 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
 
           <aside className="flex flex-col gap-7 flex-[1_1_18rem] min-w-0">
             <section className="p-5 rounded-2xl bg-zinc-950 border border-zinc-900">
-              <h2 className="mb-3 font-bold">Información</h2>
+              <h2 className="mb-3 font-bold">
+                Información
+                <JapaneseLabel title="Información" />
+              </h2>
               <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-y-2.5 text-sm">
                 {[
                   ["Estado", statusLabel(anime.status)],
@@ -445,7 +450,10 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
             </section>
             {relations.length > 0 && (
               <section>
-                <h2 className="mb-3 font-bold">Relacionados</h2>
+                <h2 className="mb-3 font-bold">
+                  Relacionados
+                  <JapaneseLabel title="Relacionados" />
+                </h2>
                 <div className="flex flex-col gap-2">
                   {relations.map((r) => (
                     <Link

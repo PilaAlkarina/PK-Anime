@@ -61,7 +61,7 @@ function GenreTile({ genre, index }: { genre: Genre; index: number }) {
       className={cn(
         "flex items-end h-32 p-6 rounded-2xl bg-gradient-to-br cursor-pointer outline-none transition-transform duration-150",
         GENRE_COLORS[index % GENRE_COLORS.length],
-        focused && "scale-105 ring-[0.25rem] ring-white"
+        focused && "koma"
       )}
     >
       <span className="text-3xl font-bold">{genre.label}</span>

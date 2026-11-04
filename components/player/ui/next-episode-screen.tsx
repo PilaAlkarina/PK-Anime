@@ -1,5 +1,6 @@
 "use client";
 
+import { Stamp } from "@/components/brand";
 import { useEffect, useRef } from "react";
 import { Check, Maximize, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,15 +39,14 @@ function CountdownRing({ value, from, size }: { value: number; from: number; siz
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#fafafa"
+          className="stroke-red-500 transition-[stroke-dashoffset] duration-1000 ease-linear"
           strokeWidth={size * 0.055}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - value / from)}
-          className="transition-[stroke-dashoffset] duration-1000 ease-linear"
         />
       </svg>
-      <span className="relative font-extrabold tabular-nums" style={{ fontSize: size * 0.36 }}>
+      <span className="relative font-display tabular-nums" style={{ fontSize: size * 0.36 }}>
         {value}
       </span>
     </div>
@@ -63,15 +63,15 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
   }, [tv]);
 
   const primary = cn(
-    "flex items-center gap-2.5 rounded-full bg-white text-black font-bold outline-none transition-transform",
+    "flex items-center gap-2.5 rounded-full bg-red-500 text-black font-bold outline-none transition",
     tv
-      ? "h-[4.75rem] px-10 text-[1.625rem] focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105"
-      : "h-12 sm:h-[52px] px-6 text-base hover:bg-zinc-200"
+      ? "h-[4.75rem] px-10 text-[1.625rem] focus:bg-white focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1"
+      : "h-12 sm:h-[52px] px-6 text-base hover:bg-red-400 shadow-hard"
   );
   const secondary = cn(
     "flex items-center gap-2 rounded-full font-semibold outline-none transition",
     tv
-      ? "h-[4.75rem] px-8 text-2xl bg-white/[0.12] text-zinc-200 focus:bg-white focus:text-black focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105"
+      ? "h-[4.75rem] px-8 text-2xl bg-white/[0.12] text-zinc-200 focus:bg-white focus:text-black focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1"
       : "h-12 sm:h-[52px] px-5 text-base bg-white/[0.14] hover:bg-white/25"
   );
 
@@ -91,6 +91,9 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
       onDoubleClick={(e) => e.stopPropagation()}
     >
       {!framed && <div className="absolute inset-0 bg-gradient-to-l from-black/95 via-black/85 to-black/20" />}
+      {!framed && (
+        <div aria-hidden="true" className="absolute inset-y-0 right-[30%] w-[45%] screentone [mask-image:linear-gradient(270deg,transparent,#000_45%,transparent)]" />
+      )}
 
       {framed && (
         <button
@@ -125,7 +128,9 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
               : "top-1/2 -translate-y-1/2 right-5 sm:right-[5.5%] w-[min(calc(100%-2.5rem),26rem)] gap-3"
         )}
       >
-        <span className={cn("font-bold tracking-[0.16em] text-red-300", tv ? "text-lg" : "text-[13px]")}>SIGUIENTE EPISODIO</span>
+        <Stamp japanese="次回" className={tv ? "text-lg" : "text-[13px]"}>
+          SIGUIENTE EPISODIO
+        </Stamp>
         <div
           className={cn(
             "relative w-full aspect-video overflow-hidden bg-zinc-800 flex items-center justify-center",
@@ -136,7 +141,7 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
           {next.thumbnail && <img src={next.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />}
           {countdown !== null && <CountdownRing value={countdown} from={props.countdownFrom} size={tv ? 156 : 112} />}
         </div>
-        <h2 className={cn("font-extrabold leading-tight tracking-tight", tv ? "mt-1.5 text-[3.25rem]" : "mt-1 text-2xl sm:text-[34px]")}>
+        <h2 className={cn("font-display leading-tight", tv ? "mt-1.5 text-[3.25rem]" : "mt-1 text-2xl sm:text-[34px]")}>
           Episodio {next.number}
         </h2>
         {(next.title || next.duration) && (

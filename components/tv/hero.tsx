@@ -71,6 +71,10 @@ export function Hero({ item }: { item: CatalogItem | null }) {
           item.banner ? "via-black/70" : "via-black/85"
         )}
       />
+      <div
+        aria-hidden="true"
+        className="absolute top-0 bottom-0 left-[20%] w-[55%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
+      />
       <div className="absolute left-0 right-0 bottom-0 h-[45%] bg-gradient-to-t from-black to-transparent" />
 
       <div key={item.id} className="relative pl-[10rem] pt-[9vh] w-[58%] tv-fade-in">

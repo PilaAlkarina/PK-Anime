@@ -38,17 +38,18 @@ export function useTvFocusable<P = object>({
 type ButtonVariant = "primary" | "secondary" | "chip";
 
 const VARIANTS: Record<ButtonVariant, { base: string; focused: string }> = {
+  // Focus is a "koma" pop: paper face and a hard accent shadow, the panel lifting off the page
   primary: {
-    base: "h-14 px-8 rounded-full bg-white/15 text-white text-xl font-bold",
-    focused: "bg-white text-black scale-105",
+    base: "h-14 px-8 rounded-full bg-red-500 text-black text-xl font-bold",
+    focused: "bg-white text-black shadow-hard-accent -translate-x-1 -translate-y-1",
   },
   secondary: {
     base: "h-14 px-6 rounded-full bg-white/10 text-zinc-200 text-xl",
-    focused: "bg-white text-black scale-105",
+    focused: "bg-white text-black shadow-hard-accent -translate-x-1 -translate-y-1",
   },
   chip: {
     base: "h-11 px-5 rounded-full bg-white/10 text-zinc-300 text-lg",
-    focused: "bg-white text-black",
+    focused: "bg-white text-black shadow-hard-accent",
   },
 };
 
@@ -65,7 +66,7 @@ interface FocusButtonProps {
 // The web layout's buttons: hover and keyboard focus instead of spatial focus
 const WEB_VARIANTS: Record<ButtonVariant, { base: string; active: string }> = {
   primary: {
-    base: "h-11 px-6 rounded-full bg-white text-black text-[0.95rem] font-semibold hover:bg-zinc-200",
+    base: "h-11 px-6 rounded-full bg-red-500 text-black text-[0.95rem] font-bold shadow-hard hover:bg-red-400",
     active: "",
   },
   secondary: {

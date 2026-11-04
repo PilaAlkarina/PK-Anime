@@ -45,14 +45,52 @@
   }
   html,
   body {
-    @apply bg-black text-foreground antialiased selection:bg-zinc-800 selection:text-zinc-100;
+    @apply bg-black text-white antialiased selection:bg-red-500 selection:text-black;
     overflow-x: hidden;
     max-width: 100vw;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Zen Kaku Gothic New", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* Library titles in the poster face. It has a single weight: never fake a bold one */
+  [data-ui] h1,
+  [data-ui] h2,
+  .font-display {
+    font-family: "Dela Gothic One", "Zen Kaku Gothic New", system-ui, sans-serif;
+    font-weight: 400;
+    font-synthesis: none;
+    letter-spacing: -0.005em;
+  }
+}
+
+@layer utilities {
+  /* «Koma»: the focused card pops out like a comic panel, paper edge and a hard accent shadow */
+  .koma {
+    box-shadow: 0 0 0 0.1875rem rgb(var(--c-paper)), 0.75rem 0.75rem 0 0.1875rem rgb(var(--c-accent));
+    transform: translate(-0.25rem, -0.25rem);
+  }
+  .koma-sm {
+    box-shadow: 0 0 0 2px rgb(var(--c-paper)), 6px 6px 0 2px rgb(var(--c-accent));
+    transform: translate(-3px, -3px);
+  }
+  /* Hard accent shadow under primary buttons */
+  .shadow-hard {
+    box-shadow: 4px 4px 0 rgb(var(--c-paper));
+  }
+  .shadow-hard-accent {
+    box-shadow: 0.375rem 0.375rem 0 rgb(var(--c-accent));
+  }
+  /* Manga screentone: dots that fade along the mask set next to it */
+  .screentone {
+    background-image: radial-gradient(rgb(var(--c-paper) / 0.16) 1.3px, transparent 1.7px);
+    background-size: 10px 10px;
+    pointer-events: none;
+  }
+  .text-outline {
+    color: transparent;
+    -webkit-text-stroke: 2px rgb(var(--c-paper));
   }
 }
 
@@ -83,16 +121,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: rgb(var(--c-ink));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: rgb(var(--c-zinc-800));
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: rgb(var(--c-zinc-700));
 }
 
 /* Video Player Menu Frosted Glass Scrollbar */
@@ -283,7 +321,7 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .font-product-sans {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Zen Kaku Gothic New", system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

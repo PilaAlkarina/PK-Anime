@@ -1,3 +1,8 @@
+// Theme colors live in CSS variables (lib/themes.ts); these keep the usual Tailwind names
+const themed = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+const ramp = (name: string) => Object.fromEntries(SHADES.map((s) => [s, themed(`${name}-${s}`)]));
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -17,9 +22,24 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        "product-sans": ["'Product Sans'", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        // The class name stays from the old font; it now carries the body face
+        "product-sans": ["'Zen Kaku Gothic New'", "system-ui", "-apple-system", "'Segoe UI'", "Roboto", "sans-serif"],
+        sans: ["'Zen Kaku Gothic New'", "system-ui", "-apple-system", "'Segoe UI'", "Roboto", "sans-serif"],
+        display: ["'Dela Gothic One'", "'Zen Kaku Gothic New'", "system-ui", "sans-serif"],
       },
       colors: {
+        // Themed: neutrals follow the theme's ink and paper, red its accent, amber/yellow its second accent
+        white: themed("paper"),
+        black: themed("ink"),
+        zinc: ramp("zinc"),
+        red: ramp("accent"),
+        amber: ramp("second"),
+        yellow: ramp("second"),
+        ink: { DEFAULT: themed("ink"), 2: themed("ink2"), 3: themed("ink3") },
+        line: themed("line"),
+        paper: { DEFAULT: themed("paper"), 2: themed("paper2") },
+        accent2: themed("second"),
+        brand: themed("accent"),
         border: "hsl(var(--border, 0 0% 14.9%))",
         input: "hsl(var(--input, 0 0% 14.9%))",
         ring: "hsl(var(--ring, 0 0% 83.1%))",

@@ -72,7 +72,7 @@ function TvAnimeCard({
         <div
           className={cn(
             "relative w-full h-[12.4rem] rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
-            focused && "scale-105 ring-[0.25rem] ring-white shadow-[0_0.75rem_2rem_rgba(0,0,0,0.6)]"
+            focused && "koma"
           )}
           style={item.color ? { backgroundColor: item.color } : undefined}
         >
@@ -100,7 +100,7 @@ function TvAnimeCard({
       <div
         className={cn(
           "relative w-full h-full rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
-          focused && "scale-105 ring-[0.25rem] ring-white shadow-[0_0.75rem_2rem_rgba(0,0,0,0.6)]"
+          focused && "koma"
         )}
         style={item.color ? { backgroundColor: item.color } : undefined}
       >

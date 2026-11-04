@@ -1,5 +1,6 @@
 "use client";
 
+import { Hanko } from "@/components/brand";
 import { usePathname, useRouter } from "next/navigation";
 import { Bookmark, CalendarDays, Home, LayoutGrid, Search, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { FocusContext, navigateByDirection, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
@@ -78,7 +79,12 @@ export function Sidebar() {
         ref={ref}
         className="fixed top-0 bottom-0 left-0 z-40 flex flex-col items-center justify-center w-[7rem] bg-black border-r border-white/10"
       >
-        <div className="absolute top-10 text-2xl font-bold tracking-tight text-white">PK</div>
+        <div className="absolute top-9 flex flex-col items-center gap-2.5">
+          <Hanko className="w-14 h-14 text-2xl" />
+          <span lang="ja" aria-hidden="true" className="text-xs font-black tracking-[0.3em] text-zinc-400">
+            アニメ
+          </span>
+        </div>
         <div className="space-y-2">
           {ITEMS.map((item) => (
             <SidebarItem

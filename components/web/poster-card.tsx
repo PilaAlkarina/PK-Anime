@@ -47,7 +47,7 @@ export function PosterCard({
       <div className="relative transition-transform duration-200 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.04] group-focus-visible:-translate-y-1.5 group-focus-visible:scale-[1.04] motion-reduce:transform-none">
         <ScoreFrame score={score} />
         <div
-          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 ring-1 ring-white/0 transition-shadow duration-200 group-hover:ring-white/40 group-hover:shadow-[0_1rem_2rem_rgba(0,0,0,0.75)] group-focus-visible:ring-2 group-focus-visible:ring-white"
+          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 group-hover:koma-sm group-focus-visible:ring-2 group-focus-visible:ring-white"
           style={item.color ? { backgroundColor: item.color } : undefined}
         >
           {item.cover ? (

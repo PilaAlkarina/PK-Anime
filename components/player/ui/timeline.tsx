@@ -127,7 +127,7 @@ export function Timeline({
         {duration > 0 && (
           <div
             className={cn(
-              "absolute top-1/2 rounded-full bg-white pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 shadow-[0_0_0_4px_rgba(239,68,68,0.35)]",
+              "absolute top-1/2 rounded-full bg-white pointer-events-none -translate-x-1/2 -translate-y-1/2 transition-transform duration-150 shadow-[0_0_0_4px_rgb(var(--c-accent)/0.4)]",
               tv ? "w-6 h-6" : "w-4 h-4",
               showKnob || drag !== null ? "scale-100" : "scale-0 group-hover/timeline:scale-100 touch:scale-100"
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Stamp, japaneseFor } from "@/components/brand";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -55,15 +56,19 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
             />
           )}
           <div className="hidden md:block absolute top-0 bottom-0 left-0 w-[72%] bg-gradient-to-r from-black/95 via-black/75 to-transparent" />
+          <div
+            aria-hidden="true"
+            className="hidden md:block absolute top-0 bottom-0 left-[25%] w-[55%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]"
+          />
           <span className="absolute top-3 left-3 md:hidden px-2.5 py-1 rounded-full bg-black/80 text-[0.7rem] font-bold tracking-widest text-red-300">
             {row.title.toUpperCase()} · N.º {index + 1}
           </span>
         </div>
 
         <div key={item.id} className="hidden md:flex relative flex-col gap-3 max-w-[40rem] p-10 tv-fade-in">
-          <span className="text-xs font-bold tracking-[0.14em] text-red-300">
+          <Stamp japanese={japaneseFor(row.title) ? `${japaneseFor(row.title)} No.${index + 1}` : undefined} className="text-xs">
             {row.title.toUpperCase()} · N.º {index + 1}
-          </span>
+          </Stamp>
           <h1 className="text-[2.6rem] leading-[1.08] font-extrabold tracking-tight line-clamp-2">{item.title}</h1>
           <p className="text-[0.95rem] text-zinc-300">{[metaLine(item), genres].filter(Boolean).join(" · ")}</p>
           <p className="text-[0.95rem] leading-relaxed text-zinc-300 line-clamp-3 min-h-[4.5rem]">{detail?.description}</p>
@@ -130,7 +135,8 @@ function FeaturedActions({
       <Link
         href={`/watch/${item.id}/${episode}`}
         className={cn(
-          "flex items-center justify-center gap-2 rounded-full bg-white text-black font-bold hover:bg-zinc-200",
+          "flex items-center justify-center gap-2 rounded-full bg-red-500 text-black font-bold hover:bg-red-400",
+          !compact && "shadow-hard",
           compact ? "flex-1 h-12 rounded-xl" : "h-12 px-6"
         )}
       >
@@ -171,7 +177,7 @@ function ResumeCard({ entry }: { entry: ContinueItem }) {
       className="group flex-shrink-0 w-[15rem] md:w-[19rem] snap-start flex flex-col gap-2 outline-none"
     >
       <div
-        className="relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 ring-1 ring-white/0 transition duration-200 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.03] group-hover:ring-white/40 group-hover:shadow-[0_1rem_2rem_rgba(0,0,0,0.75)] group-focus-visible:ring-2 group-focus-visible:ring-white motion-reduce:transform-none"
+        className="relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition duration-200 ease-out group-hover:koma-sm group-focus-visible:ring-2 group-focus-visible:ring-white motion-reduce:transform-none"
         style={anime.color ? { backgroundColor: anime.color } : undefined}
       >
         {image && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { Hanko } from "@/components/brand";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -127,7 +128,8 @@ function TopBar() {
   return (
     <header className="hidden md:block sticky top-0 z-40 border-b border-zinc-900 bg-black/90">
       <div className="flex items-center gap-7 max-w-[1360px] mx-auto px-8 h-16">
-        <Link href="/" className="text-xl font-extrabold tracking-tight">
+        <Link href="/" className="flex items-center gap-2.5 font-display text-lg">
+          <Hanko decorative className="w-9 h-9 text-[0.95rem]" />
           PK Anime
         </Link>
         <nav aria-label="Secciones" className="flex items-center gap-1">

@@ -1,5 +1,6 @@
 "use client";
 
+import { JapaneseLabel } from "@/components/brand";
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { LoadMore } from "./load-more";
@@ -30,7 +31,10 @@ export function HorizontalRow({
   return (
     <section>
       <div className="flex items-center justify-between gap-4 px-4 mb-3 md:px-8 md:mb-4">
-        <h2 className="text-lg md:text-[1.35rem] font-bold">{title}</h2>
+        <h2 className="text-lg md:text-[1.35rem] font-bold">
+          {title}
+          <JapaneseLabel title={title} />
+        </h2>
         <div className="flex items-center gap-2">
           {action}
           <button

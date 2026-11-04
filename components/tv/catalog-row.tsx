@@ -1,5 +1,6 @@
 "use client";
 
+import { JapaneseLabel } from "@/components/brand";
 import { useRef, useState } from "react";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
@@ -101,7 +102,10 @@ export function CardRow({
 
   return (
     <section ref={rowRef} className="pt-2">
-      <h2 className="pl-12 text-2xl font-bold text-zinc-100">{title}</h2>
+      <h2 className="pl-12 text-2xl font-bold text-zinc-100">
+        {title}
+        <JapaneseLabel title={title} />
+      </h2>
       <FocusGroup focusKey={`row:${rowKey}`}>
         <div ref={scrollerRef} className="relative overflow-x-auto overflow-y-hidden tv-no-scrollbar">
           <div className="flex py-5 pl-12 pr-[40vw]">

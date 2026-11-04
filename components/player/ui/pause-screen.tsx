@@ -1,5 +1,6 @@
 "use client";
 
+import { Stamp } from "@/components/brand";
 import { useEffect, useRef, useState } from "react";
 import { ListVideo, Play, RotateCcw } from "lucide-react";
 import { cn, formatSecondsToTime } from "@/lib/utils";
@@ -50,19 +51,20 @@ export function PauseScreen(props: PauseScreenProps) {
 
   const chip = cn("inline-flex items-center gap-1.5 rounded-full bg-white/10 text-zinc-200", tv ? "px-4 py-1.5 text-xl" : "px-2.5 py-1 text-xs tall:sm:px-3 tall:sm:py-1.5 tall:sm:text-sm");
   const primary = cn(
-    "flex items-center gap-2.5 rounded-full bg-white text-black font-bold outline-none transition-transform",
-    tv ? "h-[4.75rem] px-10 text-[1.625rem] focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105" : "h-11 px-5 text-[15px] tall:sm:h-[52px] tall:sm:px-6 tall:sm:text-base hover:bg-zinc-200"
+    "flex items-center gap-2.5 rounded-full bg-red-500 text-black font-bold outline-none transition",
+    tv ? "h-[4.75rem] px-10 text-[1.625rem] focus:bg-white focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1" : "h-11 px-5 text-[15px] tall:sm:h-[52px] tall:sm:px-6 tall:sm:text-base hover:bg-red-400 tall:sm:shadow-hard"
   );
   const secondary = cn(
     "flex items-center gap-2.5 rounded-full font-semibold outline-none transition",
     tv
-      ? "h-[4.75rem] px-7 text-2xl bg-white/[0.12] text-zinc-200 focus:bg-white focus:text-black focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105"
+      ? "h-[4.75rem] px-7 text-2xl bg-white/[0.12] text-zinc-200 focus:bg-white focus:text-black focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1"
       : "h-11 px-4 text-sm tall:sm:h-[52px] tall:sm:px-5 tall:sm:text-base bg-white/[0.14] hover:bg-white/25"
   );
 
   return (
     <div className="absolute inset-0 z-30 animate-in fade-in duration-300 pointer-events-none">
       <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/30" />
+      <div aria-hidden="true" className="absolute inset-y-0 left-[30%] w-[50%] screentone [mask-image:linear-gradient(90deg,transparent,#000_45%,transparent)]" />
 
       <section
         className={cn(
@@ -72,10 +74,12 @@ export function PauseScreen(props: PauseScreenProps) {
             : "top-16 left-5 right-5 gap-2 md:right-auto md:w-[min(52%,41rem)] tall:sm:top-[15%] tall:sm:left-[5.5%] tall:sm:gap-3.5"
         )}
       >
-        <span className={cn("font-bold tracking-[0.16em] text-red-300", tv ? "text-lg" : "text-[11px] tall:sm:text-[13px]")}>EN PAUSA</span>
+        <Stamp japanese="一時停止" className={tv ? "text-lg" : "text-[11px] tall:sm:text-[13px]"}>
+          EN PAUSA
+        </Stamp>
         <h1
           className={cn(
-            "font-extrabold leading-[1.08] tracking-tight line-clamp-2",
+            "font-display leading-[1.12] line-clamp-2",
             tv ? "text-[3.5rem]" : "text-[22px] tall:sm:text-3xl tall:lg:text-[42px]"
           )}
         >
@@ -132,7 +136,9 @@ export function PauseScreen(props: PauseScreenProps) {
             tv ? "flex top-[12.5rem] right-[7.5rem] w-[31rem] gap-4" : "hidden md:flex top-[4.5rem] right-6 w-[min(28%,15rem)] gap-2 tall:top-[18.5%] tall:right-[5.5%] tall:w-[min(26%,24rem)] tall:gap-3"
           )}
         >
-          <span className={cn("font-bold tracking-[0.16em] text-zinc-400", tv ? "text-lg" : "text-[11px] tall:text-[13px]")}>A CONTINUACIÓN</span>
+          <Stamp muted japanese="次のエピソード" className={tv ? "text-lg" : "text-[11px] tall:text-[13px]"}>
+            A CONTINUACIÓN
+          </Stamp>
           <button
             type="button"
             tabIndex={tv ? -1 : 0}

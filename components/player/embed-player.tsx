@@ -2344,7 +2344,7 @@ export function EmbedPlayer({
   const tvPill = (extra?: string) =>
     cn(
       "flex items-center gap-3 h-16 px-[1.625rem] rounded-full bg-white/[0.12] text-zinc-200 text-[1.3125rem] font-semibold outline-none transition",
-      "focus:bg-white focus:text-black focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105",
+      "focus:bg-white focus:text-black focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1",
       extra
     );
 
@@ -2601,7 +2601,7 @@ export function EmbedPlayer({
                 </span>
               ) : (
                 <>
-                  <span className={cn("font-bold truncate", tv ? "text-[1.875rem]" : "text-[15px] sm:text-xl")}>{animeTitle}</span>
+                  <span className={cn("font-display truncate", tv ? "text-[1.875rem]" : "text-[15px] sm:text-xl")}>{animeTitle}</span>
                   <span className={cn("text-zinc-300 truncate", tv ? "text-[1.375rem]" : "text-xs sm:text-[15px]")}>{episodeLine}</span>
                 </>
               )}
@@ -2733,10 +2733,10 @@ export function EmbedPlayer({
             else handleSkipOutro();
           }}
           className={cn(
-            "absolute z-40 flex items-center rounded-full bg-white text-black font-bold shadow-[0_10px_30px_rgba(0,0,0,0.45)] outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
+            "absolute z-40 flex items-center rounded-full bg-white text-black font-bold shadow-hard-accent outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
             tv
               ? cn(
-                  "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl focus:outline focus:outline-[5px] focus:outline-white/35 focus:outline-offset-[6px] focus:scale-105",
+                  "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl focus:bg-white focus:shadow-hard-accent focus:-translate-x-1 focus:-translate-y-1",
                   showControls ? "bottom-[18.75rem]" : "bottom-24"
                 )
               : cn(
@@ -2910,7 +2910,7 @@ export function EmbedPlayer({
                         onChange={(e) => handleVolumeChange(Number(e.target.value))}
                         aria-label="Volumen"
                         style={{
-                          background: `linear-gradient(to right, #fafafa ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.25) ${(isMuted ? 0 : volume) * 100}%)`,
+                          background: `linear-gradient(to right, rgb(var(--c-paper)) ${(isMuted ? 0 : volume) * 100}%, rgba(255,255,255,0.25) ${(isMuted ? 0 : volume) * 100}%)`,
                         }}
                         className="w-24 h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
                       />

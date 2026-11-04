@@ -1,5 +1,6 @@
 "use client";
 
+import { JapaneseLabel } from "@/components/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, BookmarkCheck, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
@@ -68,7 +69,7 @@ function EpisodeTile({
       <div
         className={cn(
           "relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 transition-transform duration-150",
-          focused && "scale-105 ring-[0.25rem] ring-white shadow-[0_0.75rem_2rem_rgba(0,0,0,0.6)]"
+          focused && "koma"
         )}
       >
         {thumbnail ? (
@@ -323,7 +324,10 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
 
         {total > 0 && (
           <section className="relative pl-[10rem] pr-16">
-            <h2 className="text-3xl font-bold">Episodios</h2>
+            <h2 className="text-3xl font-bold">
+              Episodios
+              <JapaneseLabel title="Episodios" />
+            </h2>
             {rangeCount > 1 && (
               <FocusGroup className="flex flex-wrap mt-5">
                 {Array.from({ length: rangeCount }, (_, i) => {

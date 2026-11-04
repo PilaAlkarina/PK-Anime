@@ -1,5 +1,6 @@
 "use client";
 
+import { JapaneseLabel } from "@/components/brand";
 import { createContext, useContext, useEffect, useRef, useState, type RefObject } from "react";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem } from "@/lib/anilist/types";
@@ -63,7 +64,10 @@ export function PageFrame({
   if (!isTv) {
     return (
       <div className="max-w-[1360px] mx-auto px-4 pt-6 pb-12 md:px-8 md:pt-10">
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{title}</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+          {title}
+          <JapaneseLabel title={title} />
+        </h1>
         {subtitle && <p className="mt-2 max-w-3xl text-[0.95rem] leading-relaxed text-zinc-400">{subtitle}</p>}
         <div className="mt-8">{children}</div>
       </div>
@@ -74,7 +78,10 @@ export function PageFrame({
     <Screen ready={ready}>
       <ScrollArea className="fixed top-0 bottom-0 left-[7rem] right-0">
         <div className="px-12 pt-[8vh] pb-[20vh]">
-          <h1 className="text-5xl font-bold">{title}</h1>
+          <h1 className="text-5xl font-bold">
+            {title}
+            <JapaneseLabel title={title} />
+          </h1>
           {subtitle && <p className="mt-3 text-xl text-zinc-400">{subtitle}</p>}
           <div className="mt-10">{children}</div>
           {footer && <PageFooter />}

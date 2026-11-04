@@ -220,7 +220,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       className={cn(
-        "absolute inset-y-0 right-0 z-50 flex flex-col bg-[#111113] border-l border-white/10 text-white overflow-y-auto overscroll-contain player-menu-scrollbar animate-in slide-in-from-right-8 fade-in duration-200",
+        "absolute inset-y-0 right-0 z-50 flex flex-col bg-zinc-900 border-l border-white/10 text-white overflow-y-auto overscroll-contain player-menu-scrollbar animate-in slide-in-from-right-8 fade-in duration-200",
         tv ? "w-[36rem] p-8 gap-6" : "w-full sm:w-[400px] p-5 gap-5"
       )}
     >
@@ -240,7 +240,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             )}
           </div>
 
-          <div role="group" aria-label="Audio" className="flex gap-1 p-1 rounded-xl bg-[#1c1c20]">
+          <div role="group" aria-label="Audio" className="flex gap-1 p-1 rounded-xl bg-ink-3">
             {(["sub", "dub"] as const).map((a) => (
               <button
                 key={a}
@@ -252,7 +252,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 className={cn(
                   "flex-1 rounded-[9px] font-semibold outline-none transition-colors disabled:opacity-40",
                   tv ? "h-14 text-xl focus:bg-white focus:text-black" : "h-[38px] text-sm",
-                  props.audio === a ? "bg-zinc-700" : cn("text-zinc-400", !tv && "hover:text-white focus-visible:bg-white/10")
+                  props.audio === a ? "bg-white text-black" : cn("text-zinc-400", !tv && "hover:text-white focus-visible:bg-white/10")
                 )}
               >
                 {a === "sub" ? "Original" : "Doblaje en inglés"}
@@ -260,7 +260,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             ))}
           </div>
 
-          <div className="flex flex-col rounded-[14px] bg-[#18181b] overflow-hidden shrink-0">
+          <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
             {(
               [
                 ["subtitles", "Subtítulos", activeSubtitleLabel],
@@ -296,7 +296,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   </a>
                 ))}
             </div>
-            <div className="flex flex-col p-1 rounded-[14px] bg-[#18181b]">
+            <div className="flex flex-col p-1 rounded-[14px] bg-ink-3">
               {props.servers.length === 0 && (
                 <p className={cn("px-3 py-3 text-zinc-400", tv ? "text-lg" : "text-sm")}>No hay servidores para este audio</p>
               )}
@@ -342,13 +342,13 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           {view === "subtitles" && (
             <>
-              <div className="flex flex-col rounded-[14px] bg-[#18181b] overflow-hidden shrink-0">
+              <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
                 {option("off", "Desactivados", props.activeSubtitle === null, () => props.onSubtitleChange(null))}
                 {props.subtitles.map((s) =>
                   option(s.key, s.label, props.activeSubtitle === s.key, () => props.onSubtitleChange(s.key))
                 )}
               </div>
-              <button type="button" onClick={() => onViewChange("style")} className={cn(rowClass, "rounded-[14px] bg-[#18181b] group")}>
+              <button type="button" onClick={() => onViewChange("style")} className={cn(rowClass, "rounded-[14px] bg-ink-3 group")}>
                 <span className="flex-1 font-medium">Estilo de subtítulos</span>
                 <span className="text-zinc-400 group-focus:text-zinc-600">{styleLabel(props.subtitleStyles)}</span>
                 <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
@@ -358,7 +358,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           {view === "style" && (
             <div className="flex flex-col gap-5">
-              <div className="flex items-center justify-center min-h-[5.5rem] rounded-[14px] bg-[radial-gradient(#3f3f46_1px,transparent_1px)] [background-size:12px_12px] bg-zinc-950 border border-white/10">
+              <div className="flex items-center justify-center min-h-[5.5rem] rounded-[14px] screentone [background-size:12px_12px] bg-zinc-950 border border-white/10">
                 <SubtitleText styles={props.subtitleStyles}>Así se verán los subtítulos</SubtitleText>
               </div>
               {(
@@ -386,7 +386,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           )}
 
           {view === "quality" && (
-            <div className="flex flex-col rounded-[14px] bg-[#18181b] overflow-hidden shrink-0">
+            <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
               {option("auto", "Automática", props.quality === -1, () => props.onQualityChange(-1), qualityLabel(props.qualities, -1).replace("Auto", "").replace(" · ", "") || undefined)}
               {[...props.qualities]
                 .sort((a, b) => b.height - a.height)
@@ -395,7 +395,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           )}
 
           {view === "speed" && (
-            <div className="flex flex-col rounded-[14px] bg-[#18181b] overflow-hidden shrink-0">
+            <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
               {SPEEDS.map((s) => option(s, speedLabel(s), Math.abs(props.speed - s) < 0.01, () => props.onSpeedChange(s)))}
             </div>
           )}
@@ -405,7 +405,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <p className={cn("text-zinc-400", tv ? "text-lg" : "text-sm")}>
                 Sube el volumen por encima del máximo del sistema, para episodios con el audio muy bajo.
               </p>
-              <div className="flex flex-col rounded-[14px] bg-[#18181b] overflow-hidden shrink-0">
+              <div className="flex flex-col rounded-[14px] bg-ink-3 overflow-hidden shrink-0">
                 {BOOSTS.map((b) => option(b, `${Math.round(b * 100)} %`, Math.abs(props.boost - b) < 0.01, () => props.onBoostChange(b)))}
               </div>
             </>

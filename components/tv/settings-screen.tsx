@@ -11,6 +11,8 @@ import {
   usePlaybackPreferences,
   type PlaybackPreferences,
 } from "@/lib/playback-preferences";
+import { THEMES } from "@/lib/themes";
+import { setThemePreference, useThemePreference } from "@/lib/theme-preference";
 import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 
@@ -248,6 +250,47 @@ function SubtitlePreview({ styles }: { styles: SubtitleStyles }) {
   );
 }
 
+/** One card per theme, drawn in its own colors: a miniature of a screen in that palette */
+function ThemePicker() {
+  const current = useThemePreference();
+  const reveal = useRevealOnFocus(160);
+  return (
+    <FocusGroup className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 tv:grid-cols-4 tv:gap-5" onFocusInside={(node) => reveal(node)}>
+      {THEMES.map((theme) => {
+        const p = theme.palette;
+        const selected = theme.id === current;
+        return (
+          <FocusButton
+            key={theme.id}
+            variant="chip"
+            active={selected}
+            onSelect={() => setThemePreference(theme.id)}
+            className="h-auto w-full flex-col items-stretch gap-3 p-3 rounded-2xl text-left whitespace-normal tv:p-4 tv:gap-4"
+          >
+            <span
+              aria-hidden="true"
+              className="relative block h-20 rounded-xl overflow-hidden tv:h-28"
+              style={{ background: p.ink, boxShadow: `inset 0 0 0 1.5px ${p.line}` }}
+            >
+              <span className="absolute left-3 top-3 w-7 h-7 rounded-md -rotate-6 tv:w-9 tv:h-9" style={{ background: p.accent }} />
+              <span className="absolute left-12 top-3.5 h-2 w-1/3 rounded-full tv:left-14 tv:top-4" style={{ background: p.paper }} />
+              <span className="absolute left-12 top-7 h-1.5 w-1/4 rounded-full tv:left-14 tv:top-9" style={{ background: p.muted }} />
+              <span className="absolute left-3 right-3 bottom-3 h-1.5 rounded-full flex overflow-hidden" style={{ background: p.ink3 }}>
+                <span className="w-[45%]" style={{ background: p.accent }} />
+                <span className="w-[12%]" style={{ background: p.second }} />
+              </span>
+            </span>
+            <span className="flex items-center gap-2 font-bold">
+              {selected && <Check className="w-4 h-4 shrink-0 tv:w-5 tv:h-5" />}
+              {theme.name}
+            </span>
+          </FocusButton>
+        );
+      })}
+    </FocusGroup>
+  );
+}
+
 /** Playback preferences: audio, subtitle languages with their fallbacks, server and subtitle format */
 export function SettingsScreen() {
   const mounted = useMounted();
@@ -258,6 +301,12 @@ export function SettingsScreen() {
 
   return (
     <PageFrame title="Ajustes" subtitle="Se guardan en este dispositivo y se aplican a todos los episodios." ready={mounted}>
+      <Section title="Apariencia">
+        <Setting label="Tema" hint="Los colores de toda la biblioteca y del reproductor en este dispositivo.">
+          <ThemePicker />
+        </Setting>
+      </Section>
+
       <Section title="Audio">
         <Setting label="Versión preferida" hint="Si un episodio no tiene doblaje, se reproduce la versión original.">
           <Options value={prefs.audio} options={AUDIO_OPTIONS} onChange={(audio) => updatePlaybackPreferences({ audio })} />
