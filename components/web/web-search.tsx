@@ -240,7 +240,7 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pk-menu-scroll">
             <FilterPanel filters={filters} onChange={update} genres={genres} tags={tags} />
           </div>
           <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-zinc-900">

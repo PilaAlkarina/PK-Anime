@@ -146,17 +146,18 @@ function TagPicker({ filters, onChange, tags }: { filters: CatalogFilters; onCha
           />
         </label>
         {suggestions.length > 0 && (
-          <ul className="absolute z-10 left-0 right-0 mt-1 max-h-72 overflow-y-auto rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl">
+          <ul className="absolute z-10 left-0 right-0 mt-1.5 max-h-80 p-1 overflow-y-auto overscroll-contain rounded-xl bg-zinc-900 border border-zinc-700 shadow-[0_1rem_2.5rem_rgba(0,0,0,0.7)] pk-menu-scroll">
             {suggestions.map((tag) => (
               <li key={tag.name}>
                 <button
                   type="button"
                   onClick={() => add(tag.name)}
-                  title={tag.description}
-                  className="w-full flex flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-zinc-800"
+                  className="w-full flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-lg text-left hover:bg-zinc-800 focus-visible:bg-zinc-800 outline-none"
                 >
                   <span className="text-sm text-white">{tag.name}</span>
                   <span className="text-xs text-zinc-500">{tagCategoryLabel(tag.category)}</span>
+                  {/* The column is too narrow to show it; screen readers still get it */}
+                  {tag.description && <span className="sr-only">{tag.description}</span>}
                 </button>
               </li>
             ))}
