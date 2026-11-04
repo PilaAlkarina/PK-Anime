@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useIsTv } from "@/components/ui-mode";
 import { PosterCard } from "@/components/web/poster-card";
 import { LoadMore } from "@/components/web/load-more";
+import { LibraryFooter } from "@/components/library-footer";
 
 const ScrollContainerContext = createContext<RefObject<HTMLDivElement> | null>(null);
 
@@ -48,11 +49,14 @@ export function PageFrame({
   title,
   subtitle,
   ready,
+  footer = true,
   children,
 }: {
   title: string;
   subtitle?: string;
   ready?: boolean;
+  /** The license footer at the end (TV only: the web shell draws its own) */
+  footer?: boolean;
   children: React.ReactNode;
 }) {
   const isTv = useIsTv();
@@ -73,10 +77,17 @@ export function PageFrame({
           <h1 className="text-5xl font-bold">{title}</h1>
           {subtitle && <p className="mt-3 text-xl text-zinc-400">{subtitle}</p>}
           <div className="mt-10">{children}</div>
+          {footer && <PageFooter />}
         </div>
       </ScrollArea>
     </Screen>
   );
+}
+
+// Inside the ScrollArea, so focusing it scrolls that area
+function PageFooter() {
+  const reveal = useRevealOnFocus();
+  return <LibraryFooter onFocus={(node) => reveal(node)} />;
 }
 
 export interface GridCard {

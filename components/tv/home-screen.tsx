@@ -9,6 +9,7 @@ import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
 import { useMounted } from "./page-frame";
+import { LibraryFooter } from "@/components/library-footer";
 import { scrollToPosition } from "@/lib/tv/scroll";
 
 // Waits this long after focus settles before swapping the hero artwork, so holding an
@@ -126,6 +127,9 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
         {rows.map((row) => (
           <PagedRow key={row.id} row={row} onCardFocus={showInHero} onRowFocus={scrollToRow} />
         ))}
+        <div className="px-12">
+          <LibraryFooter onFocus={scrollToRow} />
+        </div>
         {/* Lets the last row scroll up to the top of the list area */}
         <div className="h-[30vh]" />
       </div>

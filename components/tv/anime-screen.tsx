@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Bookmark, BookmarkCheck, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { ListEntryPanel } from "./list-entry-panel";
+import { LibraryFooter } from "@/components/library-footer";
 import { ScorePill, StatusDot } from "./list-styles";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import { TrailerOverlay } from "./trailer-overlay";
@@ -378,6 +379,9 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
           {recommendationCards.length > 0 && (
             <CardRow rowKey="recommendations" title="Recomendados" cards={recommendationCards} onRowFocus={revealRow} />
           )}
+        </div>
+        <div className="relative pl-[10rem] pr-16">
+          <LibraryFooter onFocus={revealRow} />
         </div>
         <div className="h-[20vh]" />
       </div>

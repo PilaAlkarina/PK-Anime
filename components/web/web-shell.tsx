@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark, CalendarDays, Home, Search, Settings, User, type LucideIcon } from "lucide-react";
 import { useAccount } from "@/lib/library/account";
 import { WebNavigationProvider } from "@/components/tv/navigation-provider";
+import { LibraryFooter } from "@/components/library-footer";
 import { cn } from "@/lib/utils";
 
 // Biblioteca is the advanced search: the whole catalog with every filter, genres included
@@ -207,7 +208,10 @@ export function WebShell({ children }: { children: React.ReactNode }) {
     <WebNavigationProvider>
       <div lang="es" className="min-h-screen bg-black text-white">
         {!fullScreen && <TopBar />}
-        <main className={cn(!fullScreen && "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0")}>{children}</main>
+        <main className={cn(!fullScreen && "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0")}>
+          {children}
+          {!fullScreen && <LibraryFooter />}
+        </main>
         {!fullScreen && <TabBar />}
       </div>
     </WebNavigationProvider>
