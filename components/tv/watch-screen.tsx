@@ -11,6 +11,10 @@ import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
 import { useLibraryNavigation } from "./navigation-provider";
 import { useIsTv } from "@/components/ui-mode";
+import { cn } from "@/lib/utils";
+
+/** Fade to black before leaving the player */
+const EXIT_FADE_MS = 220;
 
 /**
  * Full-screen player. Spatial navigation is paused here: the player moves focus itself, the
@@ -64,6 +68,14 @@ export function WatchScreen({
     savedLocallyRef.current = false;
   }, [anime.id, episode]);
 
+  // Leaving fades the player to black first, then navigates
+  const [leaving, setLeaving] = useState(false);
+  const leave = (go: () => void) => {
+    if (leaving) return;
+    setLeaving(true);
+    setTimeout(go, EXIT_FADE_MS);
+  };
+
   const onPlayerEvent = (name: string, data: any) => {
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
       audioRef.current = data.audio;
@@ -75,7 +87,13 @@ export function WatchScreen({
   };
 
   return (
-    <div className="fixed top-0 left-0 z-50 w-screen h-screen bg-black">
+    <div
+      className={cn(
+        "fixed top-0 left-0 z-50 w-screen h-screen bg-black screen-in transition-opacity ease-in",
+        leaving && "opacity-0"
+      )}
+      style={{ transitionDuration: `${EXIT_FADE_MS}ms` }}
+    >
       {audio && (
         <EmbedPlayer
           anilistId={anime.id}
@@ -95,12 +113,15 @@ export function WatchScreen({
               ? { number: episode + 1, title: next?.title || null, thumbnail: next?.thumbnail ?? null, duration: anime.duration }
               : null
           }
-          onBack={goBack}
+          onBack={() => leave(goBack)}
+          poster={episodes.get(episode)?.thumbnail || anime.banner || anime.cover}
           // Always this anime's page, whatever page playback started from (home, search…)
-          onEpisodes={() => backTo(`/anime/${anime.id}`)}
+          onEpisodes={() => leave(() => backTo(`/anime/${anime.id}`))}
           // Replace, so Back from the next episode still returns to the anime page
           onNextEpisode={
-            hasNext ? () => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}`) : undefined
+            hasNext
+              ? () => leave(() => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}`))
+              : undefined
           }
         />
       )}

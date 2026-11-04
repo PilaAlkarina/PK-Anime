@@ -100,6 +100,34 @@
     pointer-events: none;
   }
   /* Outlined display numerals (episode numbers, ranks); each class is complete on its own */
+  /* Indeterminate progress: a short bar sweeping across its track */
+  .loading-slide {
+    animation: loading-slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  @keyframes loading-slide {
+    from {
+      transform: translateX(-110%);
+    }
+    to {
+      transform: translateX(320%);
+    }
+  }
+  /* Full-screen views (the player) coming in. "backwards" only: once done, the animation must not
+     keep holding opacity, or the exit transition would jump instead of fading */
+  .screen-in {
+    animation: screen-in 0.35s ease-out backwards;
+  }
+  @keyframes screen-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .loading-slide,
+    .screen-in {
+      animation: none;
+    }
+  }
   .text-outline {
     color: transparent;
     -webkit-text-stroke: 2px rgb(var(--c-paper));

@@ -38,6 +38,7 @@ import { PauseScreen } from "./ui/pause-screen";
 import { NextEpisodeScreen } from "./ui/next-episode-screen";
 import { RemoteHints } from "./ui/remote-hints";
 import { SubtitleText } from "./ui/subtitle-text";
+import { LoadingVeil } from "./ui/loading-veil";
 import { arrowStep, focusFirst, moveFocus, type NavAxis } from "./ui/focus-nav";
 import type { NextEpisodeInfo } from "./ui/types";
 import { detectSubtitleLanguage, isForcedSubtitle, subtitleLanguageName } from "./player-core/subtitle-language";
@@ -162,6 +163,8 @@ export interface EmbedPlayerProps {
   onBack?: () => void;
   onEpisodes?: () => void;
   onNextEpisode?: () => void;
+  /** Art behind the loading screen: the episode's thumbnail, else the anime's banner */
+  poster?: string | null;
 }
 
 /** Seconds of countdown before the next episode starts on its own */
@@ -192,6 +195,7 @@ export function EmbedPlayer({
   onBack,
   onEpisodes,
   onNextEpisode,
+  poster,
 }: EmbedPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -298,6 +302,8 @@ export function EmbedPlayer({
   // Up next: shown when the ending starts or the video ends
   const [nextUp, setNextUp] = useState(false);
   const [ended, setEnded] = useState(false);
+  // False until the episode first plays: the loading screen covers the player until then
+  const [hasStarted, setHasStarted] = useState(false);
   const [nextCountdown, setNextCountdown] = useState<number | null>(null);
   const nextUpDismissedRef = useRef(false);
   const [autoplayNext, setAutoplayNext] = useState(true);
@@ -374,6 +380,7 @@ export function EmbedPlayer({
     setNextUp(false);
     setNextCountdown(null);
     setEnded(false);
+    setHasStarted(false);
     if (startAt) return;
     try {
       const saved = JSON.parse(localStorage.getItem(progressKey) || "null");
@@ -1565,6 +1572,11 @@ export function EmbedPlayer({
       if (isPlayingRef.current) setShowControls(false);
       return true;
     }
+    // Leaving goes through onBack, so the page can fade the player out first
+    if (tv && onBack) {
+      onBack();
+      return true;
+    }
     return false;
   };
   useBackHandler(tv ? handleBack : null);
@@ -2336,7 +2348,8 @@ export function EmbedPlayer({
 
   const framedNext = nextUp && !tv && wideScreen;
   const showPauseScreen = pauseScreen && panelView === null && !fatalError;
-  const showBar = !fatalError && !nextUp;
+  // The loading screen has its own title: the bar and the header text wait for it to go
+  const showBar = !fatalError && !nextUp && hasStarted;
   const controlsVisible = showControls || showPauseScreen;
   // Desktop keeps only play, time and Ajustes in the bar while the side panel is open
   const panelOpen = panelView !== null && !tv;
@@ -2428,7 +2441,11 @@ export function EmbedPlayer({
               }
             }
           }}
-          onCanPlay={() => setIsLoading(false)}
+          onCanPlay={() => {
+            setIsLoading(false);
+            // Ready, even if autoplay is blocked: the loading screen must not stay over the play button
+            setHasStarted(true);
+          }}
           onCanPlayThrough={() => setIsLoading(false)}
           onSeeked={() => setIsLoading(false)}
           onLoadedData={() => setIsLoading(false)}
@@ -2438,6 +2455,7 @@ export function EmbedPlayer({
             }
           }}
           onPlaying={() => {
+            setHasStarted(true);
             isSwitchingServerRef.current = false;
             setIsLoading(false);
             setIsPlaying(true);
@@ -2512,6 +2530,13 @@ export function EmbedPlayer({
           </SubtitleText>
         </div>
       )}
+
+      <LoadingVeil
+        visible={!hasStarted && !fatalError}
+        poster={poster}
+        title={animeTitle}
+        episodeLine={episodeLine}
+      />
 
       {/* Loading */}
       {isLoading && !fatalError && (
@@ -2618,7 +2643,13 @@ export function EmbedPlayer({
             </button>
           )}
           {!showPauseScreen && (
-            <div className={cn("flex flex-col min-w-0 flex-1", tv ? "gap-1.5" : "gap-0.5")}>
+            <div
+              className={cn(
+                "flex flex-col min-w-0 flex-1 transition-opacity duration-300",
+                tv ? "gap-1.5" : "gap-0.5",
+                !hasStarted && "opacity-0"
+              )}
+            >
               {nextUp ? (
                 <span className={cn("font-medium text-zinc-200 truncate", tv ? "text-2xl" : "text-base")}>
                   {animeTitle} · Episodio {episodeNumber}
