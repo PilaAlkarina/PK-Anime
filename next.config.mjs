@@ -1,6 +1,18 @@
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { LegacyDownlevelPlugin } = require("./next-legacy-downlevel.cjs");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  // Lets a test build go to another folder without touching the one a server is running from
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  webpack(config, { isServer, dev }) {
+    // Production browser bundles are rewritten to ES2017 for older Smart TV browsers
+    if (!isServer && !dev) config.plugins.push(new LegacyDownlevelPlugin());
+    return config;
+  },
   async headers() {
     return [
       {
