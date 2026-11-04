@@ -12,6 +12,7 @@ import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
 import { FocusButton, FocusGroup } from "./focusable";
 import { StatusDot } from "./list-styles";
 import { useRevealOnFocus } from "./page-frame";
+import { Select } from "@/components/web/select";
 
 interface MyListControlsProps {
   statuses: { value: StatusFilter; count: number }[];
@@ -127,50 +128,23 @@ function TvOptions({ formats, scores, view, onChange }: MyListControlsProps) {
   );
 }
 
-const SELECT =
-  "h-10 pl-3 pr-8 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 hover:border-zinc-500";
-
 function WebOptions({ formats, scores, view, onChange }: MyListControlsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-zinc-400">
-      <label className="flex items-center gap-2">
-        Ordenar por
-        <select value={view.sort} onChange={(e) => onChange({ sort: e.target.value as ListSort })} className={SELECT}>
-          {LIST_SORTS.map(({ value, label }) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mt-2">
+      <Select<ListSort> label="Ordenar por" value={view.sort} options={LIST_SORTS} onChange={(sort) => onChange({ sort })} />
       {scores.length > 1 && (
-        <label className="flex items-center gap-2">
-          Tu nota
-          <select
-            value={view.score}
-            onChange={(e) => onChange({ score: e.target.value as ScoreFilter })}
-            className={SELECT}
-          >
-            {scores.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select<ScoreFilter> label="Tu nota" value={view.score} options={scores} onChange={(score) => onChange({ score })} />
       )}
       {formats.length > 1 && (
-        <label className="flex items-center gap-2">
-          Formato
-          <select value={view.format} onChange={(e) => onChange({ format: e.target.value })} className={SELECT}>
-            <option value="any">Todos</option>
-            {formats.map(({ value, label, count }) => (
-              <option key={value} value={value}>
-                {label} ({count})
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select<string>
+          label="Formato"
+          value={view.format}
+          options={[
+            { value: "any", label: "Todos" },
+            ...formats.map(({ value, label, count }) => ({ value, label, hint: count })),
+          ]}
+          onChange={(format) => onChange({ format })}
+        />
       )}
     </div>
   );

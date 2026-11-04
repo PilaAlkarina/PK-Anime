@@ -6,12 +6,26 @@ import { ScorePill, StatusDot } from "@/components/tv/list-styles";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
 import { useEntryEditor } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
+import { Select, type SelectOption } from "./select";
 
 const STATUSES = Object.keys(REMOTE_STATUS_LABELS) as ListStatus[];
 const SCORES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
-const SELECT =
-  "h-10 pl-3 pr-8 rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-100 hover:border-zinc-500 disabled:opacity-60";
+const STATUS_OPTIONS: SelectOption<ListStatus>[] = STATUSES.map((status) => ({
+  value: status,
+  text: REMOTE_STATUS_LABELS[status],
+  label: (
+    <>
+      <StatusDot status={status} className="w-2.5 h-2.5 mr-2" />
+      {REMOTE_STATUS_LABELS[status]}
+    </>
+  ),
+}));
+
+const SCORE_OPTIONS: SelectOption<number>[] = [
+  { value: 0, label: "Sin nota" },
+  ...SCORES.map((score) => ({ value: score, text: String(score), label: `★ ${score}` })),
+];
 
 /** Status and score of one anime on the remote list, saved as soon as they change */
 export function ListEntryControls({
@@ -34,33 +48,21 @@ export function ListEntryControls({
         {entry.progress > 0 && ` · ${entry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} vistos`}
         {entry.score ? <ScorePill score={entry.score} inline className="ml-2 px-1.5 py-1 text-xs" /> : null}
       </span>
-      <select
-        aria-label={`Estado en ${providerName}`}
+      <Select<ListStatus>
+        ariaLabel={`Estado en ${providerName}`}
         value={entry.status}
+        options={STATUS_OPTIONS}
         disabled={saving}
-        onChange={(e) => update({ status: e.target.value as ListStatus })}
-        className={SELECT}
-      >
-        {STATUSES.map((status) => (
-          <option key={status} value={status}>
-            {REMOTE_STATUS_LABELS[status]}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Puntuación"
+        onChange={(status) => update({ status })}
+      />
+      <Select<number>
+        ariaLabel="Puntuación"
         value={entry.score ?? 0}
+        options={SCORE_OPTIONS}
         disabled={saving}
-        onChange={(e) => update({ score: Number(e.target.value) || null })}
-        className={SELECT}
-      >
-        <option value={0}>Sin nota</option>
-        {SCORES.map((score) => (
-          <option key={score} value={score}>
-            ★ {score}
-          </option>
-        ))}
-      </select>
+        onChange={(score) => update({ score: score || null })}
+        buttonClassName="min-w-[7rem]"
+      />
       <button
         type="button"
         disabled={saving}

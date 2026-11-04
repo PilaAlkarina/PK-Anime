@@ -21,6 +21,7 @@ import {
   yearLabel,
   type CatalogFilters,
 } from "@/lib/anilist/filters";
+import { Select } from "./select";
 import { cn } from "@/lib/utils";
 
 type Change = (next: CatalogFilters) => void;
@@ -77,21 +78,16 @@ function YearSelect({ label, value, onChange }: { label: string; value: number |
     return Array.from({ length: last - MIN_YEAR + 1 }, (_, i) => last - i);
   }, []);
   return (
-    <label className="flex flex-col gap-1 flex-1 min-w-[7rem] text-xs text-zinc-400">
-      {label}
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
-        className="h-10 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-white"
-      >
-        <option value="">Cualquiera</option>
-        {years.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select<number>
+      label={label}
+      labelPosition="top"
+      value={value ?? 0}
+      options={[{ value: 0, label: "Cualquiera" }, ...years.map((y) => ({ value: y, label: String(y) }))]}
+      onChange={(y) => onChange(y || null)}
+      className="flex-1 min-w-[7rem]"
+      labelClassName="text-xs"
+      buttonClassName="w-full min-w-0"
+    />
   );
 }
 
@@ -203,21 +199,18 @@ export function FilterPanel({
   return (
     <div className="flex flex-col">
       <section className="pb-4 border-b border-zinc-900">
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-zinc-200">
-          Ordenar por
-          <select
-            value={filters.sort ?? ""}
-            onChange={(e) => set({ sort: (e.target.value || null) as CatalogFilters["sort"] })}
-            className="h-10 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-normal text-white"
-          >
-            <option value="">{filters.q ? "Relevancia" : "Más populares"}</option>
-            {SORT_OPTIONS.filter((o) => filters.q || o.value !== "POPULARITY_DESC").map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select<string>
+          label="Ordenar por"
+          labelPosition="top"
+          value={filters.sort ?? ""}
+          options={[
+            { value: "", label: filters.q ? "Relevancia" : "Más populares" },
+            ...SORT_OPTIONS.filter((o) => filters.q || o.value !== "POPULARITY_DESC"),
+          ]}
+          onChange={(sort) => set({ sort: (sort || null) as CatalogFilters["sort"] })}
+          labelClassName="font-bold text-zinc-200"
+          buttonClassName="w-full"
+        />
       </section>
 
       <Section title="Formato">
