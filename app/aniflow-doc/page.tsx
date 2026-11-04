@@ -6,6 +6,7 @@ import { Copy, Check, ExternalLink, ChevronDown, Download, Minus, Plus, Loader2 
 import { cn } from "@/lib/utils";
 import { MalAccountButton } from "@/components/auth/mal-account-button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useServiceStatus, type ServiceState } from "@/lib/use-service-status";
 
 type DocTab = "endpoints" | "code" | "options" | "events" | "postmessage";
 
@@ -67,7 +68,70 @@ const FAQS = [
   },
 ];
 
-const STATUS_ROWS = ["API", "Downloads", "Flow", "Kitty", "Yuri", "Zuri", "Buzz", "Edge CDN"];
+const STATUS_LABELS: Record<ServiceState, { label: string; dot: string }> = {
+  ok: { label: "Operational", dot: "bg-emerald-400" },
+  degraded: { label: "Slow", dot: "bg-amber-400" },
+  down: { label: "Down", dot: "bg-red-500" },
+};
+const STATUS_NAMES: Record<string, string> = { anilist: "AniList", aniskip: "AniSkip" };
+const STATUS_STEPS: Record<string, string> = {
+  play: "stream lookup",
+  playlist: "playlist",
+  variant: "quality playlist",
+  segment: "video segments",
+  request: "connection",
+};
+
+/** Live results from /api/status: each server is checked end to end, as the player uses it */
+function LiveStatus() {
+  const { services, checkedAt, loading, failed, refresh } = useServiceStatus();
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 lg:gap-16">
+      <div>
+        <h2 className="text-[28px] font-bold tracking-[-0.02em] text-white">Status</h2>
+        <p className="text-[14px] text-zinc-500 mt-1">
+          {loading && !checkedAt
+            ? "Checking every server…"
+            : failed && !checkedAt
+              ? "The check could not run."
+              : `Checked at ${checkedAt?.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
+        </p>
+        <p className="text-[13px] text-zinc-500 mt-3 leading-relaxed">
+          Each server resolves a reference episode and serves its playlist and first video segment through the proxy.
+          Results are cached for 5 minutes.
+        </p>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading}
+          className="mt-4 h-9 px-4 rounded-full bg-white/10 text-[13px] font-medium text-white hover:bg-white/20 disabled:opacity-60 cursor-pointer"
+        >
+          {loading ? "Checking…" : "Check again"}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 content-start">
+        {services.length === 0
+          ? Array.from({ length: 7 }, (_, i) => <div key={i} className="glass-inset rounded-2xl h-[68px] animate-pulse" />)
+          : services.map((service) => {
+              const state = STATUS_LABELS[service.state];
+              return (
+                <div key={service.id} className="glass-inset rounded-2xl px-4 py-3.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[14px] font-medium text-white">{STATUS_NAMES[service.id] || service.name}</span>
+                    <span className="text-[11px] text-zinc-500 tabular-nums">{(service.ms / 1000).toFixed(1)} s</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 text-[12px] text-zinc-400">
+                    <span className={`w-1.5 h-1.5 rounded-full ${state.dot}`} />
+                    {state.label}
+                    {service.state === "down" && service.step ? ` · ${STATUS_STEPS[service.step] || service.step}` : ""}
+                  </div>
+                </div>
+              );
+            })}
+      </div>
+    </div>
+  );
+}
 
 interface MediaInfo {
   title: string;
@@ -312,11 +376,9 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeDocTab, setActiveDocTab] = useState<DocTab>("endpoints");
   const [origin, setOrigin] = useState("https://api.aniflow.cc");
-  const [checkedAt, setCheckedAt] = useState("");
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    setCheckedAt(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
   }, []);
 
   // Sub-only servers (Zuri) can't serve a dub
@@ -892,25 +954,7 @@ await sendCommand("seek", { time: 145 });`;
 
       {/* Status */}
       <section id="status" className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 sm:pt-36 scroll-mt-20">
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 lg:gap-16">
-          <div>
-            <h2 className="text-[28px] font-bold tracking-[-0.02em] text-white">Status</h2>
-            <p className="text-[14px] text-zinc-500 mt-1" suppressHydrationWarning>
-              {checkedAt ? `Checked at ${checkedAt}` : ""}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {STATUS_ROWS.map((name) => (
-              <div key={name} className="glass-inset rounded-2xl px-4 py-3.5">
-                <div className="text-[14px] font-medium text-white">{name}</div>
-                <div className="flex items-center gap-1.5 mt-1 text-[12px] text-zinc-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Operational
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <LiveStatus />
       </section>
 
       {/* Footer */}

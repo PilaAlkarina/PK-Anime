@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
-import { ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink } from "lucide-react";
+import { Activity, ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { refreshAccount, useAccount } from "@/lib/library/account";
 import { useIsTv } from "@/components/ui-mode";
@@ -177,6 +177,7 @@ function PhoneSection() {
 function WebShortcuts() {
   const links = [
     { href: "/settings", icon: Settings, title: "Ajustes", text: "Audio, idiomas de subtítulos, servidor y formato" },
+    { href: "/status", icon: Activity, title: "Estado de los servidores", text: "Comprueba si un servidor de vídeo está caído" },
     { href: "/link", icon: Tv, title: "Usar como mando de la TV", text: "Introduce el código que muestra la TV en Cuenta" },
   ];
   return (

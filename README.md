@@ -45,6 +45,10 @@ Key points:
 | **Zuri** | AniEmbed Zuna | `SUB` only | Japanese-audio backup. |
 | **Buzz** | MegaPlay Buzz | `SUB`, `DUB` | Served through the edge `.m3u8` proxy, with key handling. |
 
+**Server status.** `GET /api/status` checks every server the way the player uses it: it resolves episode 1 of Attack on Titan through `/api/play`, then fetches the playlist, the quality playlist and the first video segment through the proxies. It also checks AniList and AniSkip. Each service is reported as `ok`, `degraded` (works, but slower than 8 s) or `down`, with its latency and the step that failed. Results are cached for 5 minutes; `?refresh=1` forces a new check, at most once a minute. The *Status* section of `/aniflow-doc` and the library's `/status` page show it; the library links to that page from its footer (with a dot for the last result) and from *Perfil* on phones.
+
+**HTTPS fallback.** Some stream CDNs (MegaPlay's segment hosts, behind Yuri, Zuri and Buzz) answer on port 80 but refuse HTTPS connections. When an upstream refuses or drops the connection itself, the segment and playlist proxies retry the same URL over HTTP. They remember that host for 10 minutes, so later segments skip the failed TLS attempt. These requests are made by the server, never by the browser, and HTTP error responses are passed on unchanged. `/api/status` lists the hosts currently fetched this way.
+
 ### Dub verification
 
 Some providers return the original Japanese audio when an English dub doesn't exist for an episode, without any indication. AniFlow checks for this at both the API and player level:

@@ -23,7 +23,7 @@ const TABS: { href: string; label: string; icon: LucideIcon; also?: string[] }[]
   { href: "/search", label: "Buscar", icon: Search, also: ["/genres"] },
   { href: "/schedule", label: "Calendario", icon: CalendarDays },
   { href: "/my-list", label: "Mi lista", icon: Bookmark },
-  { href: "/account", label: "Perfil", icon: User, also: ["/settings"] },
+  { href: "/account", label: "Perfil", icon: User, also: ["/settings", "/status"] },
 ];
 
 function isActive(pathname: string, href: string) {
