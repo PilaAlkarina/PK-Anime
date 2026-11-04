@@ -11,6 +11,9 @@ import { usePagedRow } from "@/components/tv/catalog-row";
 import { CardGrid, useMounted } from "@/components/tv/page-frame";
 import { ActiveFilters, FilterPanel } from "./filter-panel";
 
+// What the library shows before anything is chosen
+const BROWSE_ALL: CatalogFilters = { ...EMPTY_FILTERS, sort: "POPULARITY_DESC" };
+
 // Same palette family as the TV genre tiles, flat so text keeps its contrast
 const GENRE_COLORS = ["bg-rose-900", "bg-amber-900", "bg-emerald-900", "bg-sky-900", "bg-violet-900", "bg-fuchsia-900", "bg-teal-900", "bg-orange-900"];
 
@@ -58,8 +61,9 @@ function StartPoints({ genres, onGenre, onRecent }: { genres: Genre[]; onGenre: 
           </div>
         </section>
       )}
+      {/* Wide screens have the genres in the filter sidebar right next to this */}
       {genres.length > 0 && (
-        <section>
+        <section className="md:hidden">
           <h2 className="mb-3 text-base md:text-lg font-bold">Explorar por género</h2>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
             {genres.map((genre, index) => (
@@ -86,7 +90,9 @@ function StartPoints({ genres, onGenre, onRecent }: { genres: Genre[]; onGenre: 
 export function WebSearch({ genres }: { genres: Genre[] }) {
   const [filters, setFilters] = useUrlFilters();
   const tags = useTags();
-  const { row, failed, active } = useFilterRow(filters);
+  // With nothing chosen the page is the library itself: the whole catalog, most popular first
+  const browsing = !hasAnyFilter(filters);
+  const { row, failed } = useFilterRow(browsing ? BROWSE_ALL : filters);
   const [text, setText] = useState(filters.q);
   const [sheetOpen, setSheetOpen] = useState(false);
   const count = countFilters(filters);
@@ -120,7 +126,10 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
             <span className="hidden md:inline">Resultados para «{filters.q}»</span>
           </>
         ) : (
-          "Buscar"
+          <>
+            <span className="md:hidden">Buscar</span>
+            <span className="hidden md:inline">Biblioteca</span>
+          </>
         )}
       </h1>
 
@@ -181,13 +190,23 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
 
         <section aria-label="Resultados" className="flex-1 min-w-0 flex flex-col gap-5">
           <ActiveFilters filters={filters} onChange={update} />
-          {!active ? (
+          {browsing && (
             <StartPoints
               genres={genres}
               onGenre={(name) => update({ ...EMPTY_FILTERS, genres: [name] })}
               onRecent={(q) => typeText(q)}
             />
-          ) : failed ? (
+          )}
+          {browsing && (
+            <div className="mt-2">
+              <h2 className="text-base md:text-lg font-bold">Todo el catálogo</h2>
+              <p className="text-sm text-zinc-400">
+                Los más populares primero. <span className="md:hidden">Acota con «Filtros».</span>
+                <span className="hidden md:inline">Acota con los filtros de la izquierda o escribe un título arriba.</span>
+              </p>
+            </div>
+          )}
+          {failed ? (
             <p className="text-zinc-400">No se pudo completar la búsqueda.</p>
           ) : row ? (
             <Results key={row.id} row={row} query={filters.q} />

@@ -8,10 +8,11 @@ import { useAccount } from "@/lib/library/account";
 import { WebNavigationProvider } from "@/components/tv/navigation-provider";
 import { cn } from "@/lib/utils";
 
-const TOP_LINKS = [
+// Biblioteca is the advanced search: the whole catalog with every filter, genres included
+const TOP_LINKS: { href: string; label: string; also?: string[] }[] = [
   { href: "/", label: "Inicio" },
+  { href: "/search", label: "Biblioteca", also: ["/genres"] },
   { href: "/schedule", label: "Calendario" },
-  { href: "/genres", label: "Géneros" },
   { href: "/my-list", label: "Mi lista" },
 ];
 
@@ -130,7 +131,7 @@ function TopBar() {
         </Link>
         <nav aria-label="Secciones" className="flex items-center gap-1">
           {TOP_LINKS.map((link) => {
-            const active = isActive(pathname, link.href);
+            const active = isActive(pathname, link.href) || !!link.also?.some((path) => isActive(pathname, path));
             return (
               <Link
                 key={link.href}
