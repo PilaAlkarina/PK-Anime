@@ -52,6 +52,89 @@ export function useAnimeDetail(id: number | null, delayMs = 300) {
   return detail;
 }
 
+interface ArtLayer {
+  src: string;
+  banner: boolean;
+  /** Loaded and faded in */
+  shown: boolean;
+}
+
+/** Fade time of the hero art; the previous layer is dropped once the new one is fully in */
+const ART_FADE_MS = 700;
+
+/**
+ * The focused anime's art with a crossfade: the new image is added on top, invisible, and fades
+ * in only once it has loaded, over the previous one, which is removed afterwards. Moving fast
+ * along a row never shows the empty background.
+ */
+function HeroArt({ item }: { item: CatalogItem }) {
+  const src = item.banner || item.cover;
+  const [layers, setLayers] = useState<ArtLayer[]>([]);
+
+  useEffect(() => {
+    if (!src) {
+      setLayers((current) => current.map((l) => ({ ...l, shown: false })));
+      return;
+    }
+    setLayers((current) => {
+      const existing = current.find((l) => l.src === src);
+      // Back to an image still on screen: bring it to the front as it is
+      if (existing) return [...current.filter((l) => l !== existing && l.shown), existing];
+      // Keep what is visible under the newcomer; images that never got to load are dropped
+      return [...current.filter((l) => l.shown).slice(-1), { src, banner: Boolean(item.banner), shown: false }];
+    });
+  }, [src, item.banner]);
+
+  // Once the top layer is in, the ones under it go
+  useEffect(() => {
+    const top = layers[layers.length - 1];
+    if (!top?.shown || layers.length === 1) return;
+    const timer = setTimeout(() => setLayers((current) => current.slice(-1)), ART_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [layers]);
+
+  const reveal = (layerSrc: string) =>
+    setLayers((current) => (current.some((l) => l.src === layerSrc && !l.shown) ? current.map((l) => (l.src === layerSrc ? { ...l, shown: true } : l)) : current));
+
+  return (
+    <>
+      {layers.map((layer) => {
+        const img = (
+          <img
+            src={layer.src}
+            alt=""
+            decoding="async"
+            onLoad={() => reveal(layer.src)}
+            // Cached images may finish before React listens
+            ref={(el) => {
+              if (el?.complete && el.naturalWidth) reveal(layer.src);
+            }}
+            className={cn(
+              layer.banner ? "w-full h-full object-cover object-top" : "absolute top-[7vh] right-[8rem] h-[42vh] rounded-xl tv-cover-shadow"
+            )}
+          />
+        );
+        return (
+          <div
+            key={layer.src}
+            aria-hidden="true"
+            className={cn(
+              "absolute transition-[opacity,transform] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+              layer.banner ? "top-0 left-0 right-0 h-[24vw] overflow-hidden" : "inset-0",
+              layer.shown ? "opacity-100 scale-100" : "opacity-0 scale-[1.03]"
+            )}
+            style={{ transitionDuration: `${ART_FADE_MS}ms` }}
+          >
+            {/* AniList banners are about 1900×400; a box close to that shape keeps them sharp and whole */}
+            {img}
+            {layer.banner && <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent" />}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /** Top half of the home screen: artwork and details of the focused anime */
 export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place in the trending row, 0 for none */ rank?: number }) {
   const detail = useAnimeDetail(item?.id ?? null);
@@ -59,29 +142,7 @@ export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place i
 
   return (
     <div className="fixed top-0 left-0 right-0 h-[56vh] overflow-hidden bg-black">
-      {item.banner ? (
-        // AniList banners are about 1900×400; a box close to that shape keeps them sharp and whole
-        <div className="absolute top-0 left-0 right-0 h-[24vw] overflow-hidden">
-          <img
-            key={item.banner}
-            src={item.banner}
-            alt=""
-            decoding="async"
-            className="w-full h-full object-cover object-top tv-fade-in"
-          />
-          <div className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent" />
-        </div>
-      ) : (
-        item.cover && (
-          <img
-            key={item.cover}
-            src={item.cover}
-            alt=""
-            decoding="async"
-            className="absolute top-[7vh] right-[8rem] h-[42vh] rounded-xl tv-cover-shadow tv-fade-in"
-          />
-        )
-      )}
+      <HeroArt item={item} />
       <div
         className={cn(
           "absolute top-0 bottom-0 left-0 w-[70%] bg-gradient-to-r from-black to-transparent",
@@ -94,7 +155,7 @@ export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place i
       />
       <div className="absolute left-0 right-0 bottom-0 h-[45%] bg-gradient-to-t from-black to-transparent" />
 
-      <div key={item.id} className="relative pl-[10rem] pt-[8vh] w-[58%] tv-fade-in">
+      <div key={item.id} className="relative pl-[10rem] pt-[8vh] w-[58%] featured-in">
         {rank > 0 && (
           <Stamp japanese={`人気 No.${rank}`} className="mb-4 text-base">
             TENDENCIA N.º {rank}
