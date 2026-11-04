@@ -4,7 +4,7 @@ import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/comp
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
@@ -283,49 +283,62 @@ function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?:
   const { anime, episode, progress } = entry;
   const image = anime.banner || anime.cover;
   return (
-    <Link
-      href={`/watch/${anime.id}/${episode}`}
-      className="group flex-shrink-0 w-[15rem] md:w-[19rem] snap-start flex flex-col gap-2 outline-none"
-    >
-      <div
-        className={cn(
-          "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200 ease-out",
-          "group-hover:koma-sm md:group-hover:koma-md group-focus-visible:koma-sm md:group-focus-visible:koma-md",
-          current && "koma-sm md:koma-md"
-        )}
-        style={anime.color ? ({ "--cover-color": anime.color } as React.CSSProperties) : undefined}
-      >
-        {image && (
-          <img
-            src={image}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute top-0 left-0 w-full h-full object-cover"
+    // The card plays; the ⓘ over the artwork opens the anime page instead (always shown on
+    // phones, which have no hover)
+    <div className="group relative flex-shrink-0 w-[15rem] md:w-[19rem] snap-start">
+      <Link href={`/watch/${anime.id}/${episode}`} className="group/play flex flex-col gap-2 outline-none">
+        <div
+          className={cn(
+            "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200 ease-out",
+            "group-hover:koma-sm md:group-hover:koma-md group-focus-visible/play:koma-sm md:group-focus-visible/play:koma-md",
+            current && "koma-sm md:koma-md"
+          )}
+          style={anime.color ? ({ "--cover-color": anime.color } as React.CSSProperties) : undefined}
+        >
+          {image && (
+            <img
+              src={image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="absolute top-0 left-0 w-full h-full object-cover"
+            />
+          )}
+          {/* Phones have no hover: a play button says the card plays */}
+          <span className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-black/75 text-white">
+            <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
+          </span>
+          <EpisodeNumeral
+            n={episode}
+            current={current}
+            outline="text-outline-hair md:text-outline-thin"
+            className="top-2 left-2.5 text-[1.6rem] md:left-3 md:text-[1.9rem]"
           />
-        )}
-        {/* Phones have no hover: a play button says the card plays */}
-        <span className="md:hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full bg-black/75 text-white">
-          <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
+          {progress > 0 && (
+            <div className="absolute left-0 right-0 bottom-0 h-1 md:h-[5px] bg-white/[0.18]">
+              <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
+            </div>
+          )}
+        </div>
+        <span className="text-sm md:text-[0.95rem] font-bold line-clamp-1">{anime.title}</span>
+        <span className="-mt-1.5 text-xs text-zinc-400">
+          Episodio {episode}
+          {progress > 0 && ` · visto el ${Math.round(progress * 100)} %`}
         </span>
-        <EpisodeNumeral
-          n={episode}
-          current={current}
-          outline="text-outline-hair md:text-outline-thin"
-          className="top-2 left-2.5 text-[1.6rem] md:left-3 md:text-[1.9rem]"
-        />
-        {progress > 0 && (
-          <div className="absolute left-0 right-0 bottom-0 h-1 md:h-[5px] bg-white/[0.18]">
-            <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
-          </div>
+      </Link>
+      <Link
+        href={`/anime/${anime.id}`}
+        aria-label={`Ficha de ${anime.title}`}
+        title="Ver ficha"
+        className={cn(
+          "absolute top-2 right-2 flex items-center justify-center w-9 h-9 rounded-full bg-black/75 text-white",
+          "transition-opacity hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
+          "md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
         )}
-      </div>
-      <span className="text-sm md:text-[0.95rem] font-bold line-clamp-1">{anime.title}</span>
-      <span className="-mt-1.5 text-xs text-zinc-400">
-        Episodio {episode}
-        {progress > 0 && ` · visto el ${Math.round(progress * 100)} %`}
-      </span>
-    </Link>
+      >
+        <Info className="w-[1.1rem] h-[1.1rem]" />
+      </Link>
+    </div>
   );
 }
 

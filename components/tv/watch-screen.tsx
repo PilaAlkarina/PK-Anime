@@ -25,7 +25,7 @@ export function WatchScreen({
   episode: number;
   audio?: AudioPreference;
 }) {
-  const { replace, goBack } = useLibraryNavigation();
+  const { replace, goBack, backTo } = useLibraryNavigation();
   const isTv = useIsTv();
   // The player only runs in the browser; mounting it after hydration also lets the
   // stored Sub/Dub preference apply without a server/client mismatch
@@ -96,7 +96,8 @@ export function WatchScreen({
               : null
           }
           onBack={goBack}
-          onEpisodes={goBack}
+          // Always this anime's page, whatever page playback started from (home, search…)
+          onEpisodes={() => backTo(`/anime/${anime.id}`)}
           // Replace, so Back from the next episode still returns to the anime page
           onNextEpisode={
             hasNext ? () => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}`) : undefined

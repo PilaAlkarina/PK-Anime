@@ -27,12 +27,19 @@ interface LibraryNavigation {
   goBack: () => void;
   /** router.replace that keeps the library's own history in step */
   replace: (href: string) => void;
+  /**
+   * Goes to `href` as if it were the page before: back, when it is (so it keeps its scroll and
+   * state), or in place of this page otherwise, so Back from there skips this one. The player's
+   * "Episodios" uses it to reach the anime page from wherever playback was started.
+   */
+  backTo: (href: string) => void;
   registerBackHandler: (handler: BackHandler) => () => void;
 }
 
 const NavigationContext = createContext<LibraryNavigation>({
   goBack: () => {},
   replace: () => {},
+  backTo: () => {},
   registerBackHandler: () => () => {},
 });
 
@@ -82,6 +89,15 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     [router]
   );
 
+  const backTo = useCallback(
+    (href: string) => {
+      const visited = historyRef.current;
+      if (visited[visited.length - 2] === href.split("?")[0]) router.back();
+      else replace(href);
+    },
+    [router, replace]
+  );
+
   const goBackRef = useRef(goBack);
   goBackRef.current = goBack;
 
@@ -108,7 +124,9 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <NavigationContext.Provider value={{ goBack, replace, registerBackHandler }}>{children}</NavigationContext.Provider>
+    <NavigationContext.Provider value={{ goBack, replace, backTo, registerBackHandler }}>
+      {children}
+    </NavigationContext.Provider>
   );
 }
 
@@ -119,6 +137,13 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
 export function WebNavigationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  // The page before this one inside the site, for backTo (the browser doesn't expose its history)
+  const previousRef = useRef<string | null>(null);
+  const currentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentRef.current !== pathname) previousRef.current = currentRef.current;
+    currentRef.current = pathname;
+  }, [pathname]);
 
   const goBack = useCallback(() => {
     if (window.history.length > 1) router.back();
@@ -126,10 +151,19 @@ export function WebNavigationProvider({ children }: { children: React.ReactNode 
   }, [router, pathname]);
 
   const replace = useCallback((href: string) => router.replace(href), [router]);
+  const backTo = useCallback(
+    (href: string) => {
+      if (previousRef.current === href.split("?")[0]) router.back();
+      else router.replace(href);
+    },
+    [router]
+  );
   const registerBackHandler = useCallback(() => () => {}, []);
 
   return (
-    <NavigationContext.Provider value={{ goBack, replace, registerBackHandler }}>{children}</NavigationContext.Provider>
+    <NavigationContext.Provider value={{ goBack, replace, backTo, registerBackHandler }}>
+      {children}
+    </NavigationContext.Provider>
   );
 }
 

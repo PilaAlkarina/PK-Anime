@@ -116,6 +116,8 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
       meta: progress > 0 ? `Episodio ${episode} · visto el ${Math.round(progress * 100)} %` : `Episodio ${episode}`,
     },
     onSelect: () => router.push(`/watch/${anime.id}/${episode}`),
+    // OK plays; Down reaches this, for the episode list, the trailer or the list status
+    secondary: { label: "Ver ficha", onSelect: () => router.push(`/anime/${anime.id}`) },
   }));
 
   return (

@@ -1,12 +1,14 @@
 "use client";
 
 import { JapaneseLabel } from "@/components/brand";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
+import { Info } from "lucide-react";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { AnimeCard } from "./anime-card";
-import { FocusGroup, isPointerFocus } from "./focusable";
+import { FocusGroup, isPointerFocus, useTvFocusable } from "./focusable";
 import { scrollToPosition } from "@/lib/tv/scroll";
+import { cn } from "@/lib/utils";
 
 // Cards are mounted progressively as focus moves along the row, which keeps the first
 // render (and the images it loads) small on slow TVs
@@ -27,6 +29,41 @@ export interface RowCard {
   /** Landscape card with text under it (see AnimeCard) */
   wide?: { title: string; meta: string };
   onSelect: () => void;
+  /**
+   * A second action in a button under the card, reached with Down: on "Seguir viendo", where OK
+   * plays, it opens the anime page
+   */
+  secondary?: { label: string; onSelect: () => void };
+}
+
+/** The button under a card for its secondary action */
+function CardAction({
+  label,
+  onSelect,
+  onFocused,
+}: {
+  label: string;
+  onSelect: () => void;
+  onFocused: (node: HTMLElement, details: FocusDetails) => void;
+}) {
+  const { ref, focused, pointerProps } = useTvFocusable({
+    onSelect,
+    onFocus: (layout, _props, details) => onFocused(layout.node, details),
+  });
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...pointerProps}
+      className={cn(
+        "flex items-center self-start mt-3 h-10 px-4 rounded-full text-lg outline-none transition-transform duration-150",
+        focused ? "bg-white text-black scale-105" : "bg-white/10 text-zinc-300"
+      )}
+    >
+      <Info className="w-5 h-5 mr-2" />
+      {label}
+    </button>
+  );
 }
 
 function dedupe(items: CatalogItem[]) {
@@ -113,21 +150,32 @@ export function CardRow({
       <FocusGroup focusKey={`row:${rowKey}`}>
         <div ref={scrollerRef} className="relative overflow-x-auto overflow-y-hidden tv-no-scrollbar">
           <div className="flex py-5 pl-12 pr-[40vw]">
-            {cards.slice(0, renderCount).map((card, index) => (
-              <AnimeCard
-                key={card.key || card.item.id}
-                focusKey={`${rowKey}:${card.key || card.item.id}`}
-                item={card.item}
-                badge={card.badge}
-                progress={card.progress}
-                episode={card.episode}
-                rank={card.rank}
-                wide={card.wide}
-                onSelect={card.onSelect}
-                onFocused={(node, details) => handleFocus(index, card.item, node, details)}
-                className="mr-5"
-              />
-            ))}
+            {cards.slice(0, renderCount).map((card, index) => {
+              const key = card.key || card.item.id;
+              const onFocused = (node: HTMLElement, details: FocusDetails) => handleFocus(index, card.item, node, details);
+              const animeCard = (
+                <AnimeCard
+                  focusKey={`${rowKey}:${key}`}
+                  item={card.item}
+                  badge={card.badge}
+                  progress={card.progress}
+                  episode={card.episode}
+                  rank={card.rank}
+                  wide={card.wide}
+                  onSelect={card.onSelect}
+                  onFocused={onFocused}
+                  className={card.secondary ? undefined : "mr-5"}
+                />
+              );
+              if (!card.secondary) return <Fragment key={key}>{animeCard}</Fragment>;
+              // Card and button share a column, so Down from the card lands on its own button
+              return (
+                <FocusGroup key={key} className="flex flex-col flex-shrink-0 mr-5">
+                  {animeCard}
+                  <CardAction label={card.secondary.label} onSelect={card.secondary.onSelect} onFocused={onFocused} />
+                </FocusGroup>
+              );
+            })}
           </div>
         </div>
       </FocusGroup>
