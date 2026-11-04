@@ -4,7 +4,7 @@ import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/comp
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
@@ -31,29 +31,29 @@ const FADE_MASK =
 
 /**
  * The first row's leading titles as a carousel: it moves on by itself every few seconds (a bar
- * fills up until then), crossfading the art. Hovering it, focusing inside it or the pause button
- * holds it; with reduced motion it only moves when asked.
+ * fills up until then), crossfading the art. Hovering it or focusing inside it holds it; with
+ * reduced motion it only moves with the arrows.
  */
 function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) {
   const items = row.items.slice(0, FEATURED_COUNT);
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [focusInside, setFocusInside] = useState(false);
-  const [stopped, setStopped] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const item = items[index];
   const detail = useAnimeDetail(item?.id ?? null, 0);
   // Warms the next title's synopsis, so it is there when the carousel moves on
   useAnimeDetail(items.length > 1 ? items[(index + 1) % items.length].id : null, 1500);
 
-  // Reduced motion: no autoplay until the viewer presses play
+  // Reduced motion: no autoplay, only the arrows
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setStopped(true);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setReducedMotion(true);
   }, []);
 
   if (!item) return null;
 
   const rotating = items.length > 1;
-  const paused = stopped || hovered || focusInside;
+  const paused = reducedMotion || hovered || focusInside;
   const resumeEntry = resume.find((r) => r.anime.id === item.id);
   const episode = resumeEntry?.episode ?? 1;
   const genres = item.genres
@@ -166,14 +166,6 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
                 </span>
               ))}
             </div>
-            <button
-              type="button"
-              aria-label={stopped ? "Reanudar el carrusel" : "Pausar el carrusel"}
-              onClick={() => setStopped((s) => !s)}
-              className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full border-[1.5px] border-line bg-black/80 hover:bg-black"
-            >
-              {stopped ? <Play className="w-4 h-4" fill="currentColor" /> : <Pause className="w-4 h-4" fill="currentColor" />}
-            </button>
             <button
               type="button"
               aria-label="Destacado anterior"
