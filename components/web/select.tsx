@@ -60,6 +60,8 @@ export function Select<T extends string | number>({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: "", at: 0 });
+  // The pointer highlights what is under it; only keyboard moves should scroll the list
+  const activeFromPointer = useRef(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [position, setPosition] = useState<React.CSSProperties | null>(null);
@@ -112,10 +114,14 @@ export function Select<T extends string | number>({
       return;
     }
     place();
-    window.addEventListener("scroll", place, true);
+    // Scrolling the menu itself moves nothing; any other scroll (page, sidebar) moves the button
+    const onScroll = (e: Event) => {
+      if (e.target !== listRef.current) place();
+    };
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", place);
     return () => {
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", place);
     };
   }, [open, place]);
@@ -127,8 +133,14 @@ export function Select<T extends string | number>({
     if (open && placed) listRef.current?.focus({ preventScroll: true });
   }, [open, placed]);
 
-  // The active option stays in view while moving with the arrows (only the list scrolls)
+  // The active option comes into view when the menu opens and while moving with the keys (only
+  // the list scrolls). Not when the pointer picked it: that option is already under the pointer,
+  // and scrolling to it would fight the wheel.
   useEffect(() => {
+    if (activeFromPointer.current) {
+      activeFromPointer.current = false;
+      return;
+    }
     const list = listRef.current;
     const option = open ? document.getElementById(optionId(active)) : null;
     if (!list || !option) return;
@@ -136,7 +148,7 @@ export function Select<T extends string | number>({
     else if (option.offsetTop + option.offsetHeight > list.scrollTop + list.clientHeight)
       list.scrollTop = option.offsetTop + option.offsetHeight - list.clientHeight + 4;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, active, position]);
+  }, [open, active, placed]);
 
   // A press anywhere else closes it
   useEffect(() => {
@@ -275,7 +287,11 @@ export function Select<T extends string | number>({
                   id={optionId(i)}
                   role="option"
                   aria-selected={isSelected}
-                  onPointerMove={() => i !== active && setActive(i)}
+                  onPointerMove={() => {
+                    if (i === active) return;
+                    activeFromPointer.current = true;
+                    setActive(i);
+                  }}
                   onClick={() => choose(i)}
                   className={cn(
                     "flex items-center gap-3 h-9 px-2.5 rounded-lg text-sm whitespace-nowrap cursor-pointer select-none",
