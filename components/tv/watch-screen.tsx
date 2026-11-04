@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo } from "@/lib/anilist/episodes";
-import { recordWatch } from "@/lib/library/history";
+import { recordWatch, WATCHED_FRACTION } from "@/lib/library/history";
+import { saveLocalProgress } from "@/lib/library/my-list";
 import { getAudioPreference, type AudioPreference } from "@/lib/library/preferences";
 import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
@@ -56,9 +57,20 @@ export function WatchScreen({
     recordWatch(anime, episode);
   }, [anime, episode]);
 
+  // Past the same point where the player marks it on the list service, the episode counts as
+  // watched on this device's list too
+  const savedLocallyRef = useRef(false);
+  useEffect(() => {
+    savedLocallyRef.current = false;
+  }, [anime.id, episode]);
+
   const onPlayerEvent = (name: string, data: any) => {
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
       audioRef.current = data.audio;
+    }
+    if (name === "progress" && !savedLocallyRef.current && data?.duration > 0 && data.currentTime / data.duration >= WATCHED_FRACTION) {
+      savedLocallyRef.current = true;
+      saveLocalProgress(anime, episode);
     }
   };
 

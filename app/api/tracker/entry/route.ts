@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const STATUSES = new Set<ListStatus>(["watching", "planning", "completed", "paused", "dropped"]);
 
-function parseChanges(body: { status?: unknown; score?: unknown }): EntryChanges | null {
+function parseChanges(body: { status?: unknown; score?: unknown; progress?: unknown }): EntryChanges | null {
   const changes: EntryChanges = {};
   if (body.status !== undefined) {
     if (!STATUSES.has(body.status as ListStatus)) return null;
@@ -26,7 +26,12 @@ function parseChanges(body: { status?: unknown; score?: unknown }): EntryChanges
     if (!Number.isInteger(score) || score < 0 || score > 10) return null;
     changes.score = score || null;
   }
-  return changes.status || changes.score !== undefined ? changes : null;
+  if (body.progress !== undefined) {
+    const progress = Number(body.progress);
+    if (!Number.isInteger(progress) || progress < 0 || progress > 10_000) return null;
+    changes.progress = progress;
+  }
+  return changes.status || changes.score !== undefined || changes.progress !== undefined ? changes : null;
 }
 
 function failed(session: TrackerSession, err: unknown) {
@@ -35,8 +40,9 @@ function failed(session: TrackerSession, err: unknown) {
 }
 
 /**
- * PATCH /api/tracker/entry { anilistId | malId, status?, score? }: sets the status and/or score
- * (0–10, null or 0 clears it) on the signed-in user's list, adding the anime if needed.
+ * PATCH /api/tracker/entry { anilistId | malId, status?, score?, progress? }: sets the status,
+ * score (0–10, null or 0 clears it) and/or episodes watched on the signed-in user's list,
+ * adding the anime if needed.
  */
 export async function PATCH(request: NextRequest) {
   if (isCrossSite(request)) return trackerJson(null, { success: false, error: "Forbidden" }, 403);
@@ -45,7 +51,11 @@ export async function PATCH(request: NextRequest) {
   const ids = parseIds(body);
   const changes = parseChanges(body);
   if ((!ids.anilistId && !ids.malId) || !changes) {
-    return trackerJson(null, { success: false, error: "A MAL or AniList ID and a status or score are required" }, 400);
+    return trackerJson(
+      null,
+      { success: false, error: "A MAL or AniList ID and a status, score or progress are required" },
+      400
+    );
   }
 
   const session = await getTrackerSession(request);

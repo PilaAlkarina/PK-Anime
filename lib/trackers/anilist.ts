@@ -151,11 +151,12 @@ export const aniList: Tracker = {
     return { added: true, entry: await saveEntry(token, { mediaId, status: "PLANNING" }) };
   },
 
-  async updateEntry(token, ids, { status, score }) {
+  async updateEntry(token, ids, { status, score, progress }) {
     const mediaId = requireAnilistId(ids);
     const variables: Record<string, unknown> = { mediaId };
     if (status) variables.status = FROM_STATUS[status];
     if (score !== undefined) variables.scoreRaw = (score ?? 0) * 10;
+    if (progress !== undefined) variables.progress = progress;
     // Like on MAL, marking an anime completed counts every episode as watched
     if (status === "completed") {
       const { total } = await getMediaState(token, mediaId);

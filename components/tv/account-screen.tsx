@@ -9,7 +9,7 @@ import { refreshAccount, useAccount } from "@/lib/library/account";
 import { useIsTv } from "@/components/ui-mode";
 import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
-import { ExportLocal } from "./export-local";
+import { ListTransfer } from "./list-transfer";
 import { useTvLink } from "./tv-link";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -50,7 +50,7 @@ function AccountSection() {
         <div className="flex-1 min-w-[14rem] tv:ml-8">
           <p className="text-xl font-bold tv:text-3xl">{account.user.name}</p>
           <p className="mt-1 text-[0.95rem] text-zinc-400 tv:text-xl">
-            {account.provider.name} · el progreso de lo que ves se sincroniza con tu lista
+            {account.provider.name} · lo que ves y lo que cambias en tu lista se guarda allí y en este dispositivo
           </p>
           <FocusGroup className="mt-5 tv:mt-6" onFocusInside={(node) => reveal(node)}>
             <FocusButton onSelect={() => authClient.signOut().finally(() => refreshAccount())}>
@@ -58,7 +58,7 @@ function AccountSection() {
             </FocusButton>
           </FocusGroup>
           <div className="mt-8 tv:mt-10">
-            <ExportLocal />
+            <ListTransfer />
           </div>
         </div>
       </div>

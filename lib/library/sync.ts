@@ -1,6 +1,15 @@
 import type { CatalogItem } from "@/lib/anilist/types";
 import type { EntryChanges, TrackerEntry } from "@/lib/trackers/types";
-import { catalogSnapshot, watchedEpisodes, type HistoryEntry } from "./history";
+import { catalogSnapshot } from "./history";
+import {
+  findLocalEntry,
+  getMyList,
+  localEntry,
+  mirrorRemoteEntry,
+  removeLocalEntry,
+  saveLocalEntries,
+  type LocalEntry,
+} from "./my-list";
 import {
   findRemoteEntry,
   refreshRemoteLibrary,
@@ -9,33 +18,69 @@ import {
   type RemoteLibrary,
 } from "./remote";
 
-const PLAN_BATCH = 25;
-
-export interface PendingExport {
-  /** "Mi lista" entries not on the remote list in any status */
-  plan: CatalogItem[];
-  /** Local progress ahead of the remote list */
-  progress: { anime: CatalogItem; episodes: number }[];
+/**
+ * Import and export between this device's list and the list service share one rule: copy
+ * what the other side lacks, never undo what it has. A missing anime is copied whole; an
+ * anime on both sides only takes the further progress (with the status that came with it)
+ * and a score where there was none. Status changes at equal progress stay on their side.
+ */
+function changesFrom(source: TrackerEntry, target: TrackerEntry | null): EntryChanges | null {
+  if (!target) {
+    const changes: EntryChanges = { status: source.status };
+    if (source.progress > 0) changes.progress = source.progress;
+    if (source.score) changes.score = source.score;
+    return changes;
+  }
+  const changes: EntryChanges = {};
+  if (source.progress > target.progress) {
+    changes.progress = source.progress;
+    if (source.status !== target.status) changes.status = source.status;
+  }
+  if (source.score && !target.score) changes.score = source.score;
+  return Object.keys(changes).length ? changes : null;
 }
 
-/** What exists only on this device and can be copied to the remote list */
-export function pendingExport(myList: CatalogItem[], history: HistoryEntry[], remote: RemoteLibrary): PendingExport {
-  const progress = history
-    .map((entry) => ({ anime: entry.anime, episodes: watchedEpisodes(entry) }))
-    .filter(({ anime, episodes }) => episodes > 0 && (findRemoteEntry(remote, anime)?.progress ?? -1) < episodes);
-  // Saving progress already puts an anime on the list, as watching
-  const withProgress = new Set(progress.map((p) => p.anime.id));
-  const plan = myList.filter((item) => !withProgress.has(item.id) && !findRemoteEntry(remote, item));
-  return { plan, progress };
+export interface PendingChange {
+  anime: CatalogItem;
+  changes: EntryChanges;
+  /** Not on the other side at all */
+  isNew: boolean;
+  /** When the source changed it, so an import keeps the remote list's order */
+  updatedAt?: number | null;
 }
 
-export interface ExportResult {
+/** What this device's list has that the remote list lacks */
+export function pendingExport(local: LocalEntry[], remote: RemoteLibrary): PendingChange[] {
+  const pending: PendingChange[] = [];
+  for (const entry of local) {
+    const target = findRemoteEntry(remote, entry.anime);
+    const changes = changesFrom(entry, target);
+    if (changes) pending.push({ anime: entry.anime, changes, isNew: !target });
+  }
+  return pending;
+}
+
+/** What the remote list has that this device's list lacks */
+export function pendingImport(local: LocalEntry[], remote: RemoteLibrary): PendingChange[] {
+  const pending: PendingChange[] = [];
+  for (const entry of remote.entries) {
+    const anime = entry.anilistId ? remote.anime.get(entry.anilistId) : undefined;
+    // Entries AniList doesn't know have no card to show, on either side
+    if (!anime) continue;
+    const target = findLocalEntry(local, anime);
+    const changes = changesFrom(entry, target);
+    if (changes) pending.push({ anime, changes, isNew: !target, updatedAt: entry.updatedAt });
+  }
+  return pending;
+}
+
+export interface TransferResult {
   added: number;
-  progressSaved: number;
+  updated: number;
   failed: number;
 }
 
-async function post(url: string, body: unknown, method = "POST") {
+async function send(url: string, body: unknown, method = "POST") {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -44,67 +89,78 @@ async function post(url: string, body: unknown, method = "POST") {
   return res.json().catch(() => ({}));
 }
 
-/** Copies the pending items to the remote list, one request after another */
-export async function exportToRemote({ plan, progress }: PendingExport): Promise<ExportResult> {
-  const result: ExportResult = { added: 0, progressSaved: 0, failed: 0 };
+async function patchRemote(anime: CatalogItem, changes: EntryChanges): Promise<TrackerEntry | null> {
+  const data = await send("/api/tracker/entry", { anilistId: anime.id, malId: anime.malId, ...changes }, "PATCH").catch(
+    () => null
+  );
+  return data?.success && data.entry ? data.entry : null;
+}
 
-  for (let i = 0; i < plan.length; i += PLAN_BATCH) {
-    const batch = plan.slice(i, i + PLAN_BATCH);
-    const data = await post("/api/tracker/plan", {
-      items: batch.map((item) => ({ anilistId: item.id, malId: item.malId })),
-    }).catch(() => null);
-    if (!data?.success) {
-      result.failed += batch.length;
-      continue;
-    }
-    data.results.forEach((r: { added: boolean; entry: TrackerEntry | null; error?: string }, index: number) => {
-      if (r.error) result.failed++;
-      if (r.added) result.added++;
-      if (r.entry) upsertRemoteEntry(r.entry, batch[index]);
-    });
-  }
-
-  for (const { anime, episodes } of progress) {
-    const data = await post("/api/tracker/progress", { anilistId: anime.id, malId: anime.malId, episode: episodes }).catch(
-      () => null
-    );
-    if (!data?.success) {
+/**
+ * Copies the pending changes to the remote list, one request after another (services throttle
+ * bursts). `onProgress` hears how many are done, for long lists.
+ */
+export async function exportToRemote(
+  pending: PendingChange[],
+  onProgress?: (done: number) => void
+): Promise<TransferResult> {
+  const result: TransferResult = { added: 0, updated: 0, failed: 0 };
+  for (const [i, { anime, changes, isNew }] of pending.entries()) {
+    const entry = await patchRemote(anime, changes);
+    onProgress?.(i + 1);
+    if (!entry) {
       result.failed++;
       continue;
     }
-    if (data.updated) result.progressSaved++;
-    if (data.entry) upsertRemoteEntry(data.entry, anime);
+    upsertRemoteEntry(entry, catalogSnapshot(anime));
+    result[isNew ? "added" : "updated"]++;
   }
-
   await refreshRemoteLibrary();
   return result;
 }
 
-/** Adds one anime to the remote list as planned; false when the request failed */
-export async function addToRemotePlan(anime: CatalogItem) {
-  const data = await post("/api/tracker/plan", { items: [{ anilistId: anime.id, malId: anime.malId }] }).catch(() => null);
-  const entry: TrackerEntry | null | undefined = data?.results?.[0]?.entry;
-  if (!data?.success || !entry) return false;
+/** Copies the pending changes into this device's list; local, so it never fails */
+export function importFromRemote(pending: PendingChange[]): TransferResult {
+  const local = getMyList();
+  const now = Date.now();
+  const entries = pending.map(({ anime, changes, updatedAt }, i) =>
+    localEntry(anime, { ...findLocalEntry(local, anime), ...changes, updatedAt: updatedAt ?? now - i })
+  );
+  saveLocalEntries(entries);
+  const added = pending.filter((p) => p.isNew).length;
+  return { added, updated: pending.length - added, failed: 0 };
+}
+
+/**
+ * Puts one anime on the remote list: with what this device knows about it (status, progress,
+ * score) when it's in the local list, as planned otherwise. False when the request failed.
+ */
+export async function addToRemote(anime: CatalogItem) {
+  const local = findLocalEntry(getMyList(), anime);
+  const entry = await patchRemote(anime, (local && changesFrom(local, null)) || { status: "planning" });
+  if (!entry) return false;
   upsertRemoteEntry(entry, catalogSnapshot(anime));
+  mirrorRemoteEntry(anime, entry);
   return true;
 }
 
-/** Sets the status and/or score on the remote list; false when the request failed */
+/**
+ * Sets the status, score or progress on the remote list, and keeps this device's copy in
+ * step. False when the request failed.
+ */
 export async function updateRemoteEntry(anime: CatalogItem, changes: EntryChanges) {
-  const data = await post(
-    "/api/tracker/entry",
-    { anilistId: anime.id, malId: anime.malId, ...changes },
-    "PATCH"
-  ).catch(() => null);
-  if (!data?.success || !data.entry) return false;
-  upsertRemoteEntry(data.entry, catalogSnapshot(anime));
+  const entry = await patchRemote(anime, changes);
+  if (!entry) return false;
+  upsertRemoteEntry(entry, catalogSnapshot(anime));
+  mirrorRemoteEntry(anime, entry);
   return true;
 }
 
-/** Takes the anime off the remote list; false when the request failed */
+/** Takes the anime off the remote list and this device's; false when the request failed */
 export async function removeFromRemote(anime: CatalogItem) {
-  const data = await post("/api/tracker/entry", { anilistId: anime.id, malId: anime.malId }, "DELETE").catch(() => null);
+  const data = await send("/api/tracker/entry", { anilistId: anime.id, malId: anime.malId }, "DELETE").catch(() => null);
   if (!data?.success) return false;
   removeRemoteEntry(anime);
+  removeLocalEntry(anime.id);
   return true;
 }

@@ -9,8 +9,9 @@ import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
 import { continueWatching, useWatchHistory, type ContinueItem } from "@/lib/library/history";
-import { isInMyList, toggleMyList, useMyList } from "@/lib/library/my-list";
-import { mergeContinueWatching, useRemoteLibrary } from "@/lib/library/remote";
+import { findLocalEntry, removeLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
+import { findRemoteEntry, mergeContinueWatching, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
+import { addToRemote, removeFromRemote } from "@/lib/library/sync";
 import { usePagedRow } from "@/components/tv/catalog-row";
 import { useAnimeDetail } from "@/components/tv/hero";
 import { HorizontalRow } from "./horizontal-row";
@@ -24,14 +25,12 @@ const FEATURED_COUNT = 5;
 function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) {
   const items = row.items.slice(0, FEATURED_COUNT);
   const [index, setIndex] = useState(0);
-  const myList = useMyList();
   const item = items[index];
   const detail = useAnimeDetail(item?.id ?? null, 0);
   if (!item) return null;
 
   const resumeEntry = resume.find((r) => r.anime.id === item.id);
   const episode = resumeEntry?.episode ?? 1;
-  const inMyList = isInMyList(myList, item.id);
   const image = item.banner || item.cover;
   const genres = item.genres
     .slice(0, 3)
@@ -72,7 +71,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
           <h1 className="text-[2.6rem] leading-[1.08] font-extrabold tracking-tight line-clamp-2">{item.title}</h1>
           <p className="text-[0.95rem] text-zinc-300">{[metaLine(item), genres].filter(Boolean).join(" · ")}</p>
           <p className="text-[0.95rem] leading-relaxed text-zinc-300 line-clamp-3 min-h-[4.5rem]">{detail?.description}</p>
-          <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} inMyList={inMyList} />
+          <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} />
         </div>
 
         {items.length > 1 && (
@@ -103,7 +102,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
           <h1 className="text-[1.4rem] leading-tight font-extrabold line-clamp-2">{item.title}</h1>
           <p className="mt-1 text-sm text-zinc-400">{metaLine(item)}</p>
         </div>
-        <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} inMyList={inMyList} compact />
+        <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} compact />
         <div className="flex justify-center gap-1.5" aria-hidden>
           {items.map((it, i) => (
             <span
@@ -121,15 +120,26 @@ function FeaturedActions({
   item,
   episode,
   resuming,
-  inMyList,
   compact = false,
 }: {
   item: CatalogItem;
   episode: number;
   resuming: boolean;
-  inMyList: boolean;
   compact?: boolean;
 }) {
+  const myList = useMyList();
+  const remote = useRemoteLibrary();
+  // Like the anime page: the signed-in service's list, or this device's
+  const listEntry = remote ? findRemoteEntry(remote, item) : findLocalEntry(myList, item);
+  const inMyList = !!listEntry;
+  // A quick toggle only for planned titles; anything with a status or progress is edited on its page
+  const toggleable = !listEntry || (listEntry.status === "planning" && listEntry.progress === 0);
+  const toggle = () => {
+    if (!listEntry) return remote ? addToRemote(item) : toggleMyList(item);
+    if (remote) removeFromRemote(item);
+    else removeLocalEntry(item.id);
+  };
+
   return (
     <div className={cn("flex items-center gap-2.5", !compact && "mt-2")}>
       <Link
@@ -151,18 +161,32 @@ function FeaturedActions({
           Más información
         </Link>
       )}
-      <button
-        type="button"
-        onClick={() => toggleMyList(item)}
-        aria-pressed={inMyList}
-        aria-label={inMyList ? "Quitar de Mi lista" : "Añadir a Mi lista"}
-        className={cn(
-          "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-white/15 hover:bg-white/25",
-          compact ? "rounded-xl" : "rounded-full"
-        )}
-      >
-        {inMyList ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
-      </button>
+      {toggleable ? (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={inMyList}
+          aria-label={inMyList ? "Quitar de Mi lista" : "Añadir a Mi lista"}
+          className={cn(
+            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-white/15 hover:bg-white/25",
+            compact ? "rounded-xl" : "rounded-full"
+          )}
+        >
+          {inMyList ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+        </button>
+      ) : (
+        <Link
+          href={`/anime/${item.id}`}
+          aria-label={`En tu lista: ${REMOTE_STATUS_LABELS[listEntry!.status]}. Cambiarlo en su ficha`}
+          title={REMOTE_STATUS_LABELS[listEntry!.status]}
+          className={cn(
+            "flex items-center justify-center w-12 h-12 flex-shrink-0 bg-white/15 hover:bg-white/25",
+            compact ? "rounded-xl" : "rounded-full"
+          )}
+        >
+          <BookmarkCheck className="w-5 h-5" />
+        </Link>
+      )}
     </div>
   );
 }
@@ -225,7 +249,11 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
   const history = useWatchHistory();
   const remote = useRemoteLibrary();
-  const resume = useMemo(() => mergeContinueWatching(continueWatching(history), remote), [history, remote]);
+  const myList = useMyList();
+  const resume = useMemo(
+    () => mergeContinueWatching(continueWatching(history), remote, myList),
+    [history, remote, myList]
+  );
 
   return (
     <div className="max-w-[1360px] mx-auto pb-10">

@@ -23,7 +23,7 @@ import {
 import { mergeMyList, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { usePagedRow } from "./catalog-row";
 import { FocusButton, FocusGroup, useTvFocusable } from "./focusable";
-import { ExportLocal } from "./export-local";
+import { ListTransfer } from "./list-transfer";
 import { STATUS_STYLES } from "./list-styles";
 import { MyListControls } from "./my-list-controls";
 import { CardGrid, PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
@@ -130,11 +130,10 @@ export function MyListScreen() {
   const [shown, setShown] = useState(LIST_PAGE);
   const items = useMemo(() => mergeMyList(list, remote), [list, remote]);
 
-  const statuses = remote
-    ? STATUS_FILTERS.map((value) => ({ value, count: items.filter((i) => matchesStatus(i, value)).length })).filter(
-        ({ value, count }) => value === "all" || count > 0
-      )
-    : [];
+  // This device's list has statuses too; "only on this device" means something only next to a service
+  const statuses = STATUS_FILTERS.filter((value) => remote || value !== "local")
+    .map((value) => ({ value, count: items.filter((i) => matchesStatus(i, value)).length }))
+    .filter(({ value, count }) => value === "all" || count > 0);
   // A remembered filter can empty out (e.g. after exporting the local items); fall back to all
   const status = statuses.some((s) => s.value === view.status) ? view.status : "all";
   const inStatus = items.filter((i) => matchesStatus(i, status));
@@ -157,17 +156,17 @@ export function MyListScreen() {
   const subtitle = remote
     ? `Unida con tu lista de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo.`
     : account && !account.signedIn && account.providers.length > 0
-      ? `Inicia sesión en Cuenta para unirla con tu lista de ${account.providers.map((p) => p.name).join(" o ")}.`
+      ? `Guardada en este dispositivo. Inicia sesión en Cuenta para unirla con tu lista de ${account.providers.map((p) => p.name).join(" o ")}.`
       : undefined;
 
   return (
     <PageFrame title="Mi lista" subtitle={subtitle} ready={mounted}>
       {remote && (
         <div className="mb-8 tv:mb-10">
-          <ExportLocal />
+          <ListTransfer />
         </div>
       )}
-      {remote && items.length > 0 && (
+      {items.length > 0 && (
         <MyListControls
           statuses={statuses}
           formats={formats}

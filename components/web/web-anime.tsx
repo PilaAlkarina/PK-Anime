@@ -3,16 +3,17 @@
 import { JapaneseLabel } from "@/components/brand";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
+import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo } from "@/lib/anilist/episodes";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, episodesLabel, metaLine, statusLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
-import { isInMyList, toggleMyList, useMyList } from "@/lib/library/my-list";
-import { findRemoteEntry, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
-import { addToRemotePlan } from "@/lib/library/sync";
+import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
+import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
+import { addToRemote } from "@/lib/library/sync";
+import type { EditTarget } from "@/lib/library/use-entry-editor";
 import { setAudioPreference, useAudioPreference } from "@/lib/library/preferences";
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
@@ -106,7 +107,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const myList = useMyList();
   const history = useWatchHistory();
   const remote = useRemoteLibrary();
-  const inMyList = isInMyList(myList, anime.id);
+  const localEntry = findLocalEntry(myList, anime);
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [hideWatched, setHideWatched] = useState(false);
@@ -125,9 +126,17 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
         : undefined,
     [entry, total, anime.episodes]
   );
+  // The lists may be further along than the watch history (another device, an import)
   const remoteEntry = findRemoteEntry(remote, anime);
-  const remoteNext = remoteNextEpisode(remoteEntry, { availableEpisodes: total, episodes: anime.episodes });
-  const playEpisode = Math.max(resume?.episode ?? 0, remoteNext ?? 0) || 1;
+  const counts = { availableEpisodes: total, episodes: anime.episodes };
+  const listNext = Math.max(remoteNextEpisode(remoteEntry, counts) ?? 0, remoteNextEpisode(localEntry, counts) ?? 0);
+  const playEpisode = Math.max(resume?.episode ?? 0, listNext) || 1;
+  const watchedUpTo = Math.max(remoteEntry?.progress ?? 0, localEntry?.progress ?? 0);
+
+  // One list on the page: the signed-in service's (every change is copied here too) or this device's
+  const listTarget: EditTarget = remote ? "remote" : "local";
+  const listEntry = remote ? remoteEntry : localEntry;
+  const listName = remote ? remote.provider.name : "Mi lista";
   const continuing = !!resume && resume.episode === playEpisode && resume.progress > 0;
   const remaining =
     continuing && anime.duration ? Math.max(1, Math.round(anime.duration * (1 - (resume?.progress ?? 0)))) : null;
@@ -139,7 +148,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
 
   const watchHref = (episode: number) => `/watch/${anime.id}/${episode}?audio=${audio}`;
   const progressOf = (number: number) =>
-    Math.max(entry ? episodeProgress(anime.id, number) : 0, remoteEntry && remoteEntry.progress >= number ? 1 : 0);
+    Math.max(entry ? episodeProgress(anime.id, number) : 0, watchedUpTo >= number ? 1 : 0);
 
   const rangeCount = Math.ceil(total / EPISODES_PER_RANGE);
   const firstInRange = range * EPISODES_PER_RANGE + 1;
@@ -157,10 +166,11 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
     requestAnimationFrame(() => document.getElementById(`ep-${n}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
-  const addToRemote = async () => {
+  const addToList = async () => {
+    if (!remote) return toggleMyList(anime);
     if (adding) return;
     setAdding(true);
-    await addToRemotePlan(anime);
+    await addToRemote(anime);
     setAdding(false);
   };
 
@@ -283,23 +293,15 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                   Tráiler
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => toggleMyList(anime)}
-                aria-pressed={inMyList}
-                className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
-              >
-                {inMyList ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
-                {inMyList ? "En mi lista" : "Mi lista"}
-              </button>
-              {remote && !remoteEntry && (
+              {/* Once listed, the status and score controls below take over */}
+              {!listEntry && (
                 <button
                   type="button"
-                  onClick={addToRemote}
+                  onClick={addToList}
                   className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full border border-zinc-700 text-sm font-semibold hover:bg-zinc-800"
                 >
-                  <ListPlus className="w-5 h-5" />
-                  {adding ? "Añadiendo…" : `Añadir a ${remote.provider.name}`}
+                  {remote ? <ListPlus className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                  {adding ? "Añadiendo…" : remote ? `Añadir a ${remote.provider.name}` : "Mi lista"}
                 </button>
               )}
             </div>
@@ -313,8 +315,17 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
               <span className="hidden sm:inline text-zinc-500">· Cambiar en Ajustes</span>
               <ChevronRight className="w-4 h-4 sm:hidden text-zinc-500" />
             </Link>
-            {remote && remoteEntry && (
-              <ListEntryControls anime={anime} entry={remoteEntry} providerName={remote.provider.name} />
+            {listEntry ? (
+              <ListEntryControls anime={anime} entry={listEntry} target={listTarget} providerName={listName} />
+            ) : (
+              remote &&
+              localEntry && (
+                <p className="text-sm text-zinc-400">
+                  Solo en este dispositivo: {REMOTE_STATUS_LABELS[localEntry.status]}
+                  {localEntry.progress > 0 && ` · ${localEntry.progress} vistos`}. Al añadirlo a {remote.provider.name} se
+                  sube con estos datos.
+                </p>
+              )
             )}
 
             {anime.description && (

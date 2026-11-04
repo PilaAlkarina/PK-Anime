@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
-import { useEntryEditor } from "@/lib/library/use-entry-editor";
+import { useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
 import { FocusButton, FocusGroup } from "./focusable";
 import { StatusDot } from "./list-styles";
@@ -20,18 +20,21 @@ const SCORES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export function ListEntryPanel({
   anime,
   entry,
+  target,
   providerName,
   onClose,
   onReveal,
 }: {
   anime: CatalogItem;
   entry: TrackerEntry;
+  target: EditTarget;
+  /** The list's name: the service's, or "Mi lista" for this device's */
   providerName: string;
   onClose: () => void;
   /** Scrolls a row of the panel into view as focus reaches it */
   onReveal?: (node: HTMLElement) => void;
 }) {
-  const { saving, failed, update, remove } = useEntryEditor(anime);
+  const { saving, failed, update, remove } = useEntryEditor(anime, target);
 
   useBackHandler(() => {
     onClose();

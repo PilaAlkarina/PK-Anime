@@ -3,7 +3,7 @@
 import { JapaneseLabel } from "@/components/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
+import { Bookmark, Captions, Clapperboard, ListPlus, Play } from "lucide-react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { ListEntryPanel } from "./list-entry-panel";
 import { LibraryFooter } from "@/components/library-footer";
@@ -18,9 +18,10 @@ import { episodeInfo } from "@/lib/anilist/episodes";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, metaLine, statusLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory } from "@/lib/library/history";
-import { isInMyList, toggleMyList, useMyList } from "@/lib/library/my-list";
+import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
-import { addToRemotePlan } from "@/lib/library/sync";
+import { addToRemote } from "@/lib/library/sync";
+import type { EditTarget } from "@/lib/library/use-entry-editor";
 import { setAudioPreference, useAudioPreference } from "@/lib/library/preferences";
 import { revealVertically, scrollToPosition } from "@/lib/tv/scroll";
 import { CardRow, type RowCard } from "./catalog-row";
@@ -105,7 +106,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const history = useWatchHistory();
   const remote = useRemoteLibrary();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inMyList = isInMyList(myList, anime.id);
+  const localEntry = findLocalEntry(myList, anime);
   const [adding, setAdding] = useState(false);
   const [trailerSrc, setTrailerSrc] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState(false);
@@ -124,10 +125,17 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
     [entry, total, anime.episodes]
   );
 
-  // The remote list may be further along than this device
+  // The lists may be further along than the watch history (another device, an import)
   const remoteEntry = findRemoteEntry(remote, anime);
-  const remoteNext = remoteNextEpisode(remoteEntry, { availableEpisodes: total, episodes: anime.episodes });
-  const playEpisode = Math.max(resume?.episode ?? 0, remoteNext ?? 0) || 1;
+  const counts = { availableEpisodes: total, episodes: anime.episodes };
+  const listNext = Math.max(remoteNextEpisode(remoteEntry, counts) ?? 0, remoteNextEpisode(localEntry, counts) ?? 0);
+  const playEpisode = Math.max(resume?.episode ?? 0, listNext) || 1;
+  const watchedUpTo = Math.max(remoteEntry?.progress ?? 0, localEntry?.progress ?? 0);
+
+  // One list on the page: the signed-in service's (every change is copied here too) or this device's
+  const listTarget: EditTarget = remote ? "remote" : "local";
+  const listEntry = remote ? remoteEntry : localEntry;
+  const listName = remote ? remote.provider.name : "Mi lista";
   const continuing = !!resume && resume.episode === playEpisode && resume.progress > 0;
 
   const [range, setRange] = useState(0);
@@ -136,10 +144,11 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
     if (playEpisode > 1) setRange(Math.floor((playEpisode - 1) / EPISODES_PER_RANGE));
   }, [playEpisode]);
 
-  const addToRemote = async () => {
+  const addToList = async () => {
+    if (!remote) return toggleMyList(anime);
     if (adding) return;
     setAdding(true);
-    await addToRemotePlan(anime);
+    await addToRemote(anime);
     setAdding(false);
   };
 
@@ -266,26 +275,20 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                   Tráiler
                 </FocusButton>
               )}
-              <FocusButton variant="secondary" onSelect={() => toggleMyList(anime)}>
-                {inMyList ? <BookmarkCheck className="w-6 h-6 mr-3" /> : <Bookmark className="w-6 h-6 mr-3" />}
-                {inMyList ? "En mi lista" : "Mi lista"}
-              </FocusButton>
-              {remote && !remoteEntry && (
-                <FocusButton variant="secondary" className="ml-4" focusKey={LIST_ENTRY_KEY} onSelect={addToRemote}>
-                  <ListPlus className="w-6 h-6 mr-3" />
-                  {adding ? "Añadiendo…" : `Añadir a ${remote.provider.name}`}
-                </FocusButton>
-              )}
-              {remote && remoteEntry && (
+              {listEntry ? (
                 <FocusButton
                   variant="secondary"
-                  className="ml-4"
                   focusKey={LIST_ENTRY_KEY}
                   active={editingEntry}
                   onSelect={() => setEditingEntry(!editingEntry)}
                 >
-                  <StatusDot status={remoteEntry.status} className="w-3.5 h-3.5 mr-3" />
-                  {REMOTE_STATUS_LABELS[remoteEntry.status]}
+                  <StatusDot status={listEntry.status} className="w-3.5 h-3.5 mr-3" />
+                  {REMOTE_STATUS_LABELS[listEntry.status]}
+                </FocusButton>
+              ) : (
+                <FocusButton variant="secondary" focusKey={LIST_ENTRY_KEY} onSelect={addToList}>
+                  {remote ? <ListPlus className="w-6 h-6 mr-3" /> : <Bookmark className="w-6 h-6 mr-3" />}
+                  {adding ? "Añadiendo…" : remote ? `Añadir a ${remote.provider.name}` : "Mi lista"}
                 </FocusButton>
               )}
             </FocusGroup>
@@ -293,24 +296,34 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               <Captions className="w-6 h-6 mr-3" />
               Subtítulos: {subtitlesLabel} · se cambian en Ajustes
             </p>
-            {remote && remoteEntry && (
+            {listEntry ? (
               <p className="mt-2 text-lg text-zinc-400">
-                En {remote.provider.name}: {REMOTE_STATUS_LABELS[remoteEntry.status]}
-                {remoteEntry.progress > 0 &&
-                  ` · ${remoteEntry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} episodios vistos`}
-                {remoteEntry.score ? (
+                En {listName}: {REMOTE_STATUS_LABELS[listEntry.status]}
+                {listEntry.progress > 0 &&
+                  ` · ${listEntry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} episodios vistos`}
+                {listEntry.score ? (
                   <>
                     {" · Tu nota "}
-                    <ScorePill score={remoteEntry.score} inline className="px-2 py-1 text-lg" />
+                    <ScorePill score={listEntry.score} inline className="px-2 py-1 text-lg" />
                   </>
                 ) : null}
               </p>
+            ) : (
+              remote &&
+              localEntry && (
+                <p className="mt-2 text-lg text-zinc-400">
+                  Solo en este dispositivo: {REMOTE_STATUS_LABELS[localEntry.status]}
+                  {localEntry.progress > 0 && ` · ${localEntry.progress} episodios vistos`}. Al añadirlo a{" "}
+                  {remote.provider.name} se sube con estos datos.
+                </p>
+              )
             )}
-            {remote && remoteEntry && editingEntry && (
+            {listEntry && editingEntry && (
               <ListEntryPanel
                 anime={anime}
-                entry={remoteEntry}
-                providerName={remote.provider.name}
+                entry={listEntry}
+                target={listTarget}
+                providerName={listName}
                 onReveal={revealRow}
                 onClose={() => {
                   setEditingEntry(false);
@@ -356,8 +369,8 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                   thumbnail={titles.get(number)?.thumbnail}
                   progress={Math.max(
                     entry ? episodeProgress(anime.id, number) : 0,
-                    // Episodes the remote list counts as watched show as finished
-                    remoteEntry && remoteEntry.progress >= number ? 1 : 0
+                    // Episodes a list counts as watched show as finished
+                    watchedUpTo >= number ? 1 : 0
                   )}
                   onSelect={() => play(number)}
                   onFocused={revealTile}

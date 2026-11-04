@@ -3,6 +3,7 @@ import type { CatalogItem } from "@/lib/anilist/types";
 import type { ListStatus, TrackerEntry, TrackerId } from "@/lib/trackers/types";
 import { useAccount } from "./account";
 import { episodeProgress, type ContinueItem } from "./history";
+import type { LocalEntry } from "./my-list";
 
 /**
  * The signed-in user's remote list (MyAnimeList or AniList), fetched from /api/tracker/library and
@@ -126,19 +127,23 @@ export function remoteNextEpisode(entry: TrackerEntry | null, anime: Pick<Catalo
 }
 
 /**
- * "Seguir viendo" from both sides: local history plus what the remote list is watching. When
- * both have the same anime, the furthest episode wins.
+ * "Seguir viendo" from every source: the watch history, plus what this device's list and the
+ * remote list are watching (an imported entry has no history yet). When several have the same
+ * anime, the furthest episode wins.
  */
-export function mergeContinueWatching(local: ContinueItem[], remote: RemoteLibrary | null): ContinueItem[] {
-  const byId = new Map(local.map((item) => [item.anime.id, { ...item }]));
-  for (const entry of remote?.entries ?? []) {
-    const anime = entry.anilistId ? remote!.anime.get(entry.anilistId) : undefined;
+export function mergeContinueWatching(
+  history: ContinueItem[],
+  remote: RemoteLibrary | null,
+  local: LocalEntry[] = []
+): ContinueItem[] {
+  const byId = new Map(history.map((item) => [item.anime.id, { ...item }]));
+  const consider = (anime: CatalogItem | undefined, entry: TrackerEntry) => {
     const next = anime ? remoteNextEpisode(entry, anime) : null;
-    if (!anime || !next) continue;
+    if (!anime || !next) return;
     const existing = byId.get(anime.id);
     if (existing && existing.episode >= next) {
       existing.updatedAt = Math.max(existing.updatedAt, entry.updatedAt ?? 0);
-      continue;
+      return;
     }
     byId.set(anime.id, {
       anime: existing?.anime ?? anime,
@@ -146,7 +151,9 @@ export function mergeContinueWatching(local: ContinueItem[], remote: RemoteLibra
       progress: episodeProgress(anime.id, next),
       updatedAt: Math.max(existing?.updatedAt ?? 0, entry.updatedAt ?? 0),
     });
-  }
+  };
+  for (const entry of local) consider(entry.anime, entry);
+  for (const entry of remote?.entries ?? []) consider(entry.anilistId ? remote!.anime.get(entry.anilistId) : undefined, entry);
   return Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
@@ -155,27 +162,30 @@ export type ListOrigin = "local" | "remote" | "both";
 export interface MyListItem {
   item: CatalogItem;
   origin: ListOrigin;
+  /** The remote entry when the anime is on the remote list (it's the one being edited), the local one otherwise */
   entry: TrackerEntry | null;
 }
 
 /**
- * "Mi lista" from both sides: the local list plus the whole remote list, in every status.
- * `local` items exist only on this device and can be exported. Local items come first, then
- * the remote ones, most recently updated first.
+ * "Mi lista" from both sides: this device's list plus the whole remote list, most recently
+ * updated first. `local` items exist only on this device and can be exported.
  */
-export function mergeMyList(local: CatalogItem[], remote: RemoteLibrary | null): MyListItem[] {
-  const items: MyListItem[] = local.map((item) => {
-    const entry = findRemoteEntry(remote, item);
-    return { item, origin: remote ? (entry ? "both" : "local") : "local", entry };
+export function mergeMyList(local: LocalEntry[], remote: RemoteLibrary | null): MyListItem[] {
+  const items: (MyListItem & { updatedAt: number })[] = local.map((entry) => {
+    const remoteEntry = findRemoteEntry(remote, entry.anime);
+    return {
+      item: entry.anime,
+      origin: remote ? (remoteEntry ? "both" : "local") : "local",
+      entry: remoteEntry ?? entry,
+      updatedAt: Math.max(entry.updatedAt ?? 0, remoteEntry?.updatedAt ?? 0),
+    };
   });
-  if (!remote) return items;
-  const localIds = new Set(local.map((item) => item.id));
-  const others = remote.entries
-    .filter((e) => e.anilistId && !localIds.has(e.anilistId))
-    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
-  for (const entry of others) {
-    const anime = remote.anime.get(entry.anilistId!);
-    if (anime) items.push({ item: anime, origin: "remote", entry });
+  if (remote) {
+    const localIds = new Set(local.map((e) => e.anime.id));
+    for (const entry of remote.entries) {
+      const anime = entry.anilistId && !localIds.has(entry.anilistId) ? remote.anime.get(entry.anilistId) : undefined;
+      if (anime) items.push({ item: anime, origin: "remote", entry, updatedAt: entry.updatedAt ?? 0 });
+    }
   }
-  return items;
+  return items.sort((a, b) => b.updatedAt - a.updatedAt).map(({ updatedAt: _, ...item }) => item);
 }

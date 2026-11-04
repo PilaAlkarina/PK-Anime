@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { continueWatching, useWatchHistory } from "@/lib/library/history";
+import { useMyList } from "@/lib/library/my-list";
 import { mergeContinueWatching, useRemoteLibrary } from "@/lib/library/remote";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
@@ -70,8 +71,12 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   const mounted = useMounted();
   const history = useWatchHistory();
   const remote = useRemoteLibrary();
-  // Local history merged with what the remote list is watching
-  const resume = useMemo(() => mergeContinueWatching(continueWatching(history), remote), [history, remote]);
+  const myList = useMyList();
+  // The watch history merged with what both lists are watching
+  const resume = useMemo(
+    () => mergeContinueWatching(continueWatching(history), remote, myList),
+    [history, remote, myList]
+  );
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);

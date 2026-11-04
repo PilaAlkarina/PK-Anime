@@ -115,11 +115,12 @@ export const myAnimeList: Tracker = {
     return { added: true, entry: await updateListStatus(token, malId, { status: "plan_to_watch" }) };
   },
 
-  async updateEntry(token, ids, { status, score }) {
+  async updateEntry(token, ids, { status, score, progress }) {
     const malId = requireMalId(ids);
     const fields: Record<string, string> = {};
     if (status) fields.status = FROM_STATUS[status];
     if (score !== undefined) fields.score = String(score ?? 0);
+    if (progress !== undefined) fields.num_watched_episodes = String(progress);
     // MAL leaves the episode count alone when an anime is marked completed
     if (status === "completed") {
       const { total } = await getAnimeState(token, malId);

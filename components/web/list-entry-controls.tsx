@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { ScorePill, StatusDot } from "@/components/tv/list-styles";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
-import { useEntryEditor } from "@/lib/library/use-entry-editor";
+import { useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
 import { Select, type SelectOption } from "./select";
 
@@ -27,17 +27,20 @@ const SCORE_OPTIONS: SelectOption<number>[] = [
   ...SCORES.map((score) => ({ value: score, text: String(score), label: `★ ${score}` })),
 ];
 
-/** Status and score of one anime on the remote list, saved as soon as they change */
+/** Status and score of one anime on the list (the service's or this device's), saved as soon as they change */
 export function ListEntryControls({
   anime,
   entry,
+  target,
   providerName,
 }: {
   anime: CatalogItem;
   entry: TrackerEntry;
+  target: EditTarget;
+  /** The list's name: the service's, or "Mi lista" for this device's */
   providerName: string;
 }) {
-  const { saving, failed, update, remove } = useEntryEditor(anime);
+  const { saving, failed, update, remove } = useEntryEditor(anime, target);
   const [confirming, setConfirming] = useState(false);
 
   return (
