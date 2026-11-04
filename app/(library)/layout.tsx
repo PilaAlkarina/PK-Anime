@@ -24,10 +24,13 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
   if (mode === "web") {
     return (
       <UiModeProvider mode="web">
-        <div data-ui="web">
-          <NavigationProgress />
-          <WebShell>{children}</WebShell>
-        </div>
+        {/* A phone can link here too; once it does, the page moves to the TV interface */}
+        <TvLinkProvider>
+          <div data-ui="web">
+            <NavigationProgress />
+            <WebShell>{children}</WebShell>
+          </div>
+        </TvLinkProvider>
       </UiModeProvider>
     );
   }

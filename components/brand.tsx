@@ -42,6 +42,7 @@ const SECTIONS: [RegExp, string][] = [
   [/^mi lista/i, "マイリスト"],
   [/^calendario/i, "放送予定"],
   [/^ajustes/i, "設定"],
+  [/^mando del móvil/i, "リモコン"],
   [/^búsquedas recientes/i, "最近の検索"],
   [/^buscar|^búsqueda/i, "検索"],
   [/^explorar por género/i, "ジャンル"],

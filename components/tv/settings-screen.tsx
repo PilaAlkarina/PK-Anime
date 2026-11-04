@@ -13,7 +13,10 @@ import {
 } from "@/lib/playback-preferences";
 import { THEMES } from "@/lib/themes";
 import { setThemePreference, useThemePreference } from "@/lib/theme-preference";
+import { useUiMode } from "@/components/ui-mode";
+import type { UiMode } from "@/lib/ui-mode";
 import { FocusButton, FocusGroup } from "./focusable";
+import { switchUiMode } from "./tv-link";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 
 interface Option<T> {
@@ -291,9 +294,15 @@ function ThemePicker() {
   );
 }
 
+const UI_OPTIONS: Option<UiMode>[] = [
+  { value: "web", label: "Ordenador y móvil" },
+  { value: "tv", label: "TV, con mando" },
+];
+
 /** Playback preferences: audio, subtitle languages with their fallbacks, server and subtitle format */
 export function SettingsScreen() {
   const mounted = useMounted();
+  const uiMode = useUiMode();
   const prefs = usePlaybackPreferences();
   const styles = prefs.subtitleStyles;
   const setStyle = (patch: Partial<SubtitleStyles>) =>
@@ -304,6 +313,12 @@ export function SettingsScreen() {
       <Section title="Apariencia">
         <Setting label="Tema" hint="Los colores de toda la biblioteca y del reproductor en este dispositivo.">
           <ThemePicker />
+        </Setting>
+        <Setting
+          label="Interfaz"
+          hint="La de TV se maneja con el mando o con el móvil vinculado; la de ordenador, con ratón, teclado o táctil. Se recuerda en este navegador."
+        >
+          <Options value={uiMode} options={UI_OPTIONS} onChange={(mode) => mode !== uiMode && switchUiMode(mode)} />
         </Setting>
       </Section>
 

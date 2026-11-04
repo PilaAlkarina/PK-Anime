@@ -2,15 +2,17 @@
 
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Smartphone, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RemoteLinkPanel } from "@/components/remote-link-panel";
+import { useTvLink } from "@/components/tv/tv-link";
 import { useServiceStatus } from "@/lib/use-service-status";
 import type { SubtitleStyles } from "../subtitle-settings-dialog";
 import { focusFirst } from "./focus-nav";
 import { SubtitleText } from "./subtitle-text";
 import { formatSeconds } from "./types";
 
-export type PanelView = "main" | "subtitles" | "style" | "quality" | "speed" | "boost";
+export type PanelView = "main" | "subtitles" | "style" | "quality" | "speed" | "boost" | "remote";
 
 export interface PanelSubtitle {
   key: string;
@@ -114,6 +116,7 @@ const VIEW_TITLES: Record<Exclude<PanelView, "main">, string> = {
   quality: "Calidad",
   speed: "Velocidad",
   boost: "Amplificar volumen",
+  remote: "Mando del móvil",
 };
 
 /**
@@ -125,6 +128,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   // A real check (the server reuses one from the last five minutes): this is where people switch server
   const status = useServiceStatus();
+  // Inside the library only: the standalone embed has nothing to link
+  const remoteLink = useTvLink();
 
   // Keyboard and remote users land on the first option of every view
   useEffect(() => {
@@ -284,6 +289,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
               toggle("Reproducir el siguiente episodio", Boolean(props.autoplayNext), props.onAutoplayNextChange)}
           </div>
 
+          {remoteLink.available && (
+            <div className="flex flex-col rounded-xl bg-ink-3 border-[1.5px] border-line overflow-hidden shrink-0">
+              <button type="button" onClick={() => onViewChange("remote")} className={cn(rowClass, "group")}>
+                <Smartphone className={cn("shrink-0", tv ? "w-6 h-6" : "w-4 h-4")} />
+                <span className="flex-1 font-medium">Mando del móvil</span>
+                <span className="text-zinc-400 group-focus:text-zinc-600">
+                  {remoteLink.state.status === "linked" ? "Vinculado" : "Sin vincular"}
+                </span>
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2 shrink-0">
             <div className="flex items-baseline justify-between">
               <h3 className={cn("flex items-baseline gap-2 font-display leading-[1.1]", tv ? "text-2xl" : "text-base")}>
@@ -410,6 +428,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
               {SPEEDS.map((s) => option(s, speedLabel(s), Math.abs(props.speed - s) < 0.01, () => props.onSpeedChange(s)))}
             </div>
           )}
+
+          {view === "remote" && <RemoteLinkPanel tv={tv} />}
 
           {view === "boost" && (
             <>

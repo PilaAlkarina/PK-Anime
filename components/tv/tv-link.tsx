@@ -6,6 +6,8 @@ import type { RemoteCommand, RemoteKey } from "@/lib/pairing/store";
 import { authClient } from "@/lib/auth-client";
 import { refreshAccount } from "@/lib/library/account";
 import { REMOTE_TEXT_EVENT, setPendingRemoteText } from "@/lib/tv/remote-text";
+import { useIsTv } from "@/components/ui-mode";
+import type { UiMode } from "@/lib/ui-mode";
 
 const STORAGE_KEY = "pk_tv_link";
 const RECONNECT_MS = 3000;
@@ -25,19 +27,50 @@ export interface TvLinkState {
 const IDLE: TvLinkState = { status: "idle", code: null, url: null, qr: null, expiresAt: null };
 
 interface TvLink {
+  /** False outside the library (the standalone embed player), where there is nothing to link */
+  available: boolean;
   state: TvLinkState;
-  /** Shows a fresh QR, replacing a pending one */
-  startLinking: () => Promise<void>;
+  /** Shows a fresh QR, replacing a pending one; false when the server didn't hand one out */
+  startLinking: () => Promise<boolean>;
   unlink: () => Promise<void>;
 }
 
 const TvLinkContext = createContext<TvLink>({
+  available: false,
   state: IDLE,
-  startLinking: async () => {},
+  startLinking: async () => false,
   unlink: async () => {},
 });
 
 export const useTvLink = () => useContext(TvLinkContext);
+
+/**
+ * Reloads the current page in the other interface. The server picks it up from `?ui=`, keeps it
+ * in a cookie and drops the parameter.
+ */
+export function switchUiMode(mode: UiMode | "auto") {
+  const url = new URL(window.location.href);
+  url.searchParams.set("ui", mode);
+  window.location.assign(url.toString());
+}
+
+/** Seconds left on a pending code; an expired one is replaced while the caller stays mounted */
+export function useLinkCountdown() {
+  const { state, startLinking } = useTvLink();
+  const until = state.status === "pending" ? state.expiresAt : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!until) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [until]);
+  const secondsLeft = until ? Math.max(0, Math.round((until - now) / 1000)) : 0;
+  useEffect(() => {
+    if (until && secondsLeft === 0) startLinking();
+  }, [until, secondsLeft, startLinking]);
+  return secondsLeft;
+}
 
 // What the TV's own remote would send for each phone button. keyCode is legacy but some of
 // our listeners (and spatial navigation) still read it.
@@ -82,6 +115,10 @@ function writeToken(token: string | null) {
  */
 export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  // The PC interface isn't built for a d-pad: linking a phone there moves to the TV one
+  const isTv = useIsTv();
+  const isTvRef = useRef(isTv);
+  isTvRef.current = isTv;
   const pathname = usePathname();
   const [state, setState] = useState<TvLinkState>(IDLE);
   const [toast, setToast] = useState<string | null>(null);
@@ -179,7 +216,8 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, status: event.status, code: event.code, expiresAt: event.expiresAt }));
       } else if (event.type === "linked") {
         setState({ ...IDLE, status: "linked" });
-        showToast("Móvil vinculado");
+        if (isTvRef.current) showToast("Móvil vinculado");
+        else switchUiMode("tv");
       } else if (event.type === "unlinked") {
         forget();
         showToast("Móvil desvinculado");
@@ -212,7 +250,7 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
       }).catch(() => {});
       forget();
     }
-    await sync(true);
+    return sync(true);
   }, [state.status, forget, sync]);
 
   const unlink = useCallback(async () => {
@@ -227,10 +265,10 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   }, [forget]);
 
   return (
-    <TvLinkContext.Provider value={{ state, startLinking, unlink }}>
+    <TvLinkContext.Provider value={{ available: true, state, startLinking, unlink }}>
       {children}
       {toast && (
-        <div className="fixed right-[4vw] bottom-[6vh] z-[80] px-6 py-4 rounded-2xl bg-zinc-900/95 text-xl font-bold tv-fade-in">
+        <div className="fixed right-4 bottom-20 z-[80] px-4 py-3 rounded-2xl bg-zinc-900/95 text-sm font-bold tv-fade-in md:bottom-6 tv:right-[4vw] tv:bottom-[6vh] tv:px-6 tv:py-4 tv:text-xl">
           {toast}
         </div>
       )}

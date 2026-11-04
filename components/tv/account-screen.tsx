@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { Activity, ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink } from "lucide-react";
@@ -10,7 +10,7 @@ import { useIsTv } from "@/components/ui-mode";
 import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 import { ListTransfer } from "./list-transfer";
-import { useTvLink } from "./tv-link";
+import { useLinkCountdown, useTvLink } from "./tv-link";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -18,16 +18,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       {children}
     </h2>
   );
-}
-
-function useCountdown(until: number | null) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!until) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [until]);
-  return until ? Math.max(0, Math.round((until - now) / 1000)) : 0;
 }
 
 function AccountSection() {
@@ -102,18 +92,13 @@ function AccountSection() {
 function PhoneSection() {
   const { state, startLinking, unlink } = useTvLink();
   const reveal = useRevealOnFocus();
-  const secondsLeft = useCountdown(state.status === "pending" ? state.expiresAt : null);
+  const secondsLeft = useLinkCountdown();
 
   // The button that started linking disappears, so focus follows to this section's new one
   useEffect(() => {
     if (state.status === "pending") setFocus("account:cancel-link");
     if (state.status === "linked") setFocus("account:unlink");
   }, [state.status]);
-
-  // A QR that expires is replaced while the screen is open
-  useEffect(() => {
-    if (state.status === "pending" && state.expiresAt && secondsLeft === 0) startLinking();
-  }, [state.status, state.expiresAt, secondsLeft, startLinking]);
 
   if (state.status === "linked") {
     return (

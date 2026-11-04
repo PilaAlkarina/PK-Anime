@@ -9,6 +9,7 @@ import { Bookmark, CalendarDays, Home, Search, Settings, User, type LucideIcon }
 import { useAccount } from "@/lib/library/account";
 import { WebNavigationProvider } from "@/components/tv/navigation-provider";
 import { LibraryFooter } from "@/components/library-footer";
+import { RemoteLinkMenu } from "./remote-link-menu";
 import { cn } from "@/lib/utils";
 
 // Biblioteca is the advanced search: the whole catalog with every filter, genres included
@@ -158,6 +159,7 @@ function TopBar() {
           <Suspense fallback={<div className="h-10 w-full max-w-[22rem] rounded-xl bg-ink-3 border-[1.5px] border-line" />}>
             <TopSearch />
           </Suspense>
+          <RemoteLinkMenu />
           <Link
             href="/settings"
             aria-label="Ajustes"
