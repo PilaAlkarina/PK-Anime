@@ -1,7 +1,7 @@
 "use client";
 
 import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/components/brand";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Play } from "lucide-react";
@@ -16,6 +16,7 @@ import { usePagedRow } from "@/components/tv/catalog-row";
 import { useAnimeDetail } from "@/components/tv/hero";
 import { HorizontalRow } from "./horizontal-row";
 import { PosterCard } from "./poster-card";
+import { TodayAiring } from "./today-airing";
 import { AccountAvatar } from "./web-shell";
 import { cn } from "@/lib/utils";
 
@@ -320,8 +321,12 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
               ))}
             </HorizontalRow>
           )}
-          {rows.map((row) => (
-            <CatalogRowSection key={row.id} row={row} />
+          {rows.map((row, index) => (
+            <Fragment key={row.id}>
+              <CatalogRowSection row={row} />
+              {/* Right after the first row (Tendencias), as in the design; computers and tablets */}
+              {index === 0 && <TodayAiring className="hidden md:block" />}
+            </Fragment>
           ))}
         </div>
       )}

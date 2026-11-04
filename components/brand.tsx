@@ -32,6 +32,7 @@ const SECTIONS: [RegExp, string][] = [
   [/^próxima temporada/i, "来期"],
   [/^mejor valorados/i, "高評価"],
   [/^en emisión/i, "放送中"],
+  [/^hoy en emisión/i, "今日の放送"],
   [/^próximos estrenos/i, "近日公開"],
   [/^últimos episodios/i, "最新話"],
   [/^episodios/i, "エピソード"],
