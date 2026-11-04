@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,7 @@ export async function GET(request: NextRequest) {
     if (looksLikeHls) {
       const text = await upstream.text();
       if (text.trim().startsWith("#EXTM3U") || looksLikeHls) {
-        const proxyBase = `${request.nextUrl.origin}/api/proxy`;
+        const proxyBase = `${requestOrigin(request)}/api/proxy`;
         const rewritten = rewriteHls(text, targetUrl, proxyBase, hParam ?? undefined);
 
         return new NextResponse(rewritten, {

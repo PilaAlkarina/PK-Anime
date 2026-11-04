@@ -90,9 +90,14 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
 
   const claim = async (code: string) => {
     setMessage(null);
-    const { data } = await postJSON("/api/pair/claim", { code });
+    const { data } = await postJSON("/api/pair/claim", { code }).catch(() => ({ status: 0, data: {} }));
     if (!data.success) {
-      setMessage("El código no es válido o ha caducado. Genera otro en la TV.");
+      // Only a code the server doesn't know is the code's fault
+      setMessage(
+        data.code === "INVALID_CODE"
+          ? "El código no es válido o ha caducado. Genera otro en la TV."
+          : "No se pudo vincular. Abre esta página con la misma dirección que usa la TV y vuelve a intentarlo."
+      );
       setPhase("enter-code");
       return;
     }
@@ -198,9 +203,9 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
             autoCapitalize="characters"
             autoComplete="off"
             maxLength={7}
-            className="flex-1 h-12 px-4 rounded-xl bg-white/10 text-xl tracking-[0.2em] outline-none focus:bg-white/15"
+            className="flex-1 min-w-0 h-12 px-4 rounded-xl bg-white/10 text-xl tracking-[0.2em] outline-none focus:bg-white/15"
           />
-          <button type="submit" className="h-12 px-5 rounded-xl bg-white text-black font-bold">
+          <button type="submit" className="flex-shrink-0 h-12 px-5 rounded-xl bg-white text-black font-bold">
             Vincular
           </button>
         </form>

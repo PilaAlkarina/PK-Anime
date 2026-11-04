@@ -47,11 +47,8 @@ export function notSignedIn() {
   return trackerJson(null, { success: false, code: "NOT_SIGNED_IN", error: "Not signed in to a list service" }, 401);
 }
 
-/** Session cookies are SameSite=Lax, but writes reject cross-site callers explicitly as well */
-export function isCrossSite(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return !!origin && new URL(origin).host !== request.nextUrl.host;
-}
+// Session cookies are SameSite=Lax, but writes reject cross-site callers explicitly as well
+export { isCrossSite } from "@/lib/request-origin";
 
 /** Fills in the ID the tracker needs (MAL or AniList) from the one the caller sent */
 export async function resolveTrackerIds(tracker: Tracker, ids: TrackerIds): Promise<TrackerIds> {

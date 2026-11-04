@@ -1,6 +1,9 @@
 import QRCode from "qrcode";
 import { NextResponse, type NextRequest } from "next/server";
+import { isSecure, requestOrigin } from "@/lib/request-origin";
 import type { SessionCookie } from "./store";
+
+export { isCrossSite } from "@/lib/request-origin";
 
 // Better Auth's cookies with the default prefix: the session, its cached copy and the OAuth
 // account (with the list service tokens), possibly split into numbered chunks
@@ -10,21 +13,6 @@ const SESSION_MAX_AGE = 7 * 24 * 60 * 60;
 
 export function pairJson(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
-}
-
-export function isCrossSite(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return !!origin && new URL(origin).host !== request.nextUrl.host;
-}
-
-export function isSecure(request: NextRequest) {
-  return (request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "")) === "https";
-}
-
-/** The origin the TV reached the server on, which a phone on the same network can reach too */
-export function requestOrigin(request: NextRequest) {
-  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host;
-  return `${isSecure(request) ? "https" : "http"}://${host}`;
 }
 
 export function linkUrl(request: NextRequest, code: string) {
