@@ -51,9 +51,11 @@ export function HorizontalRow({
           </button>
         </div>
       </div>
+      {/* A sideways scroller clips vertically too, so it gets room above and below for the
+          hovered card's lift, shadow and score glow; the negative margins keep the spacing */}
       <div
         ref={scrollerRef}
-        className="flex gap-3 md:gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-px-4 md:scroll-px-8 px-4 md:px-8 pb-2 tv-no-scrollbar"
+        className="flex gap-3 md:gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory scroll-px-4 md:scroll-px-8 px-4 md:px-8 pt-5 pb-7 -mt-5 -mb-5 tv-no-scrollbar"
       >
         {children}
         {onNearEnd && <LoadMore key={itemCount} onVisible={onNearEnd} root={scrollerRef} className="w-px flex-shrink-0" />}

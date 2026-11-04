@@ -171,13 +171,19 @@ function ResumeCard({ entry }: { entry: ContinueItem }) {
       className="group flex-shrink-0 w-[15rem] md:w-[19rem] snap-start flex flex-col gap-2 outline-none"
     >
       <div
-        className="relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 group-focus-visible:ring-2 group-focus-visible:ring-white"
+        className="relative pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 ring-1 ring-white/0 transition duration-200 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.03] group-hover:ring-white/40 group-hover:shadow-[0_1rem_2rem_rgba(0,0,0,0.75)] group-focus-visible:ring-2 group-focus-visible:ring-white motion-reduce:transform-none"
         style={anime.color ? { backgroundColor: anime.color } : undefined}
       >
         {image && (
-          <img src={image} alt="" loading="lazy" decoding="async" className="absolute top-0 left-0 w-full h-full object-cover" />
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06] motion-reduce:transform-none"
+          />
         )}
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-full bg-black/70 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform">
+        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 rounded-full bg-black/70 text-white transition duration-200 group-hover:scale-125 group-hover:bg-white group-hover:text-black">
           <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
         </span>
         {progress > 0 && (

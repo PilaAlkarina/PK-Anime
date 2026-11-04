@@ -44,10 +44,10 @@ export function PosterCard({
       className={cn("group flex flex-col gap-2 min-w-0 outline-none", className)}
     >
       {/* The frame for 9 and 10 sits behind the cover, so both lift together on hover */}
-      <div className="relative transition-transform duration-150 group-hover:-translate-y-1">
+      <div className="relative transition-transform duration-200 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.04] group-focus-visible:-translate-y-1.5 group-focus-visible:scale-[1.04] motion-reduce:transform-none">
         <ScoreFrame score={score} />
         <div
-          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 group-focus-visible:ring-2 group-focus-visible:ring-white"
+          className="relative pt-[141%] rounded-xl overflow-hidden bg-zinc-900 ring-1 ring-white/0 transition-shadow duration-200 group-hover:ring-white/40 group-hover:shadow-[0_1rem_2rem_rgba(0,0,0,0.75)] group-focus-visible:ring-2 group-focus-visible:ring-white"
           style={item.color ? { backgroundColor: item.color } : undefined}
         >
           {item.cover ? (
@@ -56,11 +56,16 @@ export function PosterCard({
               alt=""
               loading="lazy"
               decoding="async"
-              className="absolute top-0 left-0 w-full h-full object-cover"
+              className="absolute top-0 left-0 w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06] motion-reduce:transform-none"
             />
           ) : (
             <span className="absolute top-0 left-0 flex items-end w-full h-full p-3 font-bold leading-tight">{item.title}</span>
           )}
+          {/* Darkens the bottom on hover so the cover reads as "open this" */}
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          />
           <ScoreShine score={score} />
           {badge && (
             <span
