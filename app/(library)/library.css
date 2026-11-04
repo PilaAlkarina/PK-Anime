@@ -67,13 +67,14 @@
   bottom: -0.22rem;
   border-radius: 0.95rem;
   pointer-events: none;
-  isolation: isolate;
 }
 
+/* An ink hairline around each frame keeps it apart from its hard shadow, like a printed outline */
 .pk-flair-9 {
   background: linear-gradient(160deg, #fef3c7 0%, #fbbf24 45%, #d97706 80%, #92400e 100%);
   box-shadow:
-    0.4rem 0.4rem 0 #78350f,
+    0 0 0 0.12rem rgb(var(--c-ink)),
+    0.45rem 0.45rem 0 0.12rem #78350f,
     0 0 1rem rgba(245, 158, 11, 0.3);
 }
 
@@ -84,18 +85,22 @@
   bottom: -0.28rem;
   border-radius: 1.03rem;
   background: linear-gradient(135deg, #fde68a 0%, #f9a8d4 35%, #c4b5fd 68%, #93c5fd 100%);
-  box-shadow: 0 0 1.4rem rgba(244, 114, 182, 0.4), 0 0 2.6rem rgba(167, 139, 250, 0.22);
+  box-shadow:
+    0 0 0 0.12rem rgb(var(--c-ink)),
+    0 0 1.4rem rgba(244, 114, 182, 0.35);
 }
 
-/* Hard shadow in deeper iridescent tones, offset like the printed panels */
-.pk-flair-10::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  transform: translate(0.45rem, 0.45rem);
-  background: linear-gradient(135deg, #d97706 0%, #db2777 40%, #7c3aed 72%, #2563eb 100%);
+/*
+ * The 10's hard shadow is its own element, drawn before the frame so it can never paint over
+ * it. Offset with its edges, not a transform, so the card's hover and focus moves still apply.
+ */
+.pk-flair-10-shadow {
+  top: 0.17rem;
+  left: 0.17rem;
+  right: -0.73rem;
+  bottom: -0.73rem;
+  border-radius: 1.03rem;
+  background: linear-gradient(135deg, #b45309 0%, #be185d 40%, #6d28d9 72%, #1d4ed8 100%);
 }
 
 .pk-flair-10::after {

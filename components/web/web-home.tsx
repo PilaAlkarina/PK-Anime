@@ -43,7 +43,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
 
   return (
     <section aria-label="Destacado" aria-roledescription="carrusel" className="px-4 md:px-8">
-      <div className="relative overflow-hidden rounded-[18px] bg-zinc-900 md:border-[1.5px] md:border-line md:min-h-[27rem] md:flex md:items-end">
+      <div className="relative overflow-hidden rounded-[18px] cover-fill md:border-[1.5px] md:border-line md:min-h-[27rem] md:flex md:items-end">
         <div className="relative pt-[56.25%] md:pt-0 md:absolute md:top-0 md:left-0 md:w-full md:h-full">
           {image && (
             <img

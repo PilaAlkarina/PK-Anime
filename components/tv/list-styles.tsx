@@ -39,17 +39,13 @@ export function ScoreFrame({
 }) {
   const flair = flairOf(score);
   if (!flair) return null;
+  // Moves with the card's "koma" focus pop
+  const move = cn("transition-transform duration-150", focused && "-translate-x-1 -translate-y-1", className);
   return (
-    <div
-      aria-hidden
-      className={cn(
-        "pk-flair transition-transform duration-150",
-        flair === 10 ? "pk-flair-10" : "pk-flair-9",
-        // Moves with the card's "koma" focus pop
-        focused && "-translate-x-1 -translate-y-1",
-        className
-      )}
-    />
+    <>
+      {flair === 10 && <div aria-hidden className={cn("pk-flair pk-flair-10-shadow", move)} />}
+      <div aria-hidden className={cn("pk-flair", flair === 10 ? "pk-flair-10" : "pk-flair-9", move)} />
+    </>
   );
 }
 
