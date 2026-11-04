@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAnime } from "@/lib/anilist/catalog";
+import { getAnimeWithEpisodes } from "@/lib/anilist/catalog";
 import { WatchScreen } from "@/components/tv/watch-screen";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ async function load(params: PageProps["params"]) {
   const episode = Number(params.episode);
   if (!Number.isInteger(id) || id < 1 || !Number.isInteger(episode) || episode < 1) notFound();
   // Not capped by the episode count: the cached details can lag behind a new release
-  const anime = await getAnime(id);
+  const anime = await getAnimeWithEpisodes(id);
   if (!anime) notFound();
   return { anime, episode };
 }

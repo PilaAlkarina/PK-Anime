@@ -71,6 +71,13 @@ export interface StreamingEpisode {
   thumbnail: string | null;
 }
 
+/** One episode's title and thumbnail from ani.zip (TVDB artwork), numbered like the AniList entry */
+export interface EpisodeDetail {
+  number: number;
+  title: string | null;
+  thumbnail: string | null;
+}
+
 export interface AnimeDetail extends CatalogItem {
   englishTitle: string | null;
   nativeTitle: string | null;
@@ -83,6 +90,8 @@ export interface AnimeDetail extends CatalogItem {
   relations: AnimeRelation[];
   recommendations: CatalogItem[];
   streamingEpisodes: StreamingEpisode[];
+  /** Filled by getAnimeWithEpisodes; empty when ani.zip has nothing or is unreachable */
+  episodeDetails: EpisodeDetail[];
 }
 
 export interface ScheduleEntry extends AiringEpisode {

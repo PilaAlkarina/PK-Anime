@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAnime } from "@/lib/anilist/catalog";
+import { getAnimeWithEpisodes } from "@/lib/anilist/catalog";
 import { AnimeScreen } from "@/components/tv/anime-screen";
 import { WebAnimeScreen } from "@/components/web/web-anime";
 import { getUiMode } from "@/lib/ui-mode-server";
@@ -14,7 +14,7 @@ interface PageProps {
 async function loadAnime(idParam: string) {
   const id = Number(idParam);
   if (!Number.isInteger(id) || id < 1) notFound();
-  const anime = await getAnime(id);
+  const anime = await getAnimeWithEpisodes(id);
   if (!anime) notFound();
   return anime;
 }

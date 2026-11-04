@@ -3,6 +3,7 @@ import { anilistQuery, AniListError } from "./client";
 import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
+import { getAniZipEpisodes } from "./anizip";
 import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
@@ -265,11 +266,21 @@ export const getAnime = unstable_cache(
         title: e.title || "",
         thumbnail: e.thumbnail,
       })),
+      episodeDetails: [],
     };
   },
   ["anilist:anime"],
   { revalidate: DETAIL_TTL, tags: ["anilist"] }
 );
+
+/**
+ * getAnime plus ani.zip's episode titles and thumbnails, for the anime page and the player. Each
+ * source is cached on its own, so ani.zip being down only leaves the episodes without art.
+ */
+export async function getAnimeWithEpisodes(id: number): Promise<AnimeDetail | null> {
+  const [anime, episodeDetails] = await Promise.all([getAnime(id), getAniZipEpisodes(id).catch(() => [])]);
+  return anime && { ...anime, episodeDetails };
+}
 
 /** Episodes airing between two Unix timestamps (seconds), oldest first */
 export const getSchedule = unstable_cache(
