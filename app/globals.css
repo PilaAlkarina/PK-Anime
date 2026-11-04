@@ -122,6 +122,21 @@
       opacity: 0;
     }
   }
+  /* Navigation bar: rushes to a third, then creeps towards the end while the page loads */
+  .nav-progress-creep {
+    animation: nav-progress-creep 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+  }
+  @keyframes nav-progress-creep {
+    0% {
+      transform: scaleX(0);
+    }
+    8% {
+      transform: scaleX(0.32);
+    }
+    100% {
+      transform: scaleX(0.9);
+    }
+  }
   /* Library pages coming in after a navigation (app/(library)/template.tsx) */
   .page-in {
     animation: page-in 0.32s ease-out backwards;

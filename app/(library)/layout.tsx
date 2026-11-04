@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/tv/sidebar";
 import { TvLinkProvider } from "@/components/tv/tv-link";
 import { UiModeProvider } from "@/components/ui-mode";
 import { WebShell } from "@/components/web/web-shell";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { getUiMode } from "@/lib/ui-mode-server";
 import "./library.css";
 
@@ -24,6 +25,7 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
     return (
       <UiModeProvider mode="web">
         <div data-ui="web">
+          <NavigationProgress />
           <WebShell>{children}</WebShell>
         </div>
       </UiModeProvider>
@@ -36,6 +38,7 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
         <TvLinkProvider>
           <style dangerouslySetInnerHTML={{ __html: TV_SCALE }} />
           <div data-ui="tv" lang="es" className="relative min-h-screen bg-black text-white overflow-hidden">
+            <NavigationProgress />
             <Sidebar />
             <main className="pl-[7rem]">{children}</main>
           </div>
