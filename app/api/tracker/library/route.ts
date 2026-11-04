@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
   if (!session) return notSignedIn();
 
   try {
-    const entries = await session.tracker.getList(session.accessToken);
-    const anime: CatalogItem[] = [];
-    if (session.tracker.idKind === "mal") {
+    const { entries, cards: listCards } = await session.tracker.getList(session.accessToken);
+    const anime: CatalogItem[] = listCards ?? [];
+    if (!listCards && session.tracker.idKind === "mal") {
       const cards = await getCardsByMalIds(entries.map((e) => e.malId!).filter(Boolean));
       for (const entry of entries) {
         const card = entry.malId ? cards.get(entry.malId) : undefined;

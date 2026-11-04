@@ -40,7 +40,8 @@ const HOME_ROWS: { kind: RowKind; value?: string }[] = [
   ...HOME_GENRES.map((value) => ({ kind: "genre" as const, value })),
 ];
 
-interface RawCard {
+/** A Media object fetched with CARD_FRAGMENT */
+export interface RawCard {
   id: number;
   idMal: number | null;
   type: "ANIME" | "MANGA";
@@ -103,6 +104,11 @@ function toCatalogItem(m: RawCard): CatalogItem {
     genres: (m.genres || []).filter((g) => !HIDDEN_GENRES.has(g)),
     nextEpisode: m.nextAiringEpisode,
   };
+}
+
+/** Catalog card for a Media fetched elsewhere with CARD_FRAGMENT; null for manga and adult titles */
+export function cardFromMedia(m: RawCard | null | undefined): CatalogItem | null {
+  return isListable(m) ? toCatalogItem(m) : null;
 }
 
 /** AniList descriptions carry <br>, <i> and HTML entities even with asHtml: false */

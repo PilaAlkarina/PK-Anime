@@ -14,8 +14,8 @@ export const THIRD_PARTY = [
   {
     name: "AniList",
     url: "https://anilist.co",
-    credit: "Catálogo e imágenes de",
-    note: "Catálogo, portadas, banners y calendario de emisión, a través de su API pública.",
+    credit: "Catálogo, imágenes y listas de",
+    note: "Catálogo, portadas, banners y calendario de emisión, a través de su API pública, y sincronización de la lista del usuario.",
   },
   {
     name: "MyAnimeList",

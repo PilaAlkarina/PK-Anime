@@ -1,9 +1,11 @@
+import type { CatalogItem } from "@/lib/anilist/types";
+
 /**
- * Provider-agnostic view of a list service (MyAnimeList now, AniList later). Routes and the
- * library only use these types; each adapter maps its service's API onto them.
+ * Provider-agnostic view of a list service (MyAnimeList, AniList). Routes and the library only
+ * use these types; each adapter maps its service's API onto them.
  */
 
-export type TrackerId = "myanimelist";
+export type TrackerId = "myanimelist" | "anilist";
 
 export type ListStatus = "watching" | "planning" | "completed" | "paused" | "dropped";
 
@@ -29,13 +31,22 @@ export interface EntryChanges {
   score?: number | null;
 }
 
+export interface TrackerList {
+  entries: TrackerEntry[];
+  /**
+   * Catalog cards the service sent along with the list (AniList, which is also the catalog).
+   * Without them the library route looks the entries up by MAL ID.
+   */
+  cards?: CatalogItem[];
+}
+
 export interface Tracker {
   id: TrackerId;
   name: string;
   /** Which ID the service addresses anime by; the other one is resolved before calling it */
   idKind: "mal" | "anilist";
   /** Every entry on the signed-in user's anime list */
-  getList(token: string): Promise<TrackerEntry[]>;
+  getList(token: string): Promise<TrackerList>;
   getEntry(token: string, ids: TrackerIds): Promise<TrackerEntry | null>;
   /** Marks `episode` as watched; never lowers the progress already on the list */
   saveProgress(token: string, ids: TrackerIds, episode: number): Promise<{ updated: boolean; entry: TrackerEntry | null }>;

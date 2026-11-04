@@ -11,18 +11,23 @@ export class AniListError extends Error {
 }
 
 /**
- * POSTs a GraphQL query to AniList and returns `data`.
- * Retries 429 and 5xx responses, waiting for Retry-After when AniList sends it.
+ * POSTs a GraphQL query to AniList and returns `data`. `token` sends it as a signed-in user
+ * (their list, mutations). Retries 429 and 5xx responses, waiting for Retry-After when AniList
+ * sends it.
  */
 export async function anilistQuery<T>(
   query: string,
   variables: Record<string, unknown> = {},
-  { retries = 3, timeoutMs = 8000 } = {}
+  { retries = 3, timeoutMs = 8000, token }: { retries?: number; timeoutMs?: number; token?: string } = {}
 ): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const res = await safeFetch(ANILIST_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ query, variables }),
       timeoutMs,
     });

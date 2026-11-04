@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="public/logo.svg" alt="AniFlow Logo" width="100" height="100" />
+  <img src="public/logo.svg" alt="PK Anime logo" width="100" height="100" />
 </p>
 
-<h1 align="center">AniFlow API</h1>
+<h1 align="center">PK Anime</h1>
 
 <p align="center">
-  Self-hostable anime embed API and HLS player. Pass an AniList or MAL ID, get a working stream.
+  A self-hosted, Netflix-style anime library for Smart TVs, computers and phones, built on the AniFlow API.
 </p>
 
 <p align="center">
@@ -20,59 +20,19 @@
 
 ## Overview
 
-AniFlow is a self-hostable backend and player for embedding anime on your own site or app. You can drop in a single iframe, call the REST API, or point any HLS-capable player at a plain `.m3u8` URL.
+PK Anime is a personal anime library you host on your own machine and open from any device on your network. The interface is in Spanish.
 
-Key points:
+- **TV and web interfaces**, picked per device: spatial navigation with the remote on Smart TVs, a top bar on computers and bottom tabs on phones.
+- **Catalog from AniList**: home rows, advanced search, the airing schedule, details, trailers, related titles and recommendations.
+- **List sync with MyAnimeList or AniList**: *Seguir viendo* and *Mi lista* merge your list with this device, statuses and scores can be changed from the anime page, and the player marks episodes as watched.
+- **Phone as remote**: pair a phone by QR to control the TV, type searches and sign in without the TV remote.
+- **Player** with dub and subtitle preferences, intro and ending skipping and automatic server failover.
 
-- **Five servers** (`Flow`, `Kitty`, `Yuri`, `Zuri`, `Buzz`) with per-request server selection.
-- **Direct HLS endpoints** at `/meu8/ani/...` and `/meu8/mal/...`, usable from VLC, mpv, ExoPlayer, AVPlayer or a plain `<video>` tag.
-- **Dub verification.** Servers that silently fall back to Japanese audio are excluded from the dub list.
-- **AniList and MyAnimeList IDs** are both supported (`/embed/ani/...`, `/embed/mal/...`).
-- **Intro/outro skipping** using Re:ANIME timestamps and the AniSkip API, adjusted for episode duration.
-- **Subtitle proxy** with up to 16 languages. The selected track persists when you switch servers.
-- **Dark, minimal player** with a two-way `postMessage` interface for telemetry and remote control.
-- **TV library** at `/`: a Netflix-style catalog built on AniList, with a remote-control interface for Smart TVs and a web one for computers and phones. See [TV library](#tv-library).
+It is built on the [AniFlow API](https://github.com/realmichaelstetson/AniFlow-API), whose embed player, HLS endpoints and REST API it keeps. See [AniFlow API](#aniflow-api).
 
 ---
 
-## Servers
-
-| Server | Upstream | Audio | Notes |
-| :--- | :--- | :--- | :--- |
-| **Flow** | Re:ANIME (HD-1) | `SUB`, `DUB` | Primary server. Uses Re:ANIME's own OP/ED timestamps. |
-| **Kitty** | Re:ANIME (HD-2) | `SUB`, `DUB` | Backup mirror for Flow, with the same skip-time support. |
-| **Yuri** | AniEmbed Core | `SUB`, `DUB` | Soft subtitles, up to 16 external languages. |
-| **Zuri** | AniEmbed Zuna | `SUB` only | Japanese-audio backup. |
-| **Buzz** | MegaPlay Buzz | `SUB`, `DUB` | Served through the edge `.m3u8` proxy, with key handling. |
-
-**Server status.** `GET /api/status` checks every server the way the player uses it: it resolves episode 1 of Attack on Titan through `/api/play`, then fetches the playlist, the quality playlist and the first video segment through the proxies. It also checks AniList and AniSkip. Each service is reported as `ok`, `degraded` (works, but slower than 8 s) or `down`, with its latency and the step that failed. Results are cached for 5 minutes; `?refresh=1` forces a new check, at most once a minute. The *Status* section of `/aniflow-doc` and the library's `/status` page show it; the library links to that page from its footer (with a dot for the last result) and from *Perfil* on phones.
-
-**HTTPS fallback.** Some stream CDNs (MegaPlay's segment hosts, behind Yuri, Zuri and Buzz) answer on port 80 but refuse HTTPS connections. When an upstream refuses or drops the connection itself, the segment and playlist proxies retry the same URL over HTTP. They remember that host for 10 minutes, so later segments skip the failed TLS attempt. These requests are made by the server, never by the browser, and HTTP error responses are passed on unchanged. `/api/status` lists the hosts currently fetched this way.
-
-### Dub verification
-
-Some providers return the original Japanese audio when an English dub doesn't exist for an episode, without any indication. AniFlow checks for this at both the API and player level:
-
-- Audio streams are inspected before they are returned.
-- A server that falls back to Japanese audio is left out of the dub list.
-- If an anime has no English dub at all, the Dub option is disabled and the player switches to Sub with a notification.
-
----
-
-## Player
-
-- **Interface:** blurred floating controls and a minimal layout. Controls hide during playback.
-- **Skip intro/outro:** OP and ED segments are marked on the timeline. Skipping can be automatic or triggered with a button. Flow and Kitty use native Re:ANIME timestamps; Yuri, Zuri and Buzz use AniSkip with duration compensation.
-- **Subtitles:** up to 16 languages (English, Spanish, French, German, Italian, Portuguese, Polish, Russian and more). The chosen track carries over when you change servers. Font (Sans, Anime, Serif, Mono), size, color, background opacity and outline are adjustable.
-- **Audio and video:**
-  - Volume boost up to 200% via the Web Audio API.
-  - Playback speed from 0.25x to 2.0x.
-  - Adaptive bitrate, or a fixed resolution (1080p, 720p, 480p, 360p).
-- **Mobile:** tap to toggle controls, double-tap left or right to seek ±10 s, and automatic landscape lock in fullscreen.
-
----
-
-## TV library
+## Library
 
 The site root is a personal anime library for TV browsers (Samsung Tizen, LG webOS, Android TV), computers and phones. The interface is in Spanish. Catalog data comes from AniList through the cached `/api/catalog` endpoints, and episodes play in the same player as the embeds.
 
@@ -95,6 +55,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
 | `/link` | Phone page opened from the TV's QR: remote control, keyboard and sign-in |
+| `/license` | MIT license text, copyright holders and credits (linked from every page's footer) |
 
 **Advanced search.** On computers this is the *Biblioteca* section of the top bar (on phones, the *Buscar* tab); with nothing chosen it lists the whole catalog, most popular first. `/search` combines the title text with filters: format (series, movie, special, OVA, ONA…), status, season, a range of years, genres and community tags (each one included or excluded; several of either must all match), source material, number of episodes, minimum score and country of origin, plus the sort order. The state lives in the URL (`/search?q=…&genre=Action&no-genre=Romance&tag=Isekai&format=TV&from=2018&to=2024&sort=SCORE_DESC`), so searches can be shared and survive going back from an anime. Genres and tags on an anime's page, and the genre tiles, open it with that filter applied. On TV every filter is a chip reachable with the remote; tags there are a list of the most common ones, while the web screens search all of them by name.
 
@@ -110,19 +71,113 @@ If the chosen server fails, the usual failover moves to the next server and pick
 
 **Per-device state.** *Mi lista*, the watch history behind *Seguir viendo* and the playback preferences live in the browser's `localStorage`. Progress per episode is the one the player already saves.
 
-**List sync.** After signing in with MyAnimeList (see [MyAnimeList sign-in](#myanimelist-sign-in-optional)) the library merges this device with the user's list: *Seguir viendo* adds what the list is watching (the furthest episode wins), *Mi lista* shows the whole list, colored by status (green Viendo, grey Pendiente, blue Completado, amber En pausa, red Abandonado) with each entry's score, and marks what exists only on this device (*LOCAL*). It filters by status, score and format and sorts by last update, your score, AniList's average, title or year; the choice is remembered on each device. Covers scored 9 get a gold frame, and 10s an iridescent one with a pulsing glow and a sweeping shine (still when the system asks for reduced motion). The anime page resumes from the list's progress and lets you change the status and score (0–10) or take the anime off the list. *Exportar* in *Mi lista* or *Cuenta* copies local-only entries as planned and local progress ahead of the list, without lowering anything already there. Watched episodes keep syncing from the player as before. The list access goes through `lib/trackers`, an adapter per service, so AniList can be added as a second provider.
+**List sync.** After signing in with MyAnimeList or AniList (see [List sync sign-in](#list-sync-sign-in-optional)) the library merges this device with the user's list: *Seguir viendo* adds what the list is watching (the furthest episode wins), *Mi lista* shows the whole list, colored by status (green Viendo, grey Pendiente, blue Completado, amber En pausa, red Abandonado) with each entry's score, and marks what exists only on this device (*LOCAL*). It filters by status, score and format and sorts by last update, your score, AniList's average, title or year; the choice is remembered on each device. Covers scored 9 get a gold frame, and 10s an iridescent one with a pulsing glow and a sweeping shine (still when the system asks for reduced motion). The anime page resumes from the list's progress and lets you change the status and score (0–10) or take the anime off the list. *Exportar* in *Mi lista* or *Cuenta* copies local-only entries as planned and local progress ahead of the list, without lowering anything already there. Watched episodes keep syncing from the player as before. The list access goes through `lib/trackers`, one adapter per service (`myanimelist.ts`, `anilist.ts`); a session holds one service at a time. AniList sends the catalog cards along with the list, while MyAnimeList entries are matched to AniList by MAL ID.
 
 **Phone as remote.** *Cuenta → Vincular un móvil* shows a QR (and a short code). The phone that opens it becomes a remote control: D-pad, OK, Back, Home, play/pause, ±10 s and a text field that types into the TV's search. From the phone the user can also sign in and hand the session to the TV, so no password is typed with the TV remote. Commands reach the TV over Server-Sent Events. Links are kept in the server's memory, which suits a single self-hosted instance: a code lasts 10 minutes, a linked phone 24 hours without use, and restarting the server drops every link. The phone must reach the server at the same address the TV uses, so open the TV library through the server's LAN address or hostname, not `localhost`.
 
-**Compatibility.** The TV interface avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported.
+**Compatibility.** The TV interface avoids CSS that old TV browsers lack (`backdrop-filter`, `aspect-ratio`, `inset`, flex `gap`) and scales its layout with the viewport width, since TVs often report a 960 or 1280 px wide viewport. Next.js 14 targets Chromium 64 and later, which in practice means TVs from around 2020 onwards (Tizen 5.5+, webOS 5+). Older models are not supported. Next.js 15 keeps those targets, but Next.js 16 requires Chrome 111, so the project stays below 16.
 
 **Known limitations.** The player's settings menu (server, quality, subtitles) is not reachable with the arrow keys, which control playback; use a pointer remote to open it. Playback started only from the phone may need one press on the TV's own remote first, since TV browsers block autoplay with sound until the page has received a real key press. AniList has no per-episode metadata for every series, so some episodes show only their number.
 
 ---
 
-## API Reference
+## Getting Started
 
-### Embed URLs
+### Requirements
+
+- [Node.js](https://nodejs.org/) 18.17.0 or newer
+- `npm`, `yarn` or `pnpm`
+
+### Installation
+
+```bash
+git clone https://github.com/PilaAlkarina/PK-Anime.git
+cd PK-Anime
+npm install
+```
+
+Start the development server and open [http://localhost:3000](http://localhost:3000):
+
+```bash
+npm run dev
+```
+
+Build and run for production:
+
+```bash
+npm run build
+npm run start
+```
+
+### List sync sign-in (optional)
+
+Visitors can sign in with MyAnimeList or AniList through [Better Auth](https://www.better-auth.com/). Their list then merges with the library, and episodes they watch past 90% are marked on it. No database is needed: the session and the service's tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`. Configure one service or both; the sign-in screens offer only the ones with credentials.
+
+1. **MyAnimeList:** create an app at [myanimelist.net/apiconfig](https://myanimelist.net/apiconfig) with App Type **web** and the redirect URL `https://your-domain/api/auth/callback/myanimelist` (`http://localhost:3000/api/auth/callback/myanimelist` for local development).
+2. **AniList:** create a client at [anilist.co/settings/developer](https://anilist.co/settings/developer) with the redirect URL `https://your-domain/api/auth/callback/anilist`. AniList takes one redirect URL per client and must match it exactly. Its tokens are long-lived and cannot be refreshed, so when one expires the user signs in again.
+3. Copy `.env.example` to `.env.local` and fill it in:
+
+| Variable | Description |
+| --- | --- |
+| `BETTER_AUTH_SECRET` | Random string of at least 32 characters, used to encrypt the cookies (`openssl rand -base64 32`). |
+| `BETTER_AUTH_URL` | Public origin of the site, e.g. `https://your-domain`. When hosted on a local network, use the address the TV and phones open (e.g. `http://192.168.1.50:3000`) and register the redirect URLs with that address. |
+| `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET` | Client ID and secret of the MAL app. |
+| `ANILIST_CLIENT_ID`, `ANILIST_CLIENT_SECRET` | Client ID and secret of the AniList client. |
+
+The session cookie only reaches the player on your own domain. Inside embeds on other sites the browser treats it as a third-party cookie and blocks it, so syncing is skipped there.
+
+---
+
+## AniFlow API
+
+The streaming layer comes from AniFlow and stays usable on its own, for embedding anime in another site or app: drop in a single iframe, call the REST API, or point any HLS-capable player at a plain `.m3u8` URL. Its documentation page, with a demo player, is at `/aniflow-doc`.
+
+Key points:
+
+- **Five servers** (`Flow`, `Kitty`, `Yuri`, `Zuri`, `Buzz`) with per-request server selection.
+- **Direct HLS endpoints** at `/meu8/ani/...` and `/meu8/mal/...`, usable from VLC, mpv, ExoPlayer, AVPlayer or a plain `<video>` tag.
+- **Dub verification.** Servers that silently fall back to Japanese audio are excluded from the dub list.
+- **AniList and MyAnimeList IDs** are both supported (`/embed/ani/...`, `/embed/mal/...`).
+- **Intro/outro skipping** using Re:ANIME timestamps and the AniSkip API, adjusted for episode duration.
+- **Subtitle proxy** with up to 16 languages. The selected track persists when you switch servers.
+- **Dark, minimal player** with a two-way `postMessage` interface for telemetry and remote control.
+
+### Servers
+
+| Server | Upstream | Audio | Notes |
+| :--- | :--- | :--- | :--- |
+| **Flow** | Re:ANIME (HD-1) | `SUB`, `DUB` | Primary server. Uses Re:ANIME's own OP/ED timestamps. |
+| **Kitty** | Re:ANIME (HD-2) | `SUB`, `DUB` | Backup mirror for Flow, with the same skip-time support. |
+| **Yuri** | AniEmbed Core | `SUB`, `DUB` | Soft subtitles, up to 16 external languages. |
+| **Zuri** | AniEmbed Zuna | `SUB` only | Japanese-audio backup. |
+| **Buzz** | MegaPlay Buzz | `SUB`, `DUB` | Served through the edge `.m3u8` proxy, with key handling. |
+
+**Server status.** `GET /api/status` checks every server the way the player uses it: it resolves episode 1 of Attack on Titan through `/api/play`, then fetches the playlist, the quality playlist and the first video segment through the proxies. It also checks AniList and AniSkip. Each service is reported as `ok`, `degraded` (works, but slower than 8 s) or `down`, with its latency and the step that failed. Results are cached for 5 minutes; `?refresh=1` forces a new check, at most once a minute. The *Status* section of `/aniflow-doc` and the library's `/status` page show it; the library links to that page from its footer (with a dot for the last result) and from *Perfil* on phones.
+
+**HTTPS fallback.** Some stream CDNs (MegaPlay's segment hosts, behind Yuri, Zuri and Buzz) answer on port 80 but refuse HTTPS connections. When an upstream refuses or drops the connection itself, the segment and playlist proxies retry the same URL over HTTP. They remember that host for 10 minutes, so later segments skip the failed TLS attempt. These requests are made by the server, never by the browser, and HTTP error responses are passed on unchanged. `/api/status` lists the hosts currently fetched this way.
+
+#### Dub verification
+
+Some providers return the original Japanese audio when an English dub doesn't exist for an episode, without any indication. AniFlow checks for this at both the API and player level:
+
+- Audio streams are inspected before they are returned.
+- A server that falls back to Japanese audio is left out of the dub list.
+- If an anime has no English dub at all, the Dub option is disabled and the player switches to Sub with a notification.
+
+### Player
+
+- **Interface:** blurred floating controls and a minimal layout. Controls hide during playback.
+- **Skip intro/outro:** OP and ED segments are marked on the timeline. Skipping can be automatic or triggered with a button. Flow and Kitty use native Re:ANIME timestamps; Yuri, Zuri and Buzz use AniSkip with duration compensation.
+- **Subtitles:** up to 16 languages (English, Spanish, French, German, Italian, Portuguese, Polish, Russian and more). The chosen track carries over when you change servers. Font (Sans, Anime, Serif, Mono), size, color, background opacity and outline are adjustable.
+- **Audio and video:**
+  - Volume boost up to 200% via the Web Audio API.
+  - Playback speed from 0.25x to 2.0x.
+  - Adaptive bitrate, or a fixed resolution (1080p, 720p, 480p, 360p).
+- **Mobile:** tap to toggle controls, double-tap left or right to seek ±10 s, and automatic landscape lock in fullscreen.
+
+### API Reference
+
+#### Embed URLs
 
 AniList:
 ```http
@@ -154,7 +209,7 @@ GET /embed/mal/{malId}/{episode}/{audio}?server={server}
 
 ---
 
-### Direct HLS streams
+#### Direct HLS streams
 
 Use these endpoints to stream without an iframe, in a `<video>` tag, a mobile app, VLC or mpv.
 
@@ -186,9 +241,9 @@ curl -IL "https://your-domain.com/meu8/mal/16498/1/dub"
 
 ---
 
-### REST endpoints
+#### REST endpoints
 
-#### `GET /api/play`
+##### `GET /api/play`
 
 Returns stream manifests, proxy URLs and subtitle tracks as JSON.
 
@@ -198,7 +253,7 @@ GET /api/play?anilistId=16498&episode=1&audio=sub&server=flow
 
 Add `&format=m3u8` to get the raw playlist instead of JSON.
 
-#### `POST /api/play`
+##### `POST /api/play`
 
 Creates a playback ticket and returns the stream, subtitles and skip times.
 
@@ -236,7 +291,7 @@ Response:
 }
 ```
 
-#### `GET /api/anime/skip-times`
+##### `GET /api/anime/skip-times`
 
 Returns OP/ED timestamps from AniSkip, scaled to the given episode duration.
 
@@ -244,7 +299,7 @@ Returns OP/ED timestamps from AniSkip, scaled to the given episode duration.
 GET /api/anime/skip-times?malId=16498&episode=1&duration=1440
 ```
 
-#### `GET /api/anime/flow-skip-times`
+##### `GET /api/anime/flow-skip-times`
 
 Returns Re:ANIME's native skip markers, used by Flow and Kitty.
 
@@ -252,7 +307,7 @@ Returns Re:ANIME's native skip markers, used by Flow and Kitty.
 GET /api/anime/flow-skip-times?anilistId=16498&episode=1
 ```
 
-#### Catalog
+##### Catalog
 
 Normalized AniList data for the TV library, cached on the server (rows 15 min, details 6 h, schedule 30 min, genres 1 day) so clients never hit AniList's rate limit. Errors use the same `{ success, code, error }` shape as the other endpoints.
 
@@ -269,7 +324,7 @@ Normalized AniList data for the TV library, cached on the server (rows 15 min, d
 GET /api/catalog/row?kind=genre&value=Romance&page=2
 ```
 
-#### List sync and pairing
+##### List sync and pairing
 
 Cookie-authenticated routes for the TV library; they are left out of the open API CORS and reject cross-site writes.
 
@@ -288,11 +343,9 @@ Cookie-authenticated routes for the TV library; they are left out of the open AP
 | `POST /api/pair/session`, `/api/pair/session/accept` | The phone offers its sign-in; the TV picks it up |
 | `POST /api/pair/unlink` | Either side ends the link |
 
----
+### Usage Examples
 
-## Usage Examples
-
-### HTML iframe
+#### HTML iframe
 
 ```html
 <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 16px;">
@@ -305,7 +358,7 @@ Cookie-authenticated routes for the TV library; they are left out of the open AP
 </div>
 ```
 
-### React / Next.js
+#### React / Next.js
 
 ```tsx
 import React from "react";
@@ -340,7 +393,7 @@ export function AnimePlayer({
 }
 ```
 
-### HTML5 `<video>` with HLS.js
+#### HTML5 `<video>` with HLS.js
 
 Load a raw playlist without an iframe, using [hls.js](https://github.com/video-dev/hls.js/) or the native HLS support in Safari and iOS:
 
@@ -363,7 +416,7 @@ Load a raw playlist without an iframe, using [hls.js](https://github.com/video-d
 </script>
 ```
 
-### `postMessage` integration
+#### `postMessage` integration
 
 The embedded player sends events to the parent window and accepts commands from it.
 
@@ -405,7 +458,7 @@ playerIframe.contentWindow.postMessage({ command: "getStatus" }, "*");
 ## Project Structure
 
 ```
-aniflow-api/
+pk-anime/
 ├── app/
 │   ├── (library)/                # TV library at / (home, anime, watch, search, schedule, genres, my-list, account)
 │   ├── aniflow-doc/              # Documentation page with demo player
@@ -442,7 +495,7 @@ aniflow-api/
 │   ├── anilist/                  # AniList client, queries and cached catalog
 │   ├── library/                  # Per-device stores, remote list merge and export
 │   ├── pairing/                  # In-memory phone ↔ TV links
-│   ├── trackers/                 # List service adapters (MyAnimeList)
+│   ├── trackers/                 # List service adapters (MyAnimeList, AniList)
 │   ├── tv/                       # Remote key mapping and scroll helpers
 │   ├── aniembed-extractor.ts     # Yuri and Zuri extraction
 │   ├── aniskip.ts                # AniSkip client
@@ -455,52 +508,6 @@ aniflow-api/
 ├── public/                       # Static assets and logos
 └── tailwind.config.ts            # Design tokens
 ```
-
----
-
-## Getting Started
-
-### Requirements
-
-- [Node.js](https://nodejs.org/) 18.17.0 or newer
-- `npm`, `yarn` or `pnpm`
-
-### Installation
-
-```bash
-git clone https://github.com/realmichaelstetson/AniFlow-API.git
-cd AniFlow-API
-npm install
-```
-
-Start the development server and open [http://localhost:3000](http://localhost:3000):
-
-```bash
-npm run dev
-```
-
-Build and run for production:
-
-```bash
-npm run build
-npm run start
-```
-
-### MyAnimeList sign-in (optional)
-
-Visitors can sign in with MyAnimeList through [Better Auth](https://www.better-auth.com/). Episodes they watch past 90% are then added to their MAL list. No database is needed: the session and MAL tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`.
-
-1. Create an app at [myanimelist.net/apiconfig](https://myanimelist.net/apiconfig) with App Type **web** and the redirect URL `https://your-domain/api/auth/callback/myanimelist` (`http://localhost:3000/api/auth/callback/myanimelist` for local development).
-2. Copy `.env.example` to `.env.local` and fill it in:
-
-| Variable | Description |
-| --- | --- |
-| `BETTER_AUTH_SECRET` | Random string of at least 32 characters, used to encrypt the cookies (`openssl rand -base64 32`). |
-| `BETTER_AUTH_URL` | Public origin of the site, e.g. `https://your-domain`. When hosted on a local network, use the address the TV and phones open (e.g. `http://192.168.1.50:3000`) and register that redirect URL in the MAL app. |
-| `MAL_CLIENT_ID` | Client ID of the MAL app. |
-| `MAL_CLIENT_SECRET` | Client secret of the MAL app. |
-
-The session cookie only reaches the player on your own domain. Inside embeds on other sites the browser treats it as a third-party cookie and blocks it, so syncing is skipped there.
 
 ---
 
@@ -519,20 +526,22 @@ CMD ["npm", "start"]
 ```
 
 ```bash
-docker build -t aniflow-api .
-docker run -p 3000:3000 aniflow-api
+docker build -t pk-anime .
+docker run -p 3000:3000 --env-file .env.local pk-anime
 ```
 
 ---
 
 ## Legal Notice
 
-AniFlow is an open-source stream aggregator and playback client intended for educational and integration purposes. It does not host, store or upload any video files or copyrighted media. All streams and metadata are resolved at request time from third-party sources that are publicly reachable.
+PK Anime, like the AniFlow API it builds on, is an open-source stream aggregator and playback client intended for educational and integration purposes. It does not host, store or upload any video files or copyrighted media. All streams and metadata are resolved at request time from third-party sources that are publicly reachable.
 
 Copyright claims and DMCA requests should be sent to the relevant upstream hosts.
 
 ---
 
-## License
+## Credits and License
 
-Released under the [MIT License](LICENSE).
+PK Anime is built on the [AniFlow API](https://github.com/realmichaelstetson/AniFlow-API) by AniFlow. Catalog data and images come from [AniList](https://anilist.co), and list sync uses AniList and [MyAnimeList](https://myanimelist.net); PK Anime is not affiliated with either.
+
+Released under the [MIT License](LICENSE), which keeps AniFlow's copyright notice alongside PK Anime's. The library shows the license and these credits at `/license`, linked from every page's footer.

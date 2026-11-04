@@ -19,7 +19,7 @@ export type RowSource =
   /** Advanced search; every value was validated by parseFilters */
   | { type: "filter"; filters: CatalogFilters };
 
-const CARD_FRAGMENT = `
+export const CARD_FRAGMENT = `
 fragment card on Media {
   id idMal type isAdult
   title { english romaji }

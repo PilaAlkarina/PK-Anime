@@ -10,7 +10,7 @@ import { FocusButton, FocusGroup } from "@/components/tv/focusable";
 import { COPYRIGHTS, DISCLAIMER, LICENSE_NAME, THIRD_PARTY } from "@/lib/credits";
 
 const copyrightLine = COPYRIGHTS.map(({ year, holder }) => `© ${year} ${holder}`).join(" · ");
-// "Catálogo e imágenes de AniList, listas de MyAnimeList"
+// "Catálogo, imágenes y listas de AniList, listas de MyAnimeList"
 const creditLine = THIRD_PARTY.map((t) => `${t.credit} ${t.name}`).join(", ");
 
 /**

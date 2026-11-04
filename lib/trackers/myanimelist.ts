@@ -89,7 +89,7 @@ export const myAnimeList: Tracker = {
       for (const item of data.data) entries.push(toEntry(item.node.id, item.list_status));
       url = data.paging?.next;
     }
-    return entries;
+    return { entries };
   },
 
   async getEntry(token, ids) {

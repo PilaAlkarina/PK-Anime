@@ -301,7 +301,8 @@ export function EmbedPlayer({
   const [nextCountdown, setNextCountdown] = useState<number | null>(null);
   const nextUpDismissedRef = useRef(false);
   const [autoplayNext, setAutoplayNext] = useState(true);
-  const [malMarked, setMalMarked] = useState(false);
+  // The list service the episode was marked on (MyAnimeList, AniList), once it is
+  const [markedOn, setMarkedOn] = useState<string | null>(null);
 
   // Player height scales the subtitles; wide mouse screens frame the credits on "up next"
   const [playerHeight, setPlayerHeight] = useState(0);
@@ -369,7 +370,7 @@ export function EmbedPlayer({
   useEffect(() => {
     malSyncedRef.current = false;
     nextUpDismissedRef.current = false;
-    setMalMarked(false);
+    setMarkedOn(null);
     setNextUp(false);
     setNextCountdown(null);
     setEnded(false);
@@ -421,7 +422,7 @@ export function EmbedPlayer({
     }, 3000);
   }, []);
 
-  // Mark the episode as watched on the viewer's MyAnimeList list, once per episode. Without a
+  // Mark the episode as watched on the viewer's list (MyAnimeList or AniList), once per episode. Without a
   // session (or in a third-party embed, where the session cookie is blocked) the route answers 401.
   const syncMalProgress = useCallback(() => {
     if (malSyncedRef.current) return;
@@ -434,8 +435,9 @@ export function EmbedPlayer({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.updated) {
-          setMalMarked(true);
-          showToast("success", `Episodio ${episodeNumber} marcado como visto en MyAnimeList`);
+          const service = data.provider?.name || "tu lista";
+          setMarkedOn(service);
+          showToast("success", `Episodio ${episodeNumber} marcado como visto en ${service}`);
         }
       })
       .catch(() => {});
@@ -2565,7 +2567,7 @@ export function EmbedPlayer({
           countdown={nextCountdown}
           countdownFrom={ended ? 5 : NEXT_COUNTDOWN}
           progress={duration > 0 ? currentTime / duration : 0}
-          malMarked={malMarked}
+          markedOn={markedOn}
           onPlayNow={playNext}
           onCancel={dismissNextUp}
           onWatchCredits={dismissNextUp}

@@ -5,7 +5,7 @@ import { useAccount } from "./account";
 import { episodeProgress, type ContinueItem } from "./history";
 
 /**
- * The signed-in user's remote list (MyAnimeList today), fetched from /api/tracker/library and
+ * The signed-in user's remote list (MyAnimeList or AniList), fetched from /api/tracker/library and
  * shared by every screen. Kept in memory only: it's refetched when a screen opens and the
  * copy is more than a minute old.
  */
@@ -29,7 +29,7 @@ export const REMOTE_STATUS_LABELS: Record<ListStatus, string> = {
   dropped: "Abandonado",
 };
 
-const SHORT_NAMES: Record<TrackerId, string> = { myanimelist: "MAL" };
+const SHORT_NAMES: Record<TrackerId, string> = { myanimelist: "MAL", anilist: "AniList" };
 export const providerShortName = (id: TrackerId) => SHORT_NAMES[id] ?? id;
 
 const listeners = new Set<() => void>();

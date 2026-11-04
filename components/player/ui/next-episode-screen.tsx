@@ -19,7 +19,8 @@ interface NextEpisodeScreenProps {
   countdownFrom: number;
   /** 0–1, drawn under the framed credits */
   progress: number;
-  malMarked: boolean;
+  /** The list service the episode was just marked watched on, if any */
+  markedOn: string | null;
   onPlayNow: () => void;
   onCancel: () => void;
   onWatchCredits: () => void;
@@ -74,10 +75,10 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
       : "h-12 sm:h-[52px] px-5 text-base bg-white/[0.14] hover:bg-white/25"
   );
 
-  const malLine = props.malMarked && (
+  const malLine = props.markedOn && (
     <span className={cn("flex items-center gap-2 text-zinc-400", tv ? "text-[1.375rem] gap-3.5" : "text-sm")}>
       <Check className={cn("text-emerald-400", tv ? "w-7 h-7" : "w-4 h-4")} strokeWidth={2.6} />
-      Episodio {props.episode} marcado como visto en MyAnimeList
+      Episodio {props.episode} marcado como visto en {props.markedOn}
     </span>
   );
 
@@ -168,7 +169,7 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
 
       {tv && (
         <>
-          {props.malMarked && <div className="absolute left-[7.5rem] bottom-[7.5rem]">{malLine}</div>}
+          {props.markedOn && <div className="absolute left-[7.5rem] bottom-[7.5rem]">{malLine}</div>}
           <RemoteHints
             className="absolute right-[7.5rem] bottom-14"
             hints={[

@@ -68,8 +68,8 @@ function AccountSection() {
   if (account.providers.length === 0) {
     return (
       <p className="text-lg text-zinc-400 tv:text-2xl">
-        Este servidor no tiene ningún servicio configurado. Añade las credenciales de MyAnimeList en el archivo de
-        entorno para activarlo.
+        Este servidor no tiene ningún servicio configurado. Añade las credenciales de MyAnimeList o de AniList en el
+        archivo de entorno para activarlo.
       </p>
     );
   }

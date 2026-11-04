@@ -157,7 +157,7 @@ export function MyListScreen() {
   const subtitle = remote
     ? `Unida con tu lista de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo.`
     : account && !account.signedIn && account.providers.length > 0
-      ? `Inicia sesión en Cuenta para unirla con tu lista de ${account.providers[0].name}.`
+      ? `Inicia sesión en Cuenta para unirla con tu lista de ${account.providers.map((p) => p.name).join(" o ")}.`
       : undefined;
 
   return (
