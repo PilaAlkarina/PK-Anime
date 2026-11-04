@@ -1,6 +1,7 @@
 "use client";
 
 import { Hanko } from "@/components/brand";
+import { useOriginsFromClicks } from "@/lib/shared-element";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -208,6 +209,8 @@ export function WebShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // The player takes the whole screen
   const fullScreen = pathname.startsWith("/watch/");
+  // Cards record where they were, for the shared-element transitions of the next screen
+  useOriginsFromClicks();
 
   return (
     <WebNavigationProvider>

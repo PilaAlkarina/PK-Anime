@@ -1,7 +1,8 @@
 "use client";
 
+import { useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, MetaWithScore, ScoreStar } from "@/components/brand";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
@@ -73,6 +74,7 @@ function EpisodeItem({
       className="group flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2 scroll-mt-24 outline-none"
     >
       <div
+        data-cover
         className={cn(
           "relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200",
           "group-hover:koma-sm sm:group-hover:koma-md group-focus-visible:koma-sm sm:group-focus-visible:koma-md",
@@ -113,6 +115,9 @@ function EpisodeItem({
 /** Anime page for computers and phones */
 export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const { goBack } = useLibraryNavigation();
+  // The chosen card's cover flies into the poster
+  const posterRef = useRef<HTMLImageElement>(null);
+  useFlyIn(anime.id, posterRef);
   const audio = useAudioPreference();
   const prefs = usePlaybackPreferences();
   const myList = useMyList();
@@ -229,6 +234,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
         <section className="flex flex-wrap items-start gap-8">
           {anime.cover && (
             <img
+              ref={posterRef}
               src={anime.cover}
               alt=""
               decoding="async"

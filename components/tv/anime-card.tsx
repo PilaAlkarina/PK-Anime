@@ -1,5 +1,6 @@
 "use client";
 
+import { markOrigin } from "@/lib/shared-element";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { useTvFocusable } from "./focusable";
@@ -64,7 +65,11 @@ function TvAnimeCard({
 }: AnimeCardProps) {
   const { ref, focused, pointerProps } = useTvFocusable({
     focusKey,
-    onSelect,
+    onSelect: () => {
+      // Where the cover was, for the next screen's shared-element transition
+      markOrigin(item.id, (ref.current as HTMLElement | null)?.querySelector("[data-cover]"));
+      onSelect();
+    },
     onFocus: (layout, _props, details) => onFocused?.(layout.node, details),
   });
 
@@ -78,6 +83,7 @@ function TvAnimeCard({
         className={cn("relative flex-shrink-0 w-[22rem] cursor-pointer outline-none", className)}
       >
         <div
+          data-cover
           className={cn(
             "relative w-full h-[12.4rem] rounded-xl overflow-hidden cover-fill transition-transform duration-150",
             focused && "koma"
@@ -114,6 +120,7 @@ function TvAnimeCard({
     >
       <ScoreFrame score={score} focused={focused} />
       <div
+        data-cover
         className={cn(
           "relative w-full h-full rounded-xl overflow-hidden cover-fill transition-transform duration-150",
           // A scored 9 or 10 lifts with its frame instead of getting the paper ring

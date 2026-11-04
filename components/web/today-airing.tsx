@@ -85,7 +85,7 @@ export function TodayAiring({ className }: { className?: string }) {
                 >
                   {formatTime(entry.airingAt)}
                 </span>
-                <span className="relative w-10 h-14 shrink-0 rounded-md overflow-hidden bg-ink-3">
+                <span data-cover className="relative w-10 h-14 shrink-0 rounded-md overflow-hidden bg-ink-3">
                   {entry.anime.cover && (
                     <img src={entry.anime.cover} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
                   )}

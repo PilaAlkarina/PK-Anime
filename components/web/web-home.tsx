@@ -288,6 +288,7 @@ function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?:
     <div className="group relative flex-shrink-0 w-[15rem] md:w-[19rem] snap-start">
       <Link href={`/watch/${anime.id}/${episode}`} className="group/play flex flex-col gap-2 outline-none">
         <div
+          data-cover
           className={cn(
             "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill transition duration-200 ease-out",
             "group-hover:koma-sm md:group-hover:koma-md group-focus-visible/play:koma-sm md:group-focus-visible/play:koma-md",

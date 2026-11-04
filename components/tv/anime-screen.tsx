@@ -1,5 +1,6 @@
 "use client";
 
+import { markOrigin, useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, Keycap, MetaWithScore } from "@/components/brand";
 import { GenrePills } from "./hero";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -52,9 +53,11 @@ function EpisodeTile({
   progress,
   duration,
   current,
+  animeId,
   onSelect,
   onFocused,
 }: {
+  animeId: number;
   number: number;
   title?: string;
   thumbnail?: string | null;
@@ -66,7 +69,11 @@ function EpisodeTile({
   onFocused: (node: HTMLElement, details: FocusDetails) => void;
 }) {
   const { ref, focused, pointerProps } = useTvFocusable({
-    onSelect,
+    onSelect: () => {
+      // The player opens out of this thumbnail
+      markOrigin(animeId, (ref.current as HTMLElement | null)?.querySelector("[data-cover]"));
+      onSelect();
+    },
     onFocus: (layout, _props, details) => onFocused(layout.node, details),
   });
 
@@ -82,6 +89,7 @@ function EpisodeTile({
   return (
     <div ref={ref} {...pointerProps} className="outline-none cursor-pointer">
       <div
+        data-cover
         className={cn(
           "relative pt-[56.25%] rounded-xl overflow-hidden cover-fill border-[1.5px] border-line transition-transform duration-150",
           focused && "koma"
@@ -116,6 +124,9 @@ function EpisodeTile({
 
 export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   const router = useRouter();
+  // The chosen card's cover flies into the cover shown when there is no banner
+  const coverRef = useRef<HTMLImageElement>(null);
+  useFlyIn(anime.id, coverRef);
   const audio = useAudioPreference();
   const prefs = usePlaybackPreferences();
   const myList = useMyList();
@@ -222,6 +233,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
             ) : (
               anime.cover && (
                 <img
+                  ref={coverRef}
                   src={anime.cover}
                   alt=""
                   decoding="async"
@@ -390,6 +402,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
               {episodes.map((number) => (
                 <EpisodeTile
                   key={number}
+                  animeId={anime.id}
                   number={number}
                   title={titles.get(number)?.title}
                   thumbnail={titles.get(number)?.thumbnail}

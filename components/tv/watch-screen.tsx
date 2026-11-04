@@ -1,5 +1,6 @@
 "use client";
 
+import { hasOrigin, useExpandIn } from "@/lib/shared-element";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
@@ -68,6 +69,11 @@ export function WatchScreen({
     savedLocallyRef.current = false;
   }, [anime.id, episode]);
 
+  // Opened from an episode or card: the player grows out of it instead of fading in
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [expanding] = useState(() => hasOrigin(anime.id));
+  useExpandIn(anime.id, rootRef);
+
   // Leaving fades the player to black first, then navigates
   const [leaving, setLeaving] = useState(false);
   const leave = (go: () => void) => {
@@ -88,8 +94,10 @@ export function WatchScreen({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
-        "fixed top-0 left-0 z-50 w-screen h-screen bg-black screen-in transition-opacity ease-in",
+        "fixed top-0 left-0 z-50 w-screen h-screen bg-black transition-opacity ease-in",
+        !expanding && "screen-in",
         leaving && "opacity-0"
       )}
       style={{ transitionDuration: `${EXIT_FADE_MS}ms` }}
