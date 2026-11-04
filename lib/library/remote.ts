@@ -126,20 +126,39 @@ export function remoteNextEpisode(entry: TrackerEntry | null, anime: Pick<Catalo
   return available && next > available ? null : next;
 }
 
+const isActive = (entry: TrackerEntry) => entry.status === "watching" || entry.rewatching;
+
 /**
  * "Seguir viendo" from every source: the watch history, plus what this device's list and the
  * remote list are watching (an imported entry has no history yet). When several have the same
  * anime, the furthest episode wins.
+ *
+ * Only anime being watched or rewatched: one on a list with another status (paused, planning,
+ * completed, dropped) stays out even with history. The remote entry decides when there are both;
+ * history of an anime on no list counts as watching.
  */
 export function mergeContinueWatching(
   history: ContinueItem[],
   remote: RemoteLibrary | null,
   local: LocalEntry[] = []
 ): ContinueItem[] {
-  const byId = new Map(history.map((item) => [item.anime.id, { ...item }]));
+  const localById = new Map(local.map((entry) => [entry.anime.id, entry]));
+  const listEntry = (anime: Pick<CatalogItem, "id" | "malId">) => findRemoteEntry(remote, anime) ?? localById.get(anime.id) ?? null;
+
+  const byId = new Map(
+    history
+      .filter((item) => {
+        const entry = listEntry(item.anime);
+        return !entry || isActive(entry);
+      })
+      .map((item) => [item.anime.id, { ...item }])
+  );
   const consider = (anime: CatalogItem | undefined, entry: TrackerEntry) => {
-    const next = anime ? remoteNextEpisode(entry, anime) : null;
-    if (!anime || !next) return;
+    // Both this entry and the one that decides (a local entry the remote list has paused doesn't count)
+    const decider = anime ? listEntry(anime) : null;
+    if (!anime || !isActive(entry) || !decider || !isActive(decider)) return;
+    const next = remoteNextEpisode(entry, anime);
+    if (!next) return;
     const existing = byId.get(anime.id);
     if (existing && existing.episode >= next) {
       existing.updatedAt = Math.max(existing.updatedAt, entry.updatedAt ?? 0);
