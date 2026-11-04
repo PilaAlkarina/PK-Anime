@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bookmark, BookmarkCheck, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Play } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
+import { episodeInfo } from "@/lib/anilist/episodes";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, episodesLabel, metaLine, statusLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
@@ -35,15 +36,6 @@ const RELATION_LABELS: Record<string, string> = {
   COMPILATION: "Recopilación",
   CONTAINS: "Incluye",
 };
-
-function episodeInfo(anime: AnimeDetail) {
-  const info = new Map<number, { title: string; thumbnail: string | null }>();
-  for (const ep of anime.streamingEpisodes) {
-    const match = ep.title.match(/^Episode\s+(\d+)\s*[-–:]?\s*(.*)$/i);
-    if (match) info.set(Number(match[1]), { title: match[2].trim(), thumbnail: ep.thumbnail });
-  }
-  return info;
-}
 
 function EpisodeItem({
   number,

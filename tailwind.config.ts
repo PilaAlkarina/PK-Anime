@@ -75,6 +75,12 @@ module.exports = {
     ({ addVariant }: { addVariant: (name: string, selector: string) => void }) => {
       addVariant("tv", '[data-ui="tv"] &');
       addVariant("web", '[data-ui="web"] &');
+      // Player: phones and tablets swap hover controls for big touch targets. These sort before
+      // sm/md/lg, so they're paired as `mouse:sm:…` rather than set against a breakpoint class
+      addVariant("touch", "@media (pointer: coarse)");
+      addVariant("mouse", "@media (pointer: fine)");
+      // Landscape phones: the pause screen drops to its compact size below this height
+      addVariant("tall", "@media (min-height: 521px)");
     },
   ],
 };

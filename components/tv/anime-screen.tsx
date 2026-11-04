@@ -13,6 +13,7 @@ import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
+import { episodeInfo } from "@/lib/anilist/episodes";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, metaLine, statusLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory } from "@/lib/library/history";
@@ -41,16 +42,6 @@ const RELATION_LABELS: Record<string, string> = {
   COMPILATION: "Recopilación",
   CONTAINS: "Incluye",
 };
-
-/** Episode titles and thumbnails, from AniList's streaming links ("Episode 3 - Title") */
-function episodeInfo(anime: AnimeDetail) {
-  const info = new Map<number, { title: string; thumbnail: string | null }>();
-  for (const ep of anime.streamingEpisodes) {
-    const match = ep.title.match(/^Episode\s+(\d+)\s*[-–:]?\s*(.*)$/i);
-    if (match) info.set(Number(match[1]), { title: match[2].trim(), thumbnail: ep.thumbnail });
-  }
-  return info;
-}
 
 function EpisodeTile({
   number,

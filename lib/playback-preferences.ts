@@ -22,6 +22,8 @@ export interface PlaybackPreferences {
   switchServerForSubtitles: boolean;
   preferredServer: ServerPreference;
   subtitleStyles: SubtitleStyles;
+  /** Start the next episode after a short countdown when the ending begins */
+  autoplayNext: boolean;
 }
 
 export const SERVER_ORDER: Exclude<ServerPreference, "auto">[] = ["flow", "kitty", "buzz", "yuri", "zuri"];
@@ -40,6 +42,7 @@ export function defaultPlaybackPreferences(): PlaybackPreferences {
     switchServerForSubtitles: true,
     preferredServer: "auto",
     subtitleStyles: DEFAULT_SUBTITLE_STYLES,
+    autoplayNext: true,
   };
 }
 
