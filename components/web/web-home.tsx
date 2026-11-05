@@ -10,6 +10,7 @@ import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
 import type { ContinueItem } from "@/lib/library/history";
 import { hideFromContinueWatching, newEpisodesBadge, useContinueRows } from "@/lib/library/continue";
+import { becauseTitle, useBecauseYouWatched } from "@/lib/library/recommendations";
 import { findLocalEntry, removeLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote, removeFromRemote } from "@/lib/library/sync";
@@ -385,6 +386,7 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
   // Caught-up shows with a new episode out get their own row, under "Seguir viendo"
   const { newEpisodes, resume } = useContinueRows();
   const resumable = useMemo(() => [...resume, ...newEpisodes], [newEpisodes, resume]);
+  const because = useBecauseYouWatched();
 
   return (
     <div className="max-w-[1360px] mx-auto pb-10">
@@ -432,6 +434,16 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
               <CatalogRowSection row={row} />
               {/* Right after the first row (Tendencias), as in the design; computers and tablets */}
               {index === 0 && <TodayAiring className="hidden md:block" />}
+              {index === 0 &&
+                because.map(({ seed, items }) => (
+                  <HorizontalRow key={seed.id} title={becauseTitle(seed)} itemCount={items.length}>
+                    {items.map((item) => (
+                      <div key={item.id} className="flex-shrink-0 w-[7.5rem] md:w-[10.5rem] snap-start">
+                        <PosterCard item={item} />
+                      </div>
+                    ))}
+                  </HorizontalRow>
+                ))}
             </Fragment>
           ))}
         </div>

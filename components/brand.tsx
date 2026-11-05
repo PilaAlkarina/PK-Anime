@@ -28,6 +28,7 @@ export function Hanko({ className, decorative = false }: { className?: string; d
 const SECTIONS: [RegExp, string][] = [
   [/^seguir viendo/i, "続きから"],
   [/^nuevos episodios/i, "新着"],
+  [/^porque viste/i, "おすすめ"],
   [/^tendencias/i, "人気"],
   [/^temporada de/i, "今期"],
   [/^próxima temporada/i, "来期"],

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import type { ContinueItem } from "@/lib/library/history";
 import { hideFromContinueWatching, newEpisodesBadge, useContinueRows, type NewEpisodesItem } from "@/lib/library/continue";
 import { X } from "lucide-react";
+import { becauseTitle, useBecauseYouWatched } from "@/lib/library/recommendations";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
@@ -88,6 +89,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   useEffect(() => {
     if (mounted && firstNewId && !hasResume && !touchedRef.current) setFocus(`new-episodes:${firstNewId}`);
   }, [mounted, firstNewId, hasResume]);
+  const because = useBecauseYouWatched();
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
@@ -177,8 +179,22 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
             onRowFocus={scrollToRow}
           />
         )}
-        {rows.map((row) => (
-          <PagedRow key={row.id} row={row} onCardFocus={showInHero} onRowFocus={scrollToRow} />
+        {rows.map((row, index) => (
+          <Fragment key={row.id}>
+            <PagedRow row={row} onCardFocus={showInHero} onRowFocus={scrollToRow} />
+            {/* Recommendations for what was watched lately, after the first catalog row */}
+            {index === 0 &&
+              because.map(({ seed, items }) => (
+                <CardRow
+                  key={`because:${seed.id}`}
+                  rowKey={`because:${seed.id}`}
+                  title={becauseTitle(seed)}
+                  cards={items.map((item) => ({ item, onSelect: () => router.push(`/anime/${item.id}`) }))}
+                  onCardFocus={showInHero}
+                  onRowFocus={scrollToRow}
+                />
+              ))}
+          </Fragment>
         ))}
         <div className="px-12">
           <LibraryFooter onFocus={scrollToRow} />
