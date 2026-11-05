@@ -220,7 +220,8 @@ export function mergeMyList(local: LocalEntry[], remote: RemoteLibrary | null): 
   const items: (MyListItem & { updatedAt: number })[] = local.map((entry) => {
     const remoteEntry = findRemoteEntry(remote, entry.anime);
     return {
-      item: entry.anime,
+      // The service's card is current; the one saved here is from when it was added
+      item: remote?.anime.get(entry.anime.id) ?? entry.anime,
       origin: remote ? (remoteEntry ? "both" : "local") : "local",
       entry: remoteEntry ?? entry,
       updatedAt: Math.max(entry.updatedAt ?? 0, remoteEntry?.updatedAt ?? 0),

@@ -9,6 +9,7 @@ import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilis
 import { formatTime, startOfDay } from "@/lib/library/format";
 import { useAccount } from "@/lib/library/account";
 import { useMyList } from "@/lib/library/my-list";
+import { freshen, useFreshCards } from "@/lib/library/fresh-cards";
 import {
   listFormats,
   matchesFormat,
@@ -131,7 +132,13 @@ export function MyListScreen() {
   const remote = useRemoteLibrary();
   const view = useListView();
   const [shown, setShown] = useState(LIST_PAGE);
-  const items = useMemo(() => mergeMyList(list, remote), [list, remote]);
+  const merged = useMemo(() => mergeMyList(list, remote), [list, remote]);
+  // Only on this device: the card saved back then, which may say "upcoming" for a show out by now
+  const fresh = useFreshCards(merged.filter((i) => i.origin === "local").map((i) => i.item.id));
+  const items = useMemo(
+    () => merged.map((i) => (i.origin === "local" ? { ...i, item: freshen(fresh, i.item) } : i)),
+    [merged, fresh]
+  );
 
   // This device's list has statuses too; "only on this device" means something only next to a service
   const statuses = STATUS_FILTERS.filter((value) => remote || value !== "local")
