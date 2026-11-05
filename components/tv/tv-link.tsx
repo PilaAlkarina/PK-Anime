@@ -9,6 +9,7 @@ import { REMOTE_TEXT_EVENT, setPendingRemoteText } from "@/lib/tv/remote-text";
 import { useIsTv } from "@/components/ui-mode";
 import type { UiMode } from "@/lib/ui-mode";
 import { ProfileOfferDialog, type ProfileOffer } from "@/components/profile-offer";
+import { PARTY_COMMAND_EVENT } from "@/components/party/party-provider";
 import type { ProfileTransfer } from "@/lib/library/profile-transfer";
 
 const STORAGE_KEY = "pk_tv_link";
@@ -166,6 +167,9 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
       if (command.kind === "key") pressKey(command.key);
       else if (command.kind === "navigate") router.push(command.href);
       else if (command.kind === "signout") authClient.signOut().finally(() => refreshAccount());
+      else if (command.kind === "party") {
+        window.dispatchEvent(new CustomEvent(PARTY_COMMAND_EVENT, { detail: { action: command.action, code: command.code } }));
+      }
       else if (command.kind === "text") {
         if (pathnameRef.current === "/search") {
           window.dispatchEvent(new CustomEvent(REMOTE_TEXT_EVENT, { detail: command.text }));

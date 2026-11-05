@@ -22,8 +22,7 @@ import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } 
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { useAnimeThemes } from "@/lib/library/themes";
-import { deviceName, startParty, watchHref } from "@/lib/watch-party/client";
-import { useAccount } from "@/lib/library/account";
+import { useParty } from "@/components/party/party-provider";
 import { ThemePlayer } from "@/components/theme-player";
 import { ThemesRow } from "./themes-row";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
@@ -238,18 +237,15 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   };
 
   const play = (episode: number) => router.push(`/watch/${anime.id}/${episode}?audio=${audio}`);
-  // "Ver juntos": opens a room on this episode; others join with its code at /party
-  const account = useAccount();
+  // "Ver juntos": creates a room with this device as host and opens the episode, which picks it
+  // for the room; others join from their "Ver juntos" button or /party
+  const partyApi = useParty();
   const [startingParty, setStartingParty] = useState(false);
   const watchTogether = async (episode: number) => {
     if (startingParty) return;
     setStartingParty(true);
-    try {
-      const code = await startParty(anime.id, episode, audio, deviceName(account?.user?.name, true));
-      router.push(watchHref({ animeId: anime.id, episode, audio }, code));
-    } catch {
-      setStartingParty(false);
-    }
+    if (await partyApi.create()) return setStartingParty(false);
+    router.push(`/watch/${anime.id}/${episode}?audio=${audio}`);
   };
 
   const rangeCount = Math.ceil(listed / EPISODES_PER_RANGE);
@@ -371,7 +367,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                   {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
                 </FocusButton>
               )}
-              {total > 0 && (
+              {total > 0 && !partyApi.party && (
                 <FocusButton variant="secondary" className="mr-4" onSelect={() => watchTogether(playEpisode)}>
                   <Users className="w-6 h-6 mr-3" />
                   {startingParty ? "Creando sala…" : "Ver juntos"}

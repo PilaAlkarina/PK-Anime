@@ -15,39 +15,10 @@ import { useLibraryNavigation } from "./navigation-provider";
 import { FinishScreen } from "./finish-screen";
 import { FocusButton } from "./focusable";
 import { useIsTv } from "@/components/ui-mode";
-import { useAccount } from "@/lib/library/account";
-import { deviceName, usePartySync, type PartyStatus } from "@/lib/watch-party/client";
 import { cn } from "@/lib/utils";
 
 /** Fade to black before leaving the player */
 const EXIT_FADE_MS = 220;
-const PARTY_INFO_MS = 6000;
-
-/**
- * "Ver juntos" over the player: the room code and who's in it for a few seconds after joining,
- * then only what the others do ("Ana ha pausado")
- */
-function PartyBadge({ code, status }: { code: string; status: PartyStatus }) {
-  const [intro, setIntro] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => setIntro(false), PARTY_INFO_MS);
-    return () => clearTimeout(timer);
-  }, []);
-  const others = status.names.length;
-  const text = status.gone
-    ? "La sala de «Ver juntos» ya no existe"
-    : status.notice ?? (intro ? `Viendo juntos · código ${code} · ${others} ${others === 1 ? "conectado" : "conectados"}` : null);
-  if (!text) return null;
-  return (
-    <div className="fixed top-4 left-1/2 z-[60] -translate-x-1/2 px-4 py-2 rounded-full bg-black/80 border border-white/15 text-sm font-bold text-white pointer-events-none tv-fade-in tv:top-[4vh] tv:px-6 tv:py-3 tv:text-xl">
-      {text}
-      {intro && !status.gone && !status.notice && status.names.length > 0 && (
-        <span className="ml-2 font-normal text-zinc-300">({status.names.join(", ")})</span>
-      )}
-    </div>
-  );
-}
-
 /**
  * Full-screen player. Spatial navigation is paused here: the player moves focus itself, the
  * arrows seek, and Back closes its panels before returning to the anime.
@@ -56,14 +27,11 @@ export function WatchScreen({
   anime,
   episode,
   audio: audioParam,
-  party,
   airingAt: airingAtProp,
 }: {
   anime: AnimeDetail;
   episode: number;
   audio?: AudioPreference;
-  /** "Ver juntos" room code: playback follows the room's */
-  party?: string | null;
   /** When this episode aired or airs, looked up by the page for a recent one */
   airingAt?: number | null;
 }) {
@@ -150,17 +118,6 @@ export function WatchScreen({
     setTimeout(go, EXIT_FADE_MS);
   };
 
-  // "Ver juntos": this player follows the room, and the room follows it
-  const account = useAccount();
-  const partyStatus = usePartySync({
-    code: party ?? null,
-    animeId: anime.id,
-    episode,
-    audio: audioRef.current,
-    name: deviceName(account?.user?.name, isTv),
-    follow: (href) => replace(href),
-  });
-  const partyQuery = party ? `&party=${party}` : "";
 
   const onPlayerEvent = (name: string, data: any) => {
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
@@ -186,7 +143,6 @@ export function WatchScreen({
       )}
       style={{ transitionDuration: `${EXIT_FADE_MS}ms` }}
     >
-      {partyStatus && party && <PartyBadge code={party} status={partyStatus} />}
       {finish && (
         <FinishScreen
           anime={anime}
@@ -235,7 +191,7 @@ export function WatchScreen({
           // Replace, so Back from the next episode still returns to the anime page
           onNextEpisode={
             hasNext
-              ? () => leave(() => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}${partyQuery}`))
+              ? () => leave(() => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}`))
               : undefined
           }
         />

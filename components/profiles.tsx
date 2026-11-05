@@ -23,6 +23,7 @@ import {
 import { FocusButton, FocusGroup, Screen, useTvFocusable } from "@/components/tv/focusable";
 import { useIsTv } from "@/components/ui-mode";
 import { cn } from "@/lib/utils";
+import { PartyProvider } from "@/components/party/party-provider";
 
 const NAME_MAX = 16;
 const KEYS = "abcdefghijklmnñopqrstuvwxyz1234567890".split("");
@@ -283,5 +284,6 @@ export function ProfileGate({ children }: { children: React.ReactNode }) {
     if (getProfiles().profiles.length > 1 && !profilePicked()) setAsking(true);
   }, []);
   if (asking) return <ProfilePicker onPicked={() => setAsking(false)} />;
-  return <>{children}</>;
+  // "Ver juntos" rooms are per device, and follow the viewer around the whole library
+  return <PartyProvider>{children}</PartyProvider>;
 }

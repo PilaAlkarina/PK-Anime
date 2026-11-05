@@ -33,7 +33,9 @@ export type RemoteCommand =
   | { kind: "key"; key: RemoteKey }
   | { kind: "text"; text: string }
   | { kind: "navigate"; href: string }
-  | { kind: "signout" };
+  | { kind: "signout" }
+  /** "Ver juntos" on the TV: create a room, join one by code, or leave */
+  | { kind: "party"; action: "create" | "join" | "leave"; code?: string };
 
 export type LinkEvent =
   | { type: "linked" }

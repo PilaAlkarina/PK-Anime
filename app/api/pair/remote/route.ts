@@ -23,6 +23,10 @@ function parseCommand(input: unknown): RemoteCommand | null {
     return { kind: "navigate", href: cmd.href as string };
   }
   if (cmd.kind === "signout") return { kind: "signout" };
+  if (cmd.kind === "party" && (cmd.action === "create" || cmd.action === "leave")) return { kind: "party", action: cmd.action };
+  if (cmd.kind === "party" && cmd.action === "join" && typeof cmd.code === "string") {
+    return { kind: "party", action: "join", code: cmd.code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) };
+  }
   return null;
 }
 

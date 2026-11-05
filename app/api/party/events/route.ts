@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { findParty, listen, memberNames } from "@/lib/watch-party/store";
+import { findParty, listen, publicIdOf } from "@/lib/watch-party/store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const PING_MS = 25_000;
 
-/** GET /api/party/events?code=&member=: Server-Sent Events with the room's changes and who's in it */
+/** GET /api/party/events?code=&member=: Server-Sent Events with the whole room on every change */
 export async function GET(request: NextRequest) {
   const party = findParty(request.nextUrl.searchParams.get("code"));
   const memberId = request.nextUrl.searchParams.get("member") || "";
@@ -23,9 +23,12 @@ export async function GET(request: NextRequest) {
           cleanup();
         }
       };
-      write(`data: ${JSON.stringify({ type: "state", state: party.state, serverNow: Date.now() })}\n\n`);
-      const stop = listen(party, memberId, (event) => write(`data: ${JSON.stringify(event)}\n\n`));
-      write(`data: ${JSON.stringify({ type: "members", names: memberNames(party) })}\n\n`);
+      write(`data: ${JSON.stringify({ type: "hello", you: publicIdOf(party, memberId) })}\n\n`);
+      // listen() sends everyone (this connection included) the room with this member connected
+      const stop = listen(party, memberId, (event) => {
+        write(`data: ${JSON.stringify(event)}\n\n`);
+        if (event.type === "closed") setTimeout(() => cleanup());
+      });
       const ping = setInterval(() => write(": ping\n\n"), PING_MS);
       cleanup = () => {
         clearInterval(ping);

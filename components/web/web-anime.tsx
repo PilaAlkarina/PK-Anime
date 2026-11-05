@@ -14,8 +14,7 @@ import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } 
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { themeArtists, themeLabel, useAnimeThemes } from "@/lib/library/themes";
-import { deviceName, startParty, watchHref as partyWatchHref } from "@/lib/watch-party/client";
-import { useAccount } from "@/lib/library/account";
+import { useParty } from "@/components/party/party-provider";
 import { useRouter } from "next/navigation";
 import { ThemePlayer } from "@/components/theme-player";
 import { THEMES_TITLE } from "@/components/tv/themes-row";
@@ -245,19 +244,16 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const editor = useEntryEditor(anime, listTarget);
   const markUpTo = (progress: number) => editor.update(progressChanges(anime, listEntry, progress));
 
-  // "Ver juntos": opens a room on this episode; others join with its code at /party
-  const account = useAccount();
+  // "Ver juntos": creates a room with this device as host and opens the episode, which picks it
+  // for the room; others join from their "Ver juntos" button or /party
+  const partyApi = useParty();
   const router = useRouter();
   const [startingParty, setStartingParty] = useState(false);
   const watchTogether = async (episode: number) => {
     if (startingParty) return;
     setStartingParty(true);
-    try {
-      const code = await startParty(anime.id, episode, audio, deviceName(account?.user?.name, false));
-      router.push(partyWatchHref({ animeId: anime.id, episode, audio }, code));
-    } catch {
-      setStartingParty(false);
-    }
+    if (await partyApi.create()) return setStartingParty(false);
+    router.push(`/watch/${anime.id}/${episode}?audio=${audio}`);
   };
 
   const watchHref = (episode: number) => `/watch/${anime.id}/${episode}?audio=${audio}`;
@@ -410,7 +406,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                   </div>
                 </>
               )}
-              {total > 0 && (
+              {total > 0 && !partyApi.party && (
                 <button
                   type="button"
                   onClick={() => watchTogether(playEpisode)}

@@ -16,6 +16,7 @@ import {
   Search,
   Unlink,
   Upload,
+  Users,
 } from "lucide-react";
 import type { RemoteCommand } from "@/lib/pairing/store";
 import type { CatalogItem } from "@/lib/anilist/types";
@@ -193,6 +194,7 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
     send({ kind: "navigate", href: `/anime/${item.id}` });
   };
 
+  const [partyCode, setPartyCode] = useState("");
   const [sending, setSending] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const sendProfile = async () => {
@@ -349,6 +351,54 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
           ))}
         </ul>
       )}
+
+      <section className="mt-10 pt-6 border-t border-white/10">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Ver juntos en la TV</h2>
+        <p className="mt-3 text-zinc-400">
+          Crea una sala en la TV (la TV elige qué ver y muestra el código para los demás), o mete la TV en la sala de
+          otro con su código.
+        </p>
+        <div className="flex flex-wrap gap-3 mt-4">
+          <button
+            type="button"
+            onClick={() => send({ kind: "party", action: "create" })}
+            className="flex items-center h-11 px-4 rounded-xl bg-white text-black font-bold"
+          >
+            <Users className="w-5 h-5 mr-2" /> Crear sala en la TV
+          </button>
+          <button
+            type="button"
+            onClick={() => send({ kind: "party", action: "leave" })}
+            className="flex items-center h-11 px-4 rounded-xl bg-white/10"
+          >
+            <LogOut className="w-5 h-5 mr-2" /> Sacar la TV de la sala
+          </button>
+        </div>
+        <form
+          className="flex gap-2 mt-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (partyCode.length === 6) send({ kind: "party", action: "join", code: partyCode });
+          }}
+        >
+          <label htmlFor="remote-party-code" className="sr-only">
+            Código de la sala
+          </label>
+          <input
+            id="remote-party-code"
+            value={partyCode}
+            autoComplete="off"
+            autoCapitalize="characters"
+            maxLength={6}
+            onChange={(e) => setPartyCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
+            placeholder="Código"
+            className="flex-1 min-w-0 h-11 px-4 rounded-xl bg-white/10 tracking-[0.2em] text-lg outline-none focus:bg-white/15"
+          />
+          <button type="submit" disabled={partyCode.length !== 6} className="h-11 px-4 rounded-xl bg-white/10 font-bold disabled:opacity-50">
+            Unir la TV
+          </button>
+        </form>
+      </section>
 
       <section className="mt-10 pt-6 border-t border-white/10">
         <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Tu lista</h2>
