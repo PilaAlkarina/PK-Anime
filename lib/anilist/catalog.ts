@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DESCRIPTIONS_QUERY, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
 import { aniZipEpisodesOrNone } from "./anizip";
@@ -432,6 +432,34 @@ export async function getFreshCards(ids: number[]): Promise<CatalogItem[]> {
   const cards = unique.map((id) => freshCache.get(id)?.card).filter((c): c is CatalogItem => !!c);
   if (freshCache.size > MAL_CARD_CACHE_MAX) freshCache.clear();
   return cards;
+}
+
+const DESCRIPTION_CHUNK = 50;
+const DESCRIPTION_TTL_MS = DETAIL_TTL * 1000;
+const descriptionCache = new Map<number, { text: string; expires: number }>();
+
+/**
+ * Synopses by AniList ID, 50 per request, kept in memory as long as the details: the home hero
+ * needs only this, where it used to load each title's whole detail record. IDs AniList doesn't
+ * have come back with an empty text, so they aren't asked for again.
+ */
+export async function getDescriptions(ids: number[]): Promise<Record<number, string>> {
+  const now = Date.now();
+  const unique = Array.from(new Set(ids));
+  const missing = unique.filter((id) => (descriptionCache.get(id)?.expires ?? 0) <= now);
+  for (let i = 0; i < missing.length; i += DESCRIPTION_CHUNK) {
+    const chunk = missing.slice(i, i + DESCRIPTION_CHUNK);
+    const { Page } = await anilistQuery<{ Page: { media: { id: number; description: string | null }[] | null } }>(
+      DESCRIPTIONS_QUERY,
+      { ids: chunk }
+    );
+    const found = new Map((Page.media || []).map((m) => [m.id, cleanDescription(m.description)]));
+    for (const id of chunk) descriptionCache.set(id, { text: found.get(id) ?? "", expires: now + DESCRIPTION_TTL_MS });
+  }
+  if (descriptionCache.size > MAL_CARD_CACHE_MAX) {
+    for (const [id, entry] of descriptionCache) if (entry.expires <= now) descriptionCache.delete(id);
+  }
+  return Object.fromEntries(unique.map((id) => [id, descriptionCache.get(id)?.text ?? ""]));
 }
 
 /** AniList allows 50 IDs per idMal_in page */

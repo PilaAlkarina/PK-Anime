@@ -166,6 +166,14 @@ query ($ids: [Int], $since: Int) {
 }
 ${CARD_FRAGMENT}`;
 
+/** Only the synopses, for up to 50 anime: what the home hero shows of a title */
+export const DESCRIPTIONS_QUERY = `
+query ($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) { id description(asHtml: false) }
+  }
+}`;
+
 /** An anime's prequels and sequels, one step of walking a franchise in watch order */
 export const SEQUELS_QUERY = `
 query ($id: Int) {

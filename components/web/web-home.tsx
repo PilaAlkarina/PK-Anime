@@ -15,7 +15,7 @@ import { findLocalEntry, removeLocalEntry, toggleMyList, useMyList } from "@/lib
 import { findRemoteEntry, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote, removeFromRemote } from "@/lib/library/sync";
 import { usePagedRow } from "@/components/tv/catalog-row";
-import { useAnimeDetail } from "@/components/tv/hero";
+import { useSynopsis } from "@/lib/library/synopsis";
 import { HorizontalRow } from "./horizontal-row";
 import { PosterCard } from "./poster-card";
 import { TodayAiring } from "./today-airing";
@@ -43,9 +43,8 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
   const [focusInside, setFocusInside] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const item = items[index];
-  const detail = useAnimeDetail(item?.id ?? null, 0);
-  // Warms the next title's synopsis, so it is there when the carousel moves on
-  useAnimeDetail(items.length > 1 ? items[(index + 1) % items.length].id : null, 1500);
+  // All the carousel's synopses in one request, so each is there when it moves on
+  const synopsis = useSynopsis(item?.id ?? null, { batch: items.map((i) => i.id), delayMs: 0 });
 
   // Reduced motion: no autoplay, only the arrows
   useEffect(() => {
@@ -151,7 +150,7 @@ function Featured({ row, resume }: { row: CatalogRow; resume: ContinueItem[] }) 
           <p className="text-[0.95rem] font-medium text-zinc-200">
             <MetaWithScore before={metaLine(item, { score: false })} score={item.score} after={genres} />
           </p>
-          <p className="text-[0.95rem] leading-relaxed text-zinc-200 line-clamp-3 min-h-[4.5rem]">{detail?.description}</p>
+          <p className="text-[0.95rem] leading-relaxed text-zinc-200 line-clamp-3 min-h-[4.5rem]">{synopsis}</p>
           <FeaturedActions item={item} episode={episode} resuming={!!resumeEntry} />
         </div>
 

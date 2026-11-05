@@ -3,6 +3,7 @@ import type { AnimeDetail, CatalogItem } from "@/lib/anilist/types";
 import type { TrackerEntry } from "@/lib/trackers/types";
 import { useWatchHistory } from "./history";
 import { useMyList } from "./my-list";
+import { useAccount } from "./account";
 import { useRemoteLibrary } from "./remote";
 
 export interface BecauseRow {
@@ -16,6 +17,7 @@ const MIN_SCORE = 7;
 /** Watching counts once it's clearly being followed */
 const MIN_PROGRESS = 3;
 const MIN_ITEMS = 4;
+const REMOTE_WAIT_MS = 4000;
 
 // AniList recommendations per anime, kept for the session
 const cache = new Map<number, Promise<CatalogItem[]>>();
@@ -64,9 +66,21 @@ export function useBecauseYouWatched(): BecauseRow[] {
     return { seeds, known };
   }, [remote, myList, history]);
 
-  const seedKey = seeds.map((s) => s.id).join(",");
+  // Signed in, the seeds wait for the remote list: picked from this device's list first, they'd
+  // change when it arrives and the recommendations already fetched would go to waste. Not for
+  // ever, though: a list that doesn't come within a few seconds isn't waited for
+  const account = useAccount();
+  const [waitOver, setWaitOver] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setWaitOver(true), REMOTE_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  const ready = account !== null && (!account.signedIn || remote !== null || waitOver);
+
+  const seedKey = ready ? seeds.map((s) => s.id).join(",") : "";
   const [rows, setRows] = useState<BecauseRow[]>([]);
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
     Promise.all(seeds.map((seed) => recommendationsFor(seed.id).then((items) => ({ seed, items })))).then((all) => {
       if (cancelled) return;

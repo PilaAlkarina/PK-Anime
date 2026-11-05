@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AnimeDetail, CatalogItem } from "@/lib/anilist/types";
+import type { CatalogItem } from "@/lib/anilist/types";
+import { useSynopsis } from "@/lib/library/synopsis";
 import { metaLine } from "@/lib/library/format";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { cn } from "@/lib/utils";
@@ -21,35 +22,6 @@ export function GenrePills({ genres, className }: { genres: string[]; className?
       ))}
     </div>
   );
-}
-
-const details = new Map<number, AnimeDetail>();
-
-/** Full details for the hero's synopsis; cached for the session and fetched after a short pause */
-export function useAnimeDetail(id: number | null, delayMs = 300) {
-  const [detail, setDetail] = useState<AnimeDetail | null>(id ? details.get(id) ?? null : null);
-
-  useEffect(() => {
-    if (!id) return setDetail(null);
-    const cached = details.get(id);
-    if (cached) return setDetail(cached);
-    setDetail(null);
-    const ctrl = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const data = await (await fetch(`/api/catalog/anime/${id}`, { signal: ctrl.signal })).json();
-        if (!data.success) return;
-        details.set(id, data.anime);
-        setDetail(data.anime);
-      } catch {}
-    }, delayMs);
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, [id, delayMs]);
-
-  return detail;
 }
 
 interface ArtLayer {
@@ -153,8 +125,18 @@ function HeroArt({ item }: { item: CatalogItem }) {
 }
 
 /** Top half of the home screen: artwork and details of the focused anime */
-export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place in the trending row, 0 for none */ rank?: number }) {
-  const detail = useAnimeDetail(item?.id ?? null);
+export function Hero({
+  item,
+  rank = 0,
+  rowIds,
+}: {
+  item: CatalogItem | null;
+  /** Place in the trending row, 0 for none */
+  rank?: number;
+  /** The IDs of the row the item is in: their synopses come in the same request */
+  rowIds?: number[];
+}) {
+  const synopsis = useSynopsis(item?.id ?? null, { batch: rowIds });
   if (!item) return null;
 
   return (
@@ -184,7 +166,7 @@ export function Hero({ item, rank = 0 }: { item: CatalogItem | null; /** Place i
         </p>
         {item.genres.length > 0 && <GenrePills genres={item.genres.slice(0, 4)} className="mt-3" />}
         <p className="mt-5 text-xl leading-relaxed text-zinc-200 line-clamp-3 min-h-[5.6rem]">
-          {detail?.description}
+          {synopsis}
         </p>
       </div>
     </div>

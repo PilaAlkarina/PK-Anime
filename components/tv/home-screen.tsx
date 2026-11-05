@@ -116,6 +116,12 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
 
   // The hero wears the "TENDENCIA N.º …" stamp while it shows a title from the trending row
   const heroRank = hero && rows[0].kind === "trending" ? rows[0].items.findIndex((i) => i.id === hero.id) + 1 : 0;
+  // The row the hero's title is in: its synopses are fetched together, ready as the focus moves on
+  const heroRowIds = hero
+    ? [resume.map((r) => r.anime), newEpisodes.map((n) => n.anime), ...because.map((b) => b.items), ...rows.map((r) => r.items)]
+        .find((items) => items.some((i) => i.id === hero.id))
+        ?.map((i) => i.id)
+    : undefined;
 
   // Taking a card off moves the focus to its neighbour, or to the next row when it was the last
   const hide = (rowKey: string, items: ContinueItem[], index: number, nextRow: string) => {
@@ -155,7 +161,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
 
   return (
     <Screen ready={mounted}>
-      <Hero item={hero} rank={heroRank} />
+      <Hero item={hero} rank={heroRank} rowIds={heroRowIds} />
       <RemoteHints />
       <div
         ref={listRef}
