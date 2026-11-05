@@ -4,12 +4,12 @@ import { EpisodeNumeral, Hanko, MetaWithScore, Stamp, japaneseFor } from "@/comp
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Info, Play, X } from "lucide-react";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
 import type { ContinueItem } from "@/lib/library/history";
-import { newEpisodesBadge, useContinueRows } from "@/lib/library/continue";
+import { hideFromContinueWatching, newEpisodesBadge, useContinueRows } from "@/lib/library/continue";
 import { findLocalEntry, removeLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote, removeFromRemote } from "@/lib/library/sync";
@@ -284,8 +284,8 @@ function ResumeCard({ entry, current = false, badge }: { entry: ContinueItem; cu
   const { anime, episode, progress } = entry;
   const image = anime.banner || anime.cover;
   return (
-    // The card plays; the ⓘ over the artwork opens the anime page instead (always shown on
-    // phones, which have no hover)
+    // The card plays; the ⓘ over the artwork opens the anime page instead, and the ✕ takes it off
+    // the row (both always shown on phones, which have no hover)
     <div className="group relative flex-shrink-0 w-[15rem] md:w-[19rem] snap-start">
       <Link href={`/watch/${anime.id}/${episode}`} className="group/play flex flex-col gap-2 outline-none">
         <div
@@ -345,6 +345,19 @@ function ResumeCard({ entry, current = false, badge }: { entry: ContinueItem; cu
       >
         <Info className="w-[1.1rem] h-[1.1rem]" />
       </Link>
+      <button
+        type="button"
+        onClick={() => hideFromContinueWatching(anime.id)}
+        aria-label={`Quitar ${anime.title} de esta fila`}
+        title="Quitar de la fila"
+        className={cn(
+          "absolute top-2 right-12 flex items-center justify-center w-9 h-9 rounded-full bg-black/75 text-white",
+          "transition-opacity hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
+          "md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+        )}
+      >
+        <X className="w-[1.1rem] h-[1.1rem]" />
+      </button>
     </div>
   );
 }
@@ -369,9 +382,9 @@ function CatalogRowSection({ row }: { row: CatalogRow }) {
 /** Home for computers and phones: the same sections as the TV home, in the same order */
 export function WebHome({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
-  // Caught-up shows with a new episode out get their own row, ahead of "Seguir viendo"
+  // Caught-up shows with a new episode out get their own row, under "Seguir viendo"
   const { newEpisodes, resume } = useContinueRows();
-  const resumable = useMemo(() => [...newEpisodes, ...resume], [newEpisodes, resume]);
+  const resumable = useMemo(() => [...resume, ...newEpisodes], [newEpisodes, resume]);
 
   return (
     <div className="max-w-[1360px] mx-auto pb-10">
@@ -400,17 +413,17 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
       ) : (
         <div className="flex flex-col gap-8 md:gap-11 md:pt-7">
           <Featured row={rows[0]} resume={resumable} />
-          {newEpisodes.length > 0 && (
-            <HorizontalRow title="Nuevos episodios">
-              {newEpisodes.map((entry) => (
-                <ResumeCard key={entry.anime.id} entry={entry} badge={newEpisodesBadge(entry.newCount)} />
-              ))}
-            </HorizontalRow>
-          )}
           {resume.length > 0 && (
             <HorizontalRow title="Seguir viendo">
               {resume.map((entry, index) => (
                 <ResumeCard key={entry.anime.id} entry={entry} current={index === 0} />
+              ))}
+            </HorizontalRow>
+          )}
+          {newEpisodes.length > 0 && (
+            <HorizontalRow title="Nuevos episodios">
+              {newEpisodes.map((entry) => (
+                <ResumeCard key={entry.anime.id} entry={entry} badge={newEpisodesBadge(entry.newCount)} />
               ))}
             </HorizontalRow>
           )}

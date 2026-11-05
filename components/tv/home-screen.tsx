@@ -5,7 +5,8 @@ import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import type { ContinueItem } from "@/lib/library/history";
-import { newEpisodesBadge, useContinueRows, type NewEpisodesItem } from "@/lib/library/continue";
+import { hideFromContinueWatching, newEpisodesBadge, useContinueRows, type NewEpisodesItem } from "@/lib/library/continue";
+import { X } from "lucide-react";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
@@ -72,10 +73,10 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   // Initial focus waits for the stored history, so it lands on "Seguir viendo" when there is one
   const mounted = useMounted();
   // The watch history merged with what both lists are watching; caught-up shows with a new
-  // episode out go to their own row
+  // episode out go to their own row, under it
   const { newEpisodes, resume } = useContinueRows();
-  // That row waits for current data from AniList, so it can show up after the first focus went
-  // to "Seguir viendo". It takes the focus then, unless the remote was already used.
+  // That row waits for current data from AniList. With nothing to resume, the first focus went
+  // to the catalog by then: it takes the focus, unless the remote was already used.
   const touchedRef = useRef(false);
   useEffect(() => {
     const onKey = () => (touchedRef.current = true);
@@ -83,9 +84,10 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const firstNewId = newEpisodes[0]?.anime.id;
+  const hasResume = resume.length > 0;
   useEffect(() => {
-    if (mounted && firstNewId && !touchedRef.current) setFocus(`new-episodes:${firstNewId}`);
-  }, [mounted, firstNewId]);
+    if (mounted && firstNewId && !hasResume && !touchedRef.current) setFocus(`new-episodes:${firstNewId}`);
+  }, [mounted, firstNewId, hasResume]);
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
@@ -113,7 +115,17 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   // The hero wears the "TENDENCIA N.º …" stamp while it shows a title from the trending row
   const heroRank = hero && rows[0].kind === "trending" ? rows[0].items.findIndex((i) => i.id === hero.id) + 1 : 0;
 
-  const toCard = ({ anime, episode, progress }: ContinueItem): RowCard => ({
+  // Taking a card off moves the focus to its neighbour, or to the next row when it was the last
+  const hide = (rowKey: string, items: ContinueItem[], index: number, nextRow: string) => {
+    const neighbour = items[index + 1] ?? items[index - 1];
+    hideFromContinueWatching(items[index].anime.id);
+    setTimeout(() => setFocus(neighbour ? `${rowKey}:${neighbour.anime.id}` : nextRow));
+  };
+
+  const toCard = (
+    { anime, episode, progress }: ContinueItem,
+    onHide: () => void
+  ): RowCard => ({
     item: anime,
     key: `${anime.id}`,
     progress,
@@ -123,15 +135,21 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
       meta: progress > 0 ? `Episodio ${episode} · visto el ${Math.round(progress * 100)} %` : `Episodio ${episode}`,
     },
     onSelect: () => router.push(`/watch/${anime.id}/${episode}`),
-    // OK plays; Down reaches this, for the episode list, the trailer or the list status
-    secondary: { label: "Ver ficha", onSelect: () => router.push(`/anime/${anime.id}`) },
+    // OK plays; Down reaches these, for the episode list, the trailer or the list status
+    actions: [
+      { label: "Ver ficha", onSelect: () => router.push(`/anime/${anime.id}`) },
+      { label: "Quitar", icon: X, onSelect: onHide },
+    ],
   });
-  const newCards: RowCard[] = newEpisodes.map((item: NewEpisodesItem) => ({
-    ...toCard(item),
+  const firstRow = `row:${rows[0].id}`;
+  const newCards: RowCard[] = newEpisodes.map((item: NewEpisodesItem, index) => ({
+    ...toCard(item, () => hide("new-episodes", newEpisodes, index, firstRow)),
     badge: newEpisodesBadge(item.newCount),
     badgeClassName: "bg-red-500 text-black",
   }));
-  const resumeCards = resume.map(toCard);
+  const resumeCards = resume.map((item, index) =>
+    toCard(item, () => hide("continue", resume, index, newEpisodes.length ? "row:new-episodes" : firstRow))
+  );
 
   return (
     <Screen ready={mounted}>
@@ -141,20 +159,20 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
         ref={listRef}
         className="fixed left-[7rem] right-0 bottom-0 top-[50vh] overflow-y-auto overflow-x-hidden tv-no-scrollbar"
       >
-        {newCards.length > 0 && (
-          <CardRow
-            rowKey="new-episodes"
-            title="Nuevos episodios"
-            cards={newCards}
-            onCardFocus={showInHero}
-            onRowFocus={scrollToRow}
-          />
-        )}
         {resumeCards.length > 0 && (
           <CardRow
             rowKey="continue"
             title="Seguir viendo"
             cards={resumeCards}
+            onCardFocus={showInHero}
+            onRowFocus={scrollToRow}
+          />
+        )}
+        {newCards.length > 0 && (
+          <CardRow
+            rowKey="new-episodes"
+            title="Nuevos episodios"
+            cards={newCards}
             onCardFocus={showInHero}
             onRowFocus={scrollToRow}
           />

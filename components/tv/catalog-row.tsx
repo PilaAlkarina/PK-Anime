@@ -2,7 +2,7 @@
 
 import { JapaneseLabel } from "@/components/brand";
 import { Fragment, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { Info, type LucideIcon } from "lucide-react";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { AnimeCard } from "./anime-card";
@@ -31,22 +31,26 @@ export interface RowCard {
   wide?: { title: string; meta: string };
   onSelect: () => void;
   /**
-   * A second action in a button under the card, reached with Down: on "Seguir viendo", where OK
-   * plays, it opens the anime page
+   * More actions in buttons under the card, reached with Down: on "Seguir viendo", where OK
+   * plays, they open the anime page or take it off the row
    */
-  secondary?: { label: string; onSelect: () => void };
+  actions?: RowCardAction[];
 }
 
-/** The button under a card for its secondary action */
+export interface RowCardAction {
+  label: string;
+  /** Info by default */
+  icon?: LucideIcon;
+  onSelect: () => void;
+}
+
+/** A button under a card for one of its actions */
 function CardAction({
   label,
+  icon: Icon = Info,
   onSelect,
   onFocused,
-}: {
-  label: string;
-  onSelect: () => void;
-  onFocused: (node: HTMLElement, details: FocusDetails) => void;
-}) {
+}: RowCardAction & { onFocused: (node: HTMLElement, details: FocusDetails) => void }) {
   const { ref, focused, pointerProps } = useTvFocusable({
     onSelect,
     onFocus: (layout, _props, details) => onFocused(layout.node, details),
@@ -57,11 +61,11 @@ function CardAction({
       type="button"
       {...pointerProps}
       className={cn(
-        "flex items-center self-start mt-3 h-10 px-4 rounded-full text-lg outline-none transition-transform duration-150",
+        "flex items-center mr-3 h-10 px-4 rounded-full text-lg outline-none transition-transform duration-150",
         focused ? "bg-white text-black scale-105" : "bg-white/10 text-zinc-300"
       )}
     >
-      <Info className="w-5 h-5 mr-2" />
+      <Icon className="w-5 h-5 mr-2" />
       {label}
     </button>
   );
@@ -166,15 +170,19 @@ export function CardRow({
                   wide={card.wide}
                   onSelect={card.onSelect}
                   onFocused={onFocused}
-                  className={card.secondary ? undefined : "mr-5"}
+                  className={card.actions?.length ? undefined : "mr-5"}
                 />
               );
-              if (!card.secondary) return <Fragment key={key}>{animeCard}</Fragment>;
-              // Card and button share a column, so Down from the card lands on its own button
+              if (!card.actions?.length) return <Fragment key={key}>{animeCard}</Fragment>;
+              // Card and buttons share a column, so Down from the card lands on its own buttons
               return (
                 <FocusGroup key={key} className="flex flex-col flex-shrink-0 mr-5">
                   {animeCard}
-                  <CardAction label={card.secondary.label} onSelect={card.secondary.onSelect} onFocused={onFocused} />
+                  <div className="flex mt-3">
+                    {card.actions.map((action) => (
+                      <CardAction key={action.label} {...action} onFocused={onFocused} />
+                    ))}
+                  </div>
                 </FocusGroup>
               );
             })}
