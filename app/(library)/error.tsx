@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Home, RotateCcw } from "lucide-react";
 import { LibraryErrorScreen } from "@/components/library-error";
 
 /**
@@ -31,23 +32,29 @@ export default function LibraryError({ error, reset }: { error: Error & { digest
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offline]);
 
+  // In production React hides server errors' messages behind a digest; that's still worth showing
+  const cause = error.message && !/omitted in production/i.test(error.message) ? error.message : error.digest ? `Código ${error.digest}` : null;
+
   return offline ? (
     <LibraryErrorScreen
+      figure="圏外"
       stamp="SIN CONEXIÓN"
       japanese="オフライン"
       title="No hay conexión a internet"
       text="Esta pantalla se cargará sola en cuanto vuelva la conexión."
-      actions={[{ label: "Reintentar", primary: true, onSelect: retry }]}
+      actions={[{ label: "Reintentar", icon: RotateCcw, primary: true, onSelect: retry }]}
     />
   ) : (
     <LibraryErrorScreen
+      figure="失敗"
       stamp="ERROR"
-      japanese="エラー"
+      japanese="失敗"
       title="Algo ha fallado"
-      text="No se ha podido cargar esta pantalla. Suele arreglarse al reintentar; si no, AniList puede estar caído un momento."
+      text="No se ha podido cargar esta pantalla. Suele arreglarse volviendo a intentarlo en unos segundos."
+      cause={cause}
       actions={[
-        { label: "Reintentar", primary: true, onSelect: retry },
-        { label: "Volver al inicio", onSelect: () => router.replace("/") },
+        { label: "Reintentar", icon: RotateCcw, primary: true, onSelect: retry },
+        { label: "Ir al inicio", icon: Home, onSelect: () => router.replace("/") },
       ]}
     />
   );

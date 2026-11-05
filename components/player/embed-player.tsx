@@ -172,8 +172,10 @@ export interface EmbedPlayerProps {
   airingAt?: number | null;
 }
 
-/** While no server has the episode yet, they're asked again this often */
-const RECHECK_MS = 5 * 60 * 1000;
+/** While no server has the episode yet, they're asked again: often in its first hour (when it
+ *  usually shows up), then less */
+const RECHECK_FIRST_HOUR_MS = 3 * 60 * 1000;
+const RECHECK_LATER_MS = 10 * 60 * 1000;
 
 /** Seconds of countdown before the next episode starts on its own */
 const NEXT_COUNTDOWN = 10;
@@ -230,6 +232,11 @@ export function EmbedPlayer({
   const [errorKind, setErrorKind] = useState<PlayerErrorKind>("failed");
   const [triedServers, setTriedServers] = useState<TriedServer[]>([]);
   const [nextCheckAt, setNextCheckAt] = useState<number | null>(null);
+  const [checkEveryMs, setCheckEveryMs] = useState<number | null>(null);
+  // Checks made while waiting for the episode, and when the wait began (its first hour is
+  // counted from the air time when known, else from here)
+  const [checks, setChecks] = useState(0);
+  const waitingSinceRef = useRef<number | null>(null);
   // Servers tried for this episode and audio since the last (re)start, by source id: the
   // failover moves on to one not in here, and stops when they've all failed
   const triedRef = useRef(new Map<string, TriedServer>());
@@ -379,7 +386,7 @@ export function EmbedPlayer({
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const connectedVideoRef = useRef<HTMLVideoElement | null>(null);
   // Moves to the next server not tried yet; "missing" when this one answered it doesn't have the episode
-  const fallbackRef = useRef<(reason?: TriedServer["reason"]) => void>(() => {});
+  const fallbackRef = useRef<(reason?: TriedServer["reason"], detail?: string) => void>(() => {});
 
   const lastProgressEmitRef = useRef<number>(0);
   const malSyncedRef = useRef<boolean>(false);
@@ -443,6 +450,11 @@ export function EmbedPlayer({
   const failPlayback = useCallback(
     (kind: PlayerErrorKind, message: string) => {
       setErrorKind(kind);
+      // Every full round of servers that came back empty counts as one check
+      if (kind === "unavailable") {
+        setChecks((c) => c + 1);
+        waitingSinceRef.current ??= Date.now();
+      }
       setTriedServers(Array.from(triedRef.current.values()));
       setFatalError(message);
       setIsLoading(false);
@@ -472,6 +484,8 @@ export function EmbedPlayer({
     triedRef.current.clear();
     setTriedServers([]);
     setNextCheckAt(null);
+    setChecks(0);
+    waitingSinceRef.current = null;
   }, [anilistId, malId, episodeNumber, selectedType]);
 
   // Show status toast
@@ -1006,7 +1020,10 @@ export function EmbedPlayer({
                   `[EmbedPlayer] Fatal network error (${httpStatus || data.details}). Failing over to alternative server...`
                 );
                 hls.destroy();
-                fallbackRef.current?.(httpStatus === 404 || httpStatus === 410 ? "missing" : "error");
+                fallbackRef.current?.(
+                  httpStatus === 404 || httpStatus === 410 ? "missing" : "error",
+                  httpStatus ? `Error del servidor (${httpStatus})` : "No responde"
+                );
                 break;
               }
 
@@ -1036,7 +1053,7 @@ export function EmbedPlayer({
               } else {
                 console.warn("[EmbedPlayer] Unrecoverable fatal media error. Failing over...");
                 hls.destroy();
-                fallbackRef.current?.();
+                fallbackRef.current?.("error", "Vídeo dañado");
               }
               break;
 
@@ -2184,7 +2201,7 @@ export function EmbedPlayer({
   // Each server is tried once: going round the list again (the old `(index + 1) % length`) kept
   // switching forever when none had the episode, e.g. one that has only just aired
   const handleFallbackToNextServer = useCallback(
-    (reason: TriedServer["reason"] = "error") => {
+    (reason: TriedServer["reason"] = "error", detail?: string) => {
       // Offline, every server would fail: wait for the connection instead of using them up
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         failPlayback("offline", "No hay conexión a internet");
@@ -2192,7 +2209,7 @@ export function EmbedPlayer({
       }
       const available = selectedType === "dub" ? nativeDubSources : nativeSubSources;
       const current = available.find((s) => s.id === activeSourceId || s.videoUrl === streamUrl);
-      if (current) triedRef.current.set(current.id, { name: getSourceProvider(current), reason });
+      if (current) triedRef.current.set(current.id, { name: getSourceProvider(current), reason, detail });
 
       const nextServer = available.find((s) => !triedRef.current.has(s.id));
       if (nextServer) {
@@ -2224,11 +2241,17 @@ export function EmbedPlayer({
       window.addEventListener("online", retryPlayback);
       return () => window.removeEventListener("online", retryPlayback);
     }
+    // First hour after it aired (or after the wait began, when the air time is unknown): often
+    const since = airingAt ? airingAt * 1000 : waitingSinceRef.current ?? Date.now();
+    const every = Date.now() - since < 60 * 60 * 1000 ? RECHECK_FIRST_HOUR_MS : RECHECK_LATER_MS;
     const at =
-      errorKind === "unavailable" ? Date.now() + RECHECK_MS : errorKind === "not-aired" && airingAt ? airingAt * 1000 : null;
+      errorKind === "unavailable" ? Date.now() + every : errorKind === "not-aired" && airingAt ? airingAt * 1000 : null;
     // setTimeout can't wait much past 24 days; a date that far is checked on the next visit
     if (!at || at - Date.now() > 24 * 86_400_000) return;
-    if (errorKind === "unavailable") setNextCheckAt(at);
+    if (errorKind === "unavailable") {
+      setNextCheckAt(at);
+      setCheckEveryMs(every);
+    }
     const timer = setTimeout(retryPlayback, Math.max(0, at - Date.now()));
     return () => clearTimeout(timer);
   }, [fatalError, errorKind, airingAt, retryPlayback]);
@@ -2780,9 +2803,14 @@ export function EmbedPlayer({
           kind={errorKind}
           tv={tv}
           poster={poster}
+          animeTitle={animeTitle}
+          episode={episodeNumber}
           detail={fatalError}
           airingAt={airingAt}
           nextCheckAt={nextCheckAt}
+          checkEveryMs={checkEveryMs}
+          checks={checks}
+          resumeAt={preserveTimeRef.current}
           tried={triedServers}
           onRetry={retryPlayback}
           onChooseServer={() => {
