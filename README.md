@@ -53,7 +53,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
-| `/stats` | *Estadísticas*, opened from *Mi lista*: totals (anime, completed, episodes, approximate hours), the current year's completed anime, statuses, most watched genres and the score distribution |
+| `/stats` | *Estadísticas*, opened from *Mi lista*, for all time or one year (an anime counts in the year it was finished, as MyAnimeList's `finish_date` or AniList's `completedAt` say, or the year of its last change): totals, statuses as one split bar with counts and percentages, anime finished per year or per month, formats, most watched genres, the score distribution and the best scored |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
 | `/link` | Phone page opened from the TV's QR: remote control, keyboard with the search results (a tap opens the anime on the TV) and sign-in |
 | `/license` | MIT license text, copyright holders and credits (linked from every page's footer) |

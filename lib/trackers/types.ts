@@ -23,6 +23,8 @@ export interface TrackerEntry extends TrackerIds {
   rewatching: boolean;
   /** Unix ms */
   updatedAt: number | null;
+  /** When it was finished, as the service has it: "YYYY-MM-DD", or shorter when only the year or month is known */
+  finishedAt?: string | null;
 }
 
 /** Fields set by hand or by an export; a null score clears it */

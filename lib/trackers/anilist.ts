@@ -28,15 +28,24 @@ const FROM_STATUS: Record<ListStatus, AniListStatus> = {
 };
 
 // Scores are read on a 0–100 scale whatever format the user picked, so 0–10 maps cleanly
-const ENTRY_FIELDS = `id status progress updatedAt score(format: POINT_100) media { id idMal episodes }`;
+const ENTRY_FIELDS = `id status progress updatedAt completedAt { year month day } score(format: POINT_100) media { id idMal episodes }`;
 
 interface RawEntry {
   id: number;
   status: AniListStatus;
   progress: number | null;
   updatedAt: number | null;
+  completedAt?: { year: number | null; month: number | null; day: number | null } | null;
   score: number | null;
   media: { id: number; idMal: number | null; episodes: number | null };
+}
+
+/** AniList's fuzzy date as "YYYY-MM-DD", cut short where parts are missing */
+function fuzzyDate(date: RawEntry["completedAt"]) {
+  if (!date?.year) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (!date.month) return String(date.year);
+  return date.day ? `${date.year}-${pad(date.month)}-${pad(date.day)}` : `${date.year}-${pad(date.month)}`;
 }
 
 function toEntry(raw: RawEntry): TrackerEntry {
@@ -49,6 +58,7 @@ function toEntry(raw: RawEntry): TrackerEntry {
     rewatching: raw.status === "REPEATING",
     // AniList sends Unix seconds
     updatedAt: raw.updatedAt ? raw.updatedAt * 1000 : null,
+    finishedAt: fuzzyDate(raw.completedAt),
   };
 }
 
@@ -107,7 +117,7 @@ export const aniList: Tracker = {
         `query ($userId: Int, $chunk: Int, $perChunk: Int) {
           MediaListCollection(userId: $userId, type: ANIME, chunk: $chunk, perChunk: $perChunk) {
             hasNextChunk
-            lists { entries { id status progress updatedAt score(format: POINT_100) media { ...card } } }
+            lists { entries { id status progress updatedAt completedAt { year month day } score(format: POINT_100) media { ...card } } }
           }
         }
         ${CARD_FRAGMENT}`,

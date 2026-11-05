@@ -27,8 +27,15 @@ function toEntry(anime: CatalogItem, fields: Partial<TrackerEntry>): LocalEntry 
     score: fields.score ?? null,
     rewatching: fields.rewatching ?? false,
     updatedAt: fields.updatedAt ?? Date.now(),
+    finishedAt: fields.finishedAt ?? null,
   };
 }
+
+/** Today as "YYYY-MM-DD", in local time: the day an anime was finished */
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 /** Status for `progress` episodes watched out of `total` (null when unknown) */
 function statusForProgress(progress: number, total: number | null | undefined): ListStatus {
@@ -98,6 +105,8 @@ export function updateLocalEntry(anime: CatalogItem, { status, score, progress }
   // As on the list services, completed means every episode watched
   if (status === "completed" && anime.episodes) next.progress = Math.max(next.progress, anime.episodes);
   if (status && status !== "watching") next.rewatching = false;
+  // Finished today when it becomes completed here; a list service's own date is kept otherwise
+  if (next.status === "completed" && current?.status !== "completed") next.finishedAt = today();
   put(next);
   return next;
 }
@@ -111,7 +120,9 @@ export function mirrorRemoteEntry(anime: CatalogItem, entry: TrackerEntry) {
 export function saveLocalProgress(anime: CatalogItem, episode: number) {
   const current = findLocalEntry(store.get(), anime);
   if (current && current.progress >= episode) return;
-  put(toEntry(anime, { ...current, progress: episode, status: statusForProgress(episode, anime.episodes), updatedAt: Date.now() }));
+  const status = statusForProgress(episode, anime.episodes);
+  const finishedAt = status === "completed" && current?.status !== "completed" ? today() : current?.finishedAt;
+  put(toEntry(anime, { ...current, progress: episode, status, finishedAt, updatedAt: Date.now() }));
 }
 
 /** Writes several entries at once (an import), keeping each one's own update time */

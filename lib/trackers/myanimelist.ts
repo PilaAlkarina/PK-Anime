@@ -27,6 +27,7 @@ interface MalListStatus {
   num_episodes_watched?: number;
   is_rewatching?: boolean;
   updated_at?: string;
+  finish_date?: string;
 }
 
 function toEntry(malId: number, listStatus: MalListStatus): TrackerEntry {
@@ -38,6 +39,7 @@ function toEntry(malId: number, listStatus: MalListStatus): TrackerEntry {
     score: listStatus.score || null,
     rewatching: !!listStatus.is_rewatching,
     updatedAt: listStatus.updated_at ? Date.parse(listStatus.updated_at) : null,
+    finishedAt: listStatus.finish_date || null,
   };
 }
 
