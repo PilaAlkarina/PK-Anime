@@ -170,6 +170,21 @@ export interface EmbedPlayerProps {
   /** When this episode airs or aired (Unix seconds), when known: an episode still ahead isn't
    *  looked for, and one just aired that no server has yet says so */
   airingAt?: number | null;
+  /** "Ver juntos": the room decides playback (see PlayerSync) */
+  sync?: PlayerSync | null;
+}
+
+/**
+ * Controlled playback for a "Ver juntos" room. The viewer's play, pause and jumps (keys, the
+ * timeline, the skip buttons, the intro/ending auto-skip) aren't applied here: they're asked of
+ * the room, which pauses, moves and starts every player itself. Only the host may jump; the
+ * others' jumps and auto-skips are off.
+ */
+export interface PlayerSync {
+  canSeek: boolean;
+  onPlay: (position: number) => void;
+  onPause: (position: number) => void;
+  onSeek: (target: number) => void;
 }
 
 /** While no server has the episode yet, they're asked again: often in its first hour (when it
@@ -186,6 +201,7 @@ const FULLSCREEN_HANDOVER_MS = 1500;
 let mountedPlayers = 0;
 
 export function EmbedPlayer({
+  sync,
   anilistId,
   malId,
   episodeNumber,
@@ -246,6 +262,9 @@ export function EmbedPlayer({
   const [server, setServer] = useState<string>(initialServer.toLowerCase());
   const [sources, setSources] = useState<VideoSourceData[]>([]);
   const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
+  // Read where the viewer acts, so the latest room state applies without re-binding handlers
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
   const [autoSkipState, setAutoSkipState] = useState<boolean>(autoskipIntro ?? true);
   const [autoSkipOutroState, setAutoSkipOutroState] = useState<boolean>(autoskipOutro ?? true);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
@@ -1236,11 +1255,15 @@ export function EmbedPlayer({
     }
 
     // Auto-skip Intro
-    if (autoSkipState && skipTimes.intro && !hasAutoSkippedIntroRef.current) {
+    // In a room only the host's player auto-skips, and as a jump for everyone
+    const roomSync = syncRef.current;
+    const mayAutoSkip = !roomSync || roomSync.canSeek;
+    if (autoSkipState && mayAutoSkip && skipTimes.intro && !hasAutoSkippedIntroRef.current) {
       if (current >= skipTimes.intro.start && current < skipTimes.intro.end - 1) {
         hasAutoSkippedIntroRef.current = true;
         const target = Math.min(skipTimes.intro.end + 0.5, dur || skipTimes.intro.end + 1);
-        video.currentTime = target;
+        if (roomSync) roomSync.onSeek(target);
+        else video.currentTime = target;
         setCurrentTime(target);
         setAutoSkipToast("Intro saltada");
         setTimeout(() => setAutoSkipToast(null), 3000);
@@ -1249,11 +1272,12 @@ export function EmbedPlayer({
     }
 
     // Auto-skip Outro
-    if (autoSkipOutroState && skipTimes.outro && !hasAutoSkippedOutroRef.current) {
+    if (autoSkipOutroState && mayAutoSkip && skipTimes.outro && !hasAutoSkippedOutroRef.current) {
       if (current >= skipTimes.outro.start && current < skipTimes.outro.end - 1) {
         hasAutoSkippedOutroRef.current = true;
         const target = Math.min(skipTimes.outro.end + 0.5, dur || skipTimes.outro.end + 1);
-        video.currentTime = target;
+        if (roomSync) roomSync.onSeek(target);
+        else video.currentTime = target;
         setCurrentTime(target);
         setAutoSkipToast("Ending saltado");
         setTimeout(() => setAutoSkipToast(null), 3000);
@@ -1309,6 +1333,13 @@ export function EmbedPlayer({
       } catch {}
     }
 
+    // In a room the room plays and pauses every player, this one included
+    if (syncRef.current) {
+      if (video.paused) syncRef.current.onPlay(video.currentTime);
+      else syncRef.current.onPause(video.currentTime);
+      return;
+    }
+
     if (video.paused) {
       video.play().catch(() => {});
       setIsPlaying(true);
@@ -1325,12 +1356,19 @@ export function EmbedPlayer({
     const video = videoRef.current;
     if (!video) return;
     const target = Math.min(Math.max(seconds, 0), duration || 100);
+    // In a room only the host jumps, and the room moves every player
+    if (syncRef.current) {
+      if (syncRef.current.canSeek) syncRef.current.onSeek(target);
+      else showToast("info", "En la sala solo el anfitrión puede avanzar o retroceder");
+      return;
+    }
     video.currentTime = target;
     setCurrentTime(target);
     postToParent("PLAYER_EVENT", { type: "seeked", currentTime: target });
   };
 
   const handleSeekRelative = (seconds: number) => {
+    if (syncRef.current && !syncRef.current.canSeek) return handleSeek(0);
     const video = videoRef.current;
     const cur = video ? video.currentTime : currentTime;
     const target = Math.min(Math.max(0, cur + seconds), duration || 100);

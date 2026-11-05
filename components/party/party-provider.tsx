@@ -14,16 +14,18 @@ import {
   type Membership,
   type PartySnapshot,
 } from "@/lib/watch-party/client";
-import { LobbyOverlay, MismatchDialog, PartyFab, PartyNotice, TvPartyBadge, WatchPartyBadge } from "./party-ui";
+import { LobbyOverlay, MismatchDialog, PartyFab, PartyNotice, SyncBadge, TvPartyBadge, WatchPartyBadge } from "./party-ui";
 
 /**
  * "Ver juntos" for the whole library. The room lives here, not on a page: its host browses as
- * usual, and opening an episode picks it for everyone, who are taken to it. Each pick starts
- * in a lobby: the player is held at 0:00 until every device has loaded the episode, then all
- * start at once. While watching, anyone's pause, play or jump goes to the rest. A member other
- * than the host who opens another episode is asked to leave the room first.
+ * usual, and opening an episode picks it for everyone, who are taken to it. A member other than
+ * the host who opens another episode is asked to leave the room first.
  *
- * The page's <video> is driven from here, so the player knows nothing about rooms.
+ * Playback goes through the server's barriers (see lib/watch-party/store.ts): a pick, a pause, the
+ * host's jump, a resume or a player out of buffer pauses everyone; each device says where it
+ * stopped, goes to the agreed spot, says when it has it buffered, and all start together at a
+ * time given in advance. The player asks the room instead of acting (its `sync` prop, from the
+ * watch screen), and this drives the page's <video> to follow the room.
  */
 
 interface PartyApi {
@@ -36,16 +38,24 @@ interface PartyApi {
   join: (code: string) => Promise<string | null>;
   leave: () => void;
   startNow: () => void;
+  /** The player's play, pause and jump, asked of the room */
+  requestPlay: () => void;
+  requestPause: (position: number) => void;
+  requestSeek: (target: number) => void;
 }
 
+const noop = () => {};
 const PartyContext = createContext<PartyApi>({
   party: null,
   you: null,
   isHost: false,
   create: async () => null,
   join: async () => null,
-  leave: () => {},
-  startNow: () => {},
+  leave: noop,
+  startNow: noop,
+  requestPlay: noop,
+  requestPause: noop,
+  requestSeek: noop,
 });
 
 export const useParty = () => useContext(PartyContext);
@@ -54,13 +64,15 @@ export const useParty = () => useContext(PartyContext);
 export const PARTY_COMMAND_EVENT = "pk:party-command";
 
 const WATCH_PATH = /^\/watch\/(\d+)\/(\d+)/;
-/** Local changes are ignored this long after applying the room's */
-const QUIET_MS = 1200;
-const MAX_DRIFT_S = 1.5;
-const DRIFT_CHECK_MS = 10_000;
+/** Out of step by more than this while playing, the player jumps to the room's position */
+const MAX_DRIFT_S = 3;
+const DRIFT_CHECK_MS = 5000;
+/** Out of buffer this long while playing: everyone waits for this device */
+const STALL_MS = 2000;
 /** The next episode played on by itself here: the host's player is about to pick it too */
 const NEXT_EPISODE_GRACE_MS = 10_000;
 const NOTICE_MS = 3500;
+const CLOCK_SAMPLES = 4;
 
 function watchTarget(pathname: string) {
   const m = WATCH_PATH.exec(pathname);
@@ -68,6 +80,26 @@ function watchTarget(pathname: string) {
 }
 
 const currentAudio = () => (new URLSearchParams(window.location.search).get("audio") === "dub" ? "dub" : "sub");
+
+/**
+ * This device's clock minus the server's, from a few round trips: the one with the shortest trip
+ * is the best estimate (half the trip each way)
+ */
+async function measureClockOffset(): Promise<number | null> {
+  let best: { rtt: number; offset: number } | null = null;
+  for (let i = 0; i < CLOCK_SAMPLES; i++) {
+    const sent = Date.now();
+    const data = await fetch("/api/party/clock", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => null);
+    const received = Date.now();
+    if (!data?.now) continue;
+    const rtt = received - sent;
+    const offset = (sent + received) / 2 - data.now;
+    if (!best || rtt < best.rtt) best = { rtt, offset };
+  }
+  return best?.offset ?? null;
+}
 
 export function PartyProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -80,12 +112,18 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const [mismatch, setMismatch] = useState(false);
   const [reconnect, setReconnect] = useState(0);
   const partyRef = useRef<PartySnapshot | null>(null);
+  const membershipRef = useRef<Membership | null>(null);
+  membershipRef.current = membership;
+  /** Device clock minus server clock, ms */
   const offsetRef = useRef(0);
+  const clockMeasured = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout>>();
-  // Lets the video code react to each new snapshot
-  const onSnapshotRef = useRef<() => void>(() => {});
+  // Lets the player code react to each new snapshot
+  const onSnapshotRef = useRef<() => void>(noop);
 
   useEffect(() => setMembership(readMembership()), []);
+
+  const serverNow = () => Date.now() - offsetRef.current;
 
   const notify = useCallback((text: string) => {
     setNotice(text);
@@ -93,13 +131,16 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
   }, []);
 
-  const drop = useCallback((message?: string) => {
-    writeMembership(null);
-    setMembership(null);
-    setParty(null);
-    partyRef.current = null;
-    if (message) notify(message);
-  }, [notify]);
+  const drop = useCallback(
+    (message?: string) => {
+      writeMembership(null);
+      setMembership(null);
+      setParty(null);
+      partyRef.current = null;
+      if (message) notify(message);
+    },
+    [notify]
+  );
 
   const you = membership?.you ?? null;
   const isHost = !!party?.members.some((m) => m.id === you && m.host);
@@ -109,6 +150,10 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!membership) return;
     let closed = false;
+    if (!clockMeasured.current) {
+      clockMeasured.current = true;
+      measureClockOffset().then((offset) => offset !== null && (offsetRef.current = offset));
+    }
     const source = new EventSource(
       `/api/party/events?code=${encodeURIComponent(membership.code)}&member=${encodeURIComponent(membership.member)}`
     );
@@ -126,25 +171,23 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (event.type !== "snapshot") return;
-      offsetRef.current = Date.now() - event.serverNow;
+      // The stream's own time is a rough fallback until the round-trip estimate is in
+      if (!clockMeasured.current) offsetRef.current = Date.now() - event.serverNow;
       const next = event.party as PartySnapshot;
       const prev = partyRef.current;
       if (prev) {
-        // Who joined, left, paused…
         const before = new Set(prev.members.filter((m) => m.connected).map((m) => m.id));
         const after = new Set(next.members.filter((m) => m.connected).map((m) => m.id));
         const joined = next.members.find((m) => m.connected && !before.has(m.id) && m.id !== membership.you);
         const left = prev.members.find((m) => before.has(m.id) && !after.has(m.id) && m.id !== membership.you);
+        const barrier = next.state.barrier;
         if (joined) notify(`${joined.name} se ha unido a la sala`);
         else if (left) notify(`${left.name} ha salido de la sala`);
-        else if (
-          next.state.phase === "playing" &&
-          prev.state.phase === "playing" &&
-          next.state.at !== prev.state.at &&
-          next.state.by &&
-          next.state.by !== name()
-        ) {
-          notify(`${next.state.by} ${next.state.playing ? (prev.state.playing ? "ha saltado a otro momento" : "ha reanudado") : "ha pausado"}`);
+        else if (barrier && barrier.id !== prev.state.barrier?.id && barrier.by !== name()) {
+          if (barrier.kind === "pause") notify(`${barrier.by} ha pausado`);
+          else if (barrier.kind === "seek") notify(`${barrier.by} ha movido el episodio`);
+          else if (barrier.kind === "resume") notify(`${barrier.by} ha reanudado`);
+          else if (barrier.kind === "stall") notify(`Esperando a que cargue el vídeo de ${barrier.by}`);
         }
       }
       partyRef.current = next;
@@ -158,7 +201,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     let retry: ReturnType<typeof setTimeout> | undefined;
     source.onerror = async () => {
       if (closed || source.readyState !== EventSource.CLOSED) return;
-      const { status, data } = await partyPost("/state", { code: membership.code, member: membership.member });
+      const { status, data } = await partyPost("/answer", { code: membership.code, member: membership.member });
       if (closed) return;
       if (status === 404 || data.code === "NOT_A_MEMBER") drop("La sala ya no existe");
       else retry = setTimeout(() => setReconnect((n) => n + 1), 3000);
@@ -173,6 +216,9 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   }, [membership, drop, reconnect]);
 
   // --- Actions ---
+  const followedRef = useRef<string | null | undefined>(undefined);
+  const justJoinedRef = useRef(false);
+
   const adopt = (data: any) => {
     justJoinedRef.current = true;
     followedRef.current = undefined;
@@ -191,13 +237,16 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [account, isTv]);
 
-  const join = useCallback(async (code: string) => {
-    if (membership) await partyPost("/leave", { code: membership.code, member: membership.member });
-    const { data } = await partyPost("/join", { code, name: name() });
-    if (!data.success) return joinError(data.code);
-    adopt(data);
-    return null;
-  }, [account, isTv, membership]);
+  const join = useCallback(
+    async (code: string) => {
+      if (membership) await partyPost("/leave", { code: membership.code, member: membership.member });
+      const { data } = await partyPost("/join", { code, name: name() });
+      if (!data.success) return joinError(data.code);
+      adopt(data);
+      return null;
+    },
+    [account, isTv, membership]
+  );
 
   const leave = useCallback(() => {
     if (!membership) return;
@@ -209,6 +258,14 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   const startNow = useCallback(() => {
     if (membership) partyPost("/start", { code: membership.code, member: membership.member });
   }, [membership]);
+
+  const playback = useCallback((action: string, position?: number) => {
+    const m = membershipRef.current;
+    if (m) partyPost("/playback", { code: m.code, member: m.member, action, position });
+  }, []);
+  const requestPlay = useCallback(() => playback("play"), [playback]);
+  const requestPause = useCallback((position: number) => playback("pause", position), [playback]);
+  const requestSeek = useCallback((target: number) => playback("seek", target), [playback]);
 
   // The phone remote can create, join or leave a room for the TV
   useEffect(() => {
@@ -228,14 +285,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
 
   // --- The pick: everyone goes there ---
   const state = party?.state;
-  const pickKey = state && state.phase !== "idle" ? `${state.animeId}:${state.episode}` : null;
+  const pickKey = state?.phase === "watching" ? `${state.animeId}:${state.episode}` : null;
   const target = watchTarget(pathname);
-  const onPick = !!target && !!state && state.phase !== "idle" && target.animeId === state.animeId && target.episode === state.episode;
+  const onPick = !!target && !!pickKey && target.animeId === state!.animeId && target.episode === state!.episode;
 
-  // Undefined until the first snapshot: on a reload the room's current pick is taken as seen
-  // (whoever is elsewhere gets the dialog or stays put); right after joining, it's followed
-  const followedRef = useRef<string | null | undefined>(undefined);
-  const justJoinedRef = useRef(false);
+  // On a reload the room's current pick is taken as seen (whoever is elsewhere gets the dialog or
+  // stays put); right after joining, and whenever the pick changes, it's followed
   useEffect(() => {
     if (!state) return;
     if (followedRef.current === undefined) {
@@ -249,14 +304,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     if (!pickKey || followedRef.current === pickKey) return;
     followedRef.current = pickKey;
     if (!onPick) router.push(pickHref(state));
-    // Only when the pick changes: someone who left the player isn't dragged back on every pause
   }, [pickKey, state === undefined]);
 
   // The host opening an episode picks it for everyone
   const pickedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!membership || !isHost || !target) return;
-    if (onPick) return;
+    if (!membership || !isHost || !target || onPick) return;
     const key = `${target.animeId}:${target.episode}`;
     if (pickedRef.current === key) return;
     pickedRef.current = key;
@@ -264,89 +317,124 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     partyPost("/select", { code: membership.code, member: membership.member, ...target, audio: currentAudio() });
   }, [membership, isHost, target?.animeId, target?.episode, onPick]);
 
+  // Away from the episode, barriers don't wait for this device
+  useEffect(() => {
+    if (membership) partyPost("/answer", { code: membership.code, member: membership.member, away: !onPick });
+  }, [membership, onPick, reconnect]);
+
   // Anyone else opening an episode that isn't the pick is asked to leave the room first; the next
   // episode the player moves on to by itself gets a moment, as the host's is about to pick it too
   useEffect(() => {
     setMismatch(false);
     if (!membership || !party || isHost || !target || onPick) return;
     const s = party.state;
-    const nextOfPick = s.phase === "playing" && target.animeId === s.animeId && target.episode === (s.episode ?? 0) + 1;
+    const nextOfPick = s.phase === "watching" && target.animeId === s.animeId && target.episode === (s.episode ?? 0) + 1;
     if (!nextOfPick) return setMismatch(true);
     const timer = setTimeout(() => setMismatch(true), NEXT_EPISODE_GRACE_MS);
     return () => clearTimeout(timer);
   }, [membership, isHost, pathname, onPick, party?.state.animeId, party?.state.episode, party?.state.phase]);
 
-  // --- The player ---
+  // --- The player follows the room ---
   useEffect(() => {
     if (!membership || (!onPick && !mismatch)) return;
     let video: HTMLVideoElement | null = null;
-    let quietUntil = 0;
-    let readySent = false;
     let startTimer: ReturnType<typeof setTimeout> | undefined;
+    let stallTimer: ReturnType<typeof setTimeout> | undefined;
+    // Answers already given, by barrier
+    let reportedFor = 0;
+    let readyFor = 0;
+    let checkingReadyFor = 0;
+    const answer = (body: Record<string, unknown>) =>
+      partyPost("/answer", { code: membership.code, member: membership.member, ...body });
 
-    const now = () => Date.now() - offsetRef.current;
-    const expected = () => {
+    /** Where the room says playback is now */
+    const roomPosition = () => {
       const s = partyRef.current!.state;
-      return s.position + (s.playing ? Math.max(0, now() - s.at) / 1000 : 0);
+      return s.playing ? s.position + Math.max(0, serverNow() - s.at) / 1000 : s.position;
     };
-    const quiet = () => (quietUntil = Date.now() + QUIET_MS);
 
-    const hold = () => {
-      if (!video) return;
-      quiet();
-      if (!video.paused) video.pause();
-      if (video.currentTime > 0.5) video.currentTime = 0;
+    const pauseHere = () => {
+      if (video && !video.paused) video.pause();
+    };
+
+    const goTo = (position: number) => {
+      if (video && Math.abs(video.currentTime - position) > 0.25) video.currentTime = position;
     };
 
     const apply = () => {
       const s = partyRef.current?.state;
-      if (!video || !s) return;
       clearTimeout(startTimer);
-      // Another episode open by mistake: kept paused while the dialog asks
-      if (mismatch || s.phase === "lobby") return hold();
-      if (s.phase !== "playing") return;
-      if (s.playing && s.at > now()) {
-        // Everyone ready: all start at the same moment
-        hold();
-        startTimer = setTimeout(apply, s.at - now());
+      if (!video || !s) return;
+      // Another episode open by mistake: kept still while the dialog asks
+      if (mismatch) return pauseHere();
+      const barrier = s.barrier;
+      if (barrier) {
+        pauseHere();
+        if (barrier.position === null) {
+          // Step 1: say where this player stopped
+          if (reportedFor !== barrier.id) {
+            reportedFor = barrier.id;
+            answer({ barrierId: barrier.id, position: video.currentTime });
+          }
+          return;
+        }
+        // Step 2: go there, and say so once it's buffered
+        if (readyFor !== barrier.id) {
+          goTo(barrier.position);
+          checkingReadyFor = barrier.id;
+        }
+        return;
+      }
+      if (!s.playing) {
+        pauseHere();
+        if (video.readyState >= 1) goTo(s.position);
+        return;
+      }
+      // Playing: from the agreed start time, all together
+      const wait = s.at - serverNow();
+      if (wait > 0) {
+        pauseHere();
+        goTo(s.position);
+        startTimer = setTimeout(apply, wait);
         return;
       }
       if (video.readyState < 1) return;
-      quiet();
-      const position = expected();
-      if (Math.abs(video.currentTime - position) > MAX_DRIFT_S) video.currentTime = position;
-      if (s.playing && video.paused) video.play().catch(() => {});
-      if (!s.playing && !video.paused) video.pause();
+      if (Math.abs(video.currentTime - roomPosition()) > MAX_DRIFT_S) video.currentTime = roomPosition();
+      if (video.paused) video.play().catch(noop);
     };
     onSnapshotRef.current = apply;
 
-    const send = (changes: { playing?: boolean; position?: number }) => {
-      const s = partyRef.current?.state;
-      if (!s || s.phase !== "playing" || Date.now() < quietUntil || mismatch) return;
-      partyPost("/state", { code: membership.code, member: membership.member, ...changes });
-    };
+    // The player only starts or stops on the room's word; anything else (an autoplay after a
+    // reload or a server change) is undone
     const onPlay = () => {
       const s = partyRef.current?.state;
-      // The player starts by itself; in the lobby it waits for the others
-      if (s?.phase === "lobby" || mismatch || (s?.playing && s.at > now())) return hold();
-      if (video) send({ playing: true, position: video.currentTime });
+      if (!s || mismatch || s.barrier || !s.playing || s.at > serverNow()) pauseHere();
     };
-    const onPause = () => video && !video.ended && send({ playing: false, position: video.currentTime });
-    const onSeeked = () => video && send({ playing: !video.paused, position: video.currentTime });
+    // Out of buffer while everyone plays: after a moment, everyone waits for this device
+    const onWaiting = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        const s = partyRef.current?.state;
+        if (video && s?.playing && !s.barrier && video.readyState < 3 && !mismatch) {
+          partyPost("/playback", { code: membership.code, member: membership.member, action: "stall", position: video.currentTime });
+        }
+      }, STALL_MS);
+    };
+    const onPlaying = () => clearTimeout(stallTimer);
 
     const bind = (next: HTMLVideoElement | null) => {
       if (next === video) return;
       if (video) {
         video.removeEventListener("play", onPlay);
-        video.removeEventListener("pause", onPause);
-        video.removeEventListener("seeked", onSeeked);
+        video.removeEventListener("waiting", onWaiting);
+        video.removeEventListener("playing", onPlaying);
         video.removeEventListener("loadedmetadata", apply);
       }
       video = next;
       if (!video) return;
       video.addEventListener("play", onPlay);
-      video.addEventListener("pause", onPause);
-      video.addEventListener("seeked", onSeeked);
+      video.addEventListener("waiting", onWaiting);
+      video.addEventListener("playing", onPlaying);
       video.addEventListener("loadedmetadata", apply);
       apply();
     };
@@ -354,24 +442,29 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     // The player makes its <video> after loading, and may replace it when changing server
     const finder = setInterval(() => {
       bind(document.querySelector("video"));
-      // Loaded enough to play: this device is ready for the lobby
-      const s = partyRef.current?.state;
-      if (!readySent && onPick && video && video.readyState >= 3 && s) {
-        readySent = true;
-        partyPost("/ready", { code: membership.code, member: membership.member, animeId: s.animeId, episode: s.episode });
+      const barrier = partyRef.current?.state.barrier;
+      // Step 2 answered once the agreed spot is buffered
+      if (video && barrier && barrier.position !== null && checkingReadyFor === barrier.id && readyFor !== barrier.id) {
+        goTo(barrier.position);
+        if (!video.seeking && video.readyState >= 3) {
+          readyFor = barrier.id;
+          answer({ barrierId: barrier.id, ready: true });
+        }
       }
-      if (s?.phase === "lobby" && video && !video.paused) hold();
-    }, 500);
+      // A barrier opened before the player existed: answer it now
+      if (video && barrier && barrier.position === null && reportedFor !== barrier.id) apply();
+    }, 400);
     const drift = setInterval(() => {
       const s = partyRef.current?.state;
-      if (s?.phase === "playing" && s.playing && video && !video.paused && Math.abs(video.currentTime - expected()) > MAX_DRIFT_S * 2) apply();
+      if (s?.playing && !s.barrier && video && !video.paused && Math.abs(video.currentTime - roomPosition()) > MAX_DRIFT_S) apply();
     }, DRIFT_CHECK_MS);
 
     return () => {
       clearInterval(finder);
       clearInterval(drift);
       clearTimeout(startTimer);
-      onSnapshotRef.current = () => {};
+      clearTimeout(stallTimer);
+      onSnapshotRef.current = noop;
       bind(null);
     };
   }, [membership, onPick, mismatch, pickKey]);
@@ -379,36 +472,39 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
   // The lobby overlay goes away at the start time everyone was given
   const [, rerender] = useState(0);
   useEffect(() => {
-    if (state?.phase !== "playing" || !state.playing) return;
-    const wait = state.at - (Date.now() - offsetRef.current);
+    if (!state?.playing) return;
+    const wait = state.at - serverNow();
     if (wait <= 0) return;
     const timer = setTimeout(() => rerender((n) => n + 1), wait + 50);
     return () => clearTimeout(timer);
-  }, [state?.phase, state?.playing, state?.at]);
+  }, [state?.playing, state?.at]);
 
   const api = useMemo<PartyApi>(
-    () => ({ party, you, isHost, create, join, leave, startNow }),
-    [party, you, isHost, create, join, leave, startNow]
+    () => ({ party, you, isHost, create, join, leave, startNow, requestPlay, requestPause, requestSeek }),
+    [party, you, isHost, create, join, leave, startNow, requestPlay, requestPause, requestSeek]
   );
 
   const host = party?.members.find((m) => m.host) ?? null;
-  const lobby =
-    onPick && !!state && (state.phase === "lobby" || (state.phase === "playing" && state.playing && state.at > Date.now() - offsetRef.current));
+  const barrier = state?.barrier ?? null;
+  const starting = !!state?.playing && state.at > serverNow();
+  // A new pick waits in the lobby; other barriers only show a small note
+  const lobby = onPick && (barrier?.kind === "pick" || (starting && !barrier && state!.position < 1));
 
   return (
     <PartyContext.Provider value={api}>
       {children}
       {party && !target && (isTv ? <TvPartyBadge party={party} /> : null)}
       {!isTv && !target && <PartyFab />}
-      {party && onPick && !lobby && <WatchPartyBadge party={party} />}
-      {party && lobby && <LobbyOverlay party={party} isHost={isHost} onStart={startNow} starting={state!.phase === "playing"} />}
+      {party && onPick && !lobby && !barrier && <WatchPartyBadge party={party} />}
+      {party && lobby && <LobbyOverlay party={party} isHost={isHost} onStart={startNow} starting={!barrier} />}
+      {party && onPick && !lobby && (barrier || starting) && <SyncBadge party={party} />}
       {party && mismatch && host && (
         <MismatchDialog
           hostName={host.name}
           onLeave={leave}
           onBack={() => {
             setMismatch(false);
-            if (party.state.phase !== "idle") router.replace(pickHref(party.state));
+            if (party.state.phase === "watching") router.replace(pickHref(party.state));
             else router.back();
           }}
         />

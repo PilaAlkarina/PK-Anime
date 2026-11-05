@@ -10,7 +10,8 @@ import { findLocalEntry, saveLocalProgress, useMyList } from "@/lib/library/my-l
 import { findRemoteEntry, upsertRemoteEntry, useRemoteLibrary } from "@/lib/library/remote";
 import { getAudioPreference, type AudioPreference } from "@/lib/library/preferences";
 import { getPlaybackPreferences } from "@/lib/playback-preferences";
-import { EmbedPlayer } from "@/components/player/embed-player";
+import { EmbedPlayer, type PlayerSync } from "@/components/player/embed-player";
+import { useParty } from "@/components/party/party-provider";
 import { useLibraryNavigation } from "./navigation-provider";
 import { FinishScreen } from "./finish-screen";
 import { FocusButton } from "./focusable";
@@ -119,6 +120,20 @@ export function WatchScreen({
   };
 
 
+  // "Ver juntos": on the room's episode the player asks the room to play, pause or jump, and
+  // only the host jumps or moves on to the next episode (the others follow)
+  const room = useParty();
+  const roomState = room.party?.state;
+  const inRoom = !!roomState && roomState.phase === "watching" && roomState.animeId === anime.id && roomState.episode === episode;
+  const sync = useMemo<PlayerSync | null>(
+    () =>
+      inRoom
+        ? { canSeek: room.isHost, onPlay: room.requestPlay, onPause: room.requestPause, onSeek: room.requestSeek }
+        : null,
+    [inRoom, room.isHost, room.requestPlay, room.requestPause, room.requestSeek]
+  );
+  const followsHost = inRoom && !room.isHost;
+
   const onPlayerEvent = (name: string, data: any) => {
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
       audioRef.current = data.audio;
@@ -189,8 +204,9 @@ export function WatchScreen({
           // Always this anime's page, whatever page playback started from (home, search…)
           onEpisodes={() => finishThen(() => backTo(`/anime/${anime.id}`), savedLocallyRef.current)}
           // Replace, so Back from the next episode still returns to the anime page
+          sync={sync}
           onNextEpisode={
-            hasNext
+            hasNext && !followsHost
               ? () => leave(() => replace(`/watch/${anime.id}/${episode + 1}?audio=${audioRef.current}`))
               : undefined
           }

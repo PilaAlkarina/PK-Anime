@@ -9,7 +9,16 @@ import { useParty } from "./party-provider";
 
 const CODE_LENGTH = 6;
 
+/** Members the open barrier is still waiting on (connected, on the episode, not answered yet) */
+export function waitingOn(party: PartySnapshot) {
+  const b = party.state.barrier;
+  if (!b) return [];
+  const answered = b.position === null ? b.reported : b.ready;
+  return party.members.filter((m) => m.connected && !m.away && !answered.includes(m.id));
+}
+
 function MemberList({ party, showReady }: { party: PartySnapshot; showReady: boolean }) {
+  const ready = party.state.barrier?.ready ?? [];
   return (
     <ul className="flex flex-col gap-1.5 tv:gap-3">
       {party.members
@@ -17,7 +26,7 @@ function MemberList({ party, showReady }: { party: PartySnapshot; showReady: boo
         .map((m) => (
           <li key={m.id} className="flex items-center gap-2 tv:gap-3">
             {showReady ? (
-              m.ready ? (
+              ready.includes(m.id) || !party.state.barrier ? (
                 <Check className="w-4 h-4 text-emerald-400 tv:w-7 tv:h-7" aria-label="Listo" />
               ) : (
                 <Loader2 className="w-4 h-4 text-zinc-400 animate-spin tv:w-7 tv:h-7" aria-label="Cargando" />
@@ -35,7 +44,7 @@ function MemberList({ party, showReady }: { party: PartySnapshot; showReady: boo
 
 function statusLine(party: PartySnapshot, isHost: boolean) {
   const host = party.members.find((m) => m.host)?.name ?? "el anfitrión";
-  if (party.state.phase === "idle") {
+  if (party.state.phase !== "watching") {
     return isHost ? "Abre cualquier episodio: todos lo verán contigo." : `Esperando a que ${host} elija un episodio.`;
   }
   return isHost ? `Episodio ${party.state.episode} en marcha. Abre otro para cambiar.` : `${host} ha elegido el episodio ${party.state.episode}.`;
@@ -128,7 +137,7 @@ function PartyPanel({ onClose }: { onClose: () => void }) {
           </div>
           <p className="mt-1 text-xs text-zinc-500">Los demás entran con este código en «Ver juntos», o con el enlace.</p>
           <div className="mt-4 text-sm">
-            <MemberList party={party} showReady={party.state.phase === "lobby"} />
+            <MemberList party={party} showReady={party.state.barrier?.kind === "pick"} />
           </div>
           <button
             type="button"
@@ -289,8 +298,8 @@ export function LobbyOverlay({
   /** Everyone is ready and playback starts in a moment */
   starting: boolean;
 }) {
-  const online = party.members.filter((m) => m.connected);
-  const ready = online.filter((m) => m.ready).length;
+  const online = party.members.filter((m) => m.connected && !m.away);
+  const ready = starting ? online.length : online.length - waitingOn(party).length;
   const canStart = isHost && !starting;
   const selected = useDialogKeys(canStart ? 1 : 0, () => onStart());
   return (
@@ -341,6 +350,25 @@ export function MismatchDialog({ hostName, onLeave, onBack }: { hostName: string
           </DialogButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Over the player while a barrier holds everyone (a pause, a jump, a resume, a slow buffer):
+ * who it's waiting for. Starting, it says so.
+ */
+export function SyncBadge({ party }: { party: PartySnapshot }) {
+  const waiting = waitingOn(party);
+  const text = !party.state.barrier
+    ? "Sincronizado. ¡Seguimos!"
+    : waiting.length
+      ? `Sincronizando… esperando a ${waiting.map((m) => m.name).join(", ")}`
+      : "Sincronizando…";
+  return (
+    <div className="fixed top-4 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/85 border border-white/15 text-sm font-bold text-white pointer-events-none tv:top-[4vh] tv:gap-3 tv:px-6 tv:py-3 tv:text-xl">
+      <Loader2 className="w-4 h-4 animate-spin tv:w-6 tv:h-6" />
+      {text}
     </div>
   );
 }
