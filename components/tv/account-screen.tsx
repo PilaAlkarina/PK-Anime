@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
-import { Activity, ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink } from "lucide-react";
+import { Activity, ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { refreshAccount, useAccount } from "@/lib/library/account";
 import { useIsTv } from "@/components/ui-mode";
@@ -165,9 +166,10 @@ function WebShortcuts() {
     { href: "/settings", icon: Settings, title: "Ajustes", text: "Audio, idiomas de subtítulos, servidor y formato" },
     { href: "/status", icon: Activity, title: "Estado de los servidores", text: "Comprueba si un servidor de vídeo está caído" },
     { href: "/link", icon: Tv, title: "Usar como mando de la TV", text: "Introduce el código que muestra la TV en Cuenta" },
+    { href: "/party", icon: Users, title: "Ver juntos", text: "Únete con el código de otro dispositivo" },
   ];
   return (
-    <div className="grid gap-2.5 md:grid-cols-3">
+    <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
       {links.map(({ href, icon: Icon, title, text }) => (
         <Link key={href} href={href} className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-950 border border-zinc-900 hover:bg-zinc-900">
           <Icon className="w-6 h-6 flex-shrink-0 text-zinc-300" aria-hidden />
@@ -179,6 +181,25 @@ function WebShortcuts() {
         </Link>
       ))}
     </div>
+  );
+}
+
+/** TV: joining a room by code; a room is opened from an anime page's "Ver juntos" */
+function PartyEntry() {
+  const router = useRouter();
+  const reveal = useRevealOnFocus();
+  return (
+    <>
+      <p className="max-w-[60rem] text-2xl text-zinc-300">
+        Reproduce un episodio a la vez en varios dispositivos. Crea la sala desde la ficha de un anime, o únete con el
+        código que muestra otro.
+      </p>
+      <FocusGroup className="mt-8" onFocusInside={(node) => reveal(node)}>
+        <FocusButton variant="secondary" onSelect={() => router.push("/party")}>
+          <Users className="w-6 h-6 mr-3" /> Unirme con un código
+        </FocusButton>
+      </FocusGroup>
+    </>
   );
 }
 
@@ -205,10 +226,16 @@ export function AccountScreen() {
         </section>
       </div>
       {isTv ? (
-        <section>
-          <SectionTitle>Móvil</SectionTitle>
-          <PhoneSection />
-        </section>
+        <>
+          <section className="mb-16">
+            <SectionTitle>Móvil</SectionTitle>
+            <PhoneSection />
+          </section>
+          <section>
+            <SectionTitle>Ver juntos</SectionTitle>
+            <PartyEntry />
+          </section>
+        </>
       ) : (
         <section>
           <SectionTitle>Más</SectionTitle>

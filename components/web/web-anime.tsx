@@ -4,7 +4,7 @@ import { useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, MetaWithScore, ScoreStar } from "@/components/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Captions, Check, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
+import { Bookmark, Captions, Check, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Lock, Play, Users } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo, upcomingEpisodes, type UpcomingEpisode } from "@/lib/anilist/episodes";
@@ -14,6 +14,9 @@ import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } 
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { themeArtists, themeLabel, useAnimeThemes } from "@/lib/library/themes";
+import { deviceName, startParty, watchHref as partyWatchHref } from "@/lib/watch-party/client";
+import { useAccount } from "@/lib/library/account";
+import { useRouter } from "next/navigation";
 import { ThemePlayer } from "@/components/theme-player";
 import { THEMES_TITLE } from "@/components/tv/themes-row";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
@@ -242,6 +245,21 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const editor = useEntryEditor(anime, listTarget);
   const markUpTo = (progress: number) => editor.update(progressChanges(anime, listEntry, progress));
 
+  // "Ver juntos": opens a room on this episode; others join with its code at /party
+  const account = useAccount();
+  const router = useRouter();
+  const [startingParty, setStartingParty] = useState(false);
+  const watchTogether = async (episode: number) => {
+    if (startingParty) return;
+    setStartingParty(true);
+    try {
+      const code = await startParty(anime.id, episode, audio, deviceName(account?.user?.name, false));
+      router.push(partyWatchHref({ animeId: anime.id, episode, audio }, code));
+    } catch {
+      setStartingParty(false);
+    }
+  };
+
   const watchHref = (episode: number) => `/watch/${anime.id}/${episode}?audio=${audio}`;
   const progressOf = (number: number) =>
     Math.max(entry ? episodeProgress(anime.id, number) : 0, watchedUpTo >= number ? 1 : 0);
@@ -391,6 +409,16 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                     ))}
                   </div>
                 </>
+              )}
+              {total > 0 && (
+                <button
+                  type="button"
+                  onClick={() => watchTogether(playEpisode)}
+                  className="flex items-center gap-2 h-12 px-4 rounded-xl sm:rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800"
+                >
+                  <Users className="w-5 h-5" />
+                  {startingParty ? "Creando sala…" : "Ver juntos"}
+                </button>
               )}
               {trailerSrc && (
                 <button

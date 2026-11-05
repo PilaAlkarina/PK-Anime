@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: { id: string; episode: string };
-  searchParams: { audio?: string };
+  searchParams: { audio?: string; party?: string };
 }
 
 async function load(params: PageProps["params"]) {
@@ -33,5 +33,6 @@ export default async function WatchPage({ params, searchParams }: PageProps) {
   const { anime, episode } = await load(params);
   const audio = searchParams.audio === "dub" ? "dub" : searchParams.audio === "sub" ? "sub" : undefined;
   // Keyed by episode so moving to the next one starts a fresh player
-  return <WatchScreen key={episode} anime={anime} episode={episode} audio={audio} />;
+  const party = searchParams.party?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || null;
+  return <WatchScreen key={episode} anime={anime} episode={episode} audio={audio} party={party} />;
 }

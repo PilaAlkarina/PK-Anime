@@ -5,7 +5,7 @@ import { EpisodeNumeral, JapaneseLabel, Keycap, MetaWithScore } from "@/componen
 import { GenrePills } from "./hero";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Captions, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
+import { Bookmark, Captions, Clapperboard, ListPlus, Lock, Play, Users } from "lucide-react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { ListEntryPanel } from "./list-entry-panel";
 import { LibraryFooter } from "@/components/library-footer";
@@ -22,6 +22,8 @@ import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } 
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { useAnimeThemes } from "@/lib/library/themes";
+import { deviceName, startParty, watchHref } from "@/lib/watch-party/client";
+import { useAccount } from "@/lib/library/account";
 import { ThemePlayer } from "@/components/theme-player";
 import { ThemesRow } from "./themes-row";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
@@ -236,6 +238,19 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
   };
 
   const play = (episode: number) => router.push(`/watch/${anime.id}/${episode}?audio=${audio}`);
+  // "Ver juntos": opens a room on this episode; others join with its code at /party
+  const account = useAccount();
+  const [startingParty, setStartingParty] = useState(false);
+  const watchTogether = async (episode: number) => {
+    if (startingParty) return;
+    setStartingParty(true);
+    try {
+      const code = await startParty(anime.id, episode, audio, deviceName(account?.user?.name, true));
+      router.push(watchHref({ animeId: anime.id, episode, audio }, code));
+    } catch {
+      setStartingParty(false);
+    }
+  };
 
   const rangeCount = Math.ceil(listed / EPISODES_PER_RANGE);
   const firstInRange = range * EPISODES_PER_RANGE + 1;
@@ -354,6 +369,12 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <FocusButton variant="primary" className="mr-4" onSelect={() => play(playEpisode)}>
                   <Play className="w-6 h-6 mr-3" fill="currentColor" />
                   {continuing ? `Continuar EP ${playEpisode}` : `Ver EP ${playEpisode}`}
+                </FocusButton>
+              )}
+              {total > 0 && (
+                <FocusButton variant="secondary" className="mr-4" onSelect={() => watchTogether(playEpisode)}>
+                  <Users className="w-6 h-6 mr-3" />
+                  {startingParty ? "Creando sala…" : "Ver juntos"}
                 </FocusButton>
               )}
               {/* Segmented control: a raised track, the selected side in paper */}
