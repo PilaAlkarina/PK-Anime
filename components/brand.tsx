@@ -31,6 +31,8 @@ const SECTIONS: [RegExp, string][] = [
   [/^porque viste/i, "おすすめ"],
   [/^orden de visionado/i, "視聴順"],
   [/^estadísticas/i, "統計"],
+  [/^openings/i, "主題歌"],
+  [/^radio/i, "ラジオ"],
   [/^tendencias/i, "人気"],
   [/^temporada de/i, "今期"],
   [/^próxima temporada/i, "来期"],

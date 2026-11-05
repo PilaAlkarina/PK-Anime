@@ -21,6 +21,9 @@ import { airingLabel, metaLine, statusLabel, upcomingLabel } from "@/lib/library
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
+import { useAnimeThemes } from "@/lib/library/themes";
+import { ThemePlayer } from "@/components/theme-player";
+import { ThemesRow } from "./themes-row";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
 import type { EditTarget } from "@/lib/library/use-entry-editor";
@@ -263,6 +266,10 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
     badgeClassName: orderMarks[index]?.className,
     onSelect: () => item.id !== anime.id && router.push(`/anime/${item.id}`),
   }));
+  // Openings and endings from AnimeThemes; one opens the theme player from there
+  const themes = useAnimeThemes(anime.id);
+  const [themeIndex, setThemeIndex] = useState<number | null>(null);
+
   const recommendationCards: RowCard[] = anime.recommendations.map((item) => ({
     item,
     onSelect: () => router.push(`/anime/${item.id}`),
@@ -493,6 +500,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
         )}
 
         <div className="relative pl-[7rem] mt-12 space-y-6">
+          {themes && themes.length > 0 && <ThemesRow themes={themes} onPlay={setThemeIndex} onRowFocus={revealRow} />}
           {orderCards.length > 1 && (
             <CardRow rowKey="watch-order" title="Orden de visionado" cards={orderCards} onRowFocus={revealRow} />
           )}
@@ -508,6 +516,13 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
         </div>
         <div className="h-[20vh]" />
       </div>
+      {themes && themeIndex !== null && (
+        <ThemePlayer
+          tracks={themes.map((theme) => ({ theme, animeTitle: anime.title }))}
+          startIndex={themeIndex}
+          onClose={() => setThemeIndex(null)}
+        />
+      )}
     </Screen>
   );
 }

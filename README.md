@@ -53,6 +53,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
+| `/radio` | *Radio de openings*, opened from *Mi lista*: the openings and/or endings of the anime being watched, completed or paused, shuffled or best scored first, played one after another |
 | `/stats` | *Estadísticas*, opened from *Mi lista*, for all time or one year (an anime counts in the year it was finished, as MyAnimeList's `finish_date` or AniList's `completedAt` say, or the year of its last change): totals, statuses as one split bar with counts and percentages, anime finished per year or per month, formats, most watched genres, the score distribution and the best scored |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
 | `/link` | Phone page opened from the TV's QR: remote control, keyboard with the search results (a tap opens the anime on the TV) and sign-in |
@@ -75,6 +76,8 @@ If the chosen server fails, the usual failover moves to the next server and pick
 **Recommendations.** After the first catalog row, up to two *Porque viste …* rows show AniList's recommendations for the latest anime completed (or followed for three episodes or more) that weren't scored below 7, leaving out what's already on a list or in the history.
 
 **Watch order.** The anime page shows *Orden de visionado* when the anime has prequels or sequels: every season, film and OVA reachable through them, by release date (`/api/catalog/franchise/{id}`, side stories and spin-offs left out). Each entry says *Estás aquí*, *Visto*, *Viendo* or *Siguiente* (the first one not completed after the last one completed). The score screen after the last episode also offers the sequel.
+
+**Openings and endings.** The anime page lists its openings and endings from [AnimeThemes](https://animethemes.moe) (song, artists, episodes, spoiler mark) and plays them full screen, one after another; on TV ◀ ▶ change the song, OK pauses and Back closes. `/api/catalog/themes?ids=…` asks AnimeThemes from the server, 25 anime per request, and keeps each answer for 12 hours. The videos are WebM; a browser that can't play one skips to the next.
 
 **Profiles.** Several people can share a device: *Cuenta* (*Perfil* on the web) lists the profiles, adds up to six, renames them (an on-screen keyboard on TV), changes their color and removes them along with what they kept. Each profile has its own *Mi lista*, history, episode progress, list view, recent searches and playback preferences; the theme, the player volume and the phone link stay per device. With more than one profile the library asks *¿Quién está viendo?* once per browser session. The first profile keeps the storage keys from before profiles existed and the others add `::<id>` to them (`lib/library/profiles.ts`). Switching to a profile signs out a MyAnimeList or AniList account that another profile was using, so nobody edits someone else's list.
 

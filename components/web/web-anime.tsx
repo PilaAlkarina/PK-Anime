@@ -13,6 +13,9 @@ import { airingLabel, episodesLabel, metaLine, statusLabel, upcomingLabel } from
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
+import { themeArtists, themeLabel, useAnimeThemes } from "@/lib/library/themes";
+import { ThemePlayer } from "@/components/theme-player";
+import { THEMES_TITLE } from "@/components/tv/themes-row";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
 import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
@@ -268,6 +271,9 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   };
 
   const relations = anime.relations.filter((r) => RELATION_LABELS[r.relationType]);
+  // Openings and endings from AnimeThemes; one opens the theme player from there
+  const themes = useAnimeThemes(anime.id);
+  const [themeIndex, setThemeIndex] = useState<number | null>(null);
   // The franchise in watch order, marking where this one is and what's watched
   const order = useWatchOrder(anime.id);
   const orderMarks = watchOrderMarks(order, anime.id, (item) => findRemoteEntry(remote, item) ?? findLocalEntry(myList, item));
@@ -612,6 +618,33 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
         </div>
       </div>
 
+      {themes && themes.length > 0 && (
+        <div className="max-w-[1360px] mx-auto mt-12">
+          <HorizontalRow title={THEMES_TITLE} itemCount={themes.length}>
+            {themes.map((theme, index) => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => setThemeIndex(index)}
+                className="group flex-shrink-0 w-[15rem] md:w-[18rem] snap-start p-4 rounded-xl bg-zinc-900 border-[1.5px] border-line text-left outline-none hover:border-zinc-500 focus-visible:koma-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="font-display text-xl text-zinc-400 group-hover:text-red-500">{themeLabel(theme)}</span>
+                  {theme.episodes && <span className="text-xs text-zinc-500">Ep. {theme.episodes}</span>}
+                  {theme.spoiler && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-400 text-black text-[0.7rem] font-bold">Spoiler</span>
+                  )}
+                </span>
+                <span className="mt-1.5 flex items-center gap-2">
+                  <Play className="w-4 h-4 flex-shrink-0 text-zinc-400 group-hover:text-white" fill="currentColor" />
+                  <span className="text-[0.95rem] font-bold line-clamp-1">{theme.title || "Sin título"}</span>
+                </span>
+                <span className="mt-0.5 block text-sm text-zinc-400 line-clamp-1">{themeArtists(theme)}</span>
+              </button>
+            ))}
+          </HorizontalRow>
+        </div>
+      )}
       {order.length > 1 && (
         <div className="max-w-[1360px] mx-auto mt-12">
           <HorizontalRow title="Orden de visionado" itemCount={order.length}>
@@ -638,6 +671,13 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
             ))}
           </HorizontalRow>
         </div>
+      )}
+      {themes && themeIndex !== null && (
+        <ThemePlayer
+          tracks={themes.map((theme) => ({ theme, animeTitle: anime.title }))}
+          startIndex={themeIndex}
+          onClose={() => setThemeIndex(null)}
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Radio } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useIsTv } from "@/components/ui-mode";
 import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilist/types";
@@ -157,9 +157,12 @@ export function MyListScreen() {
   };
 
   const statsButton = items.length > 0 && (
-    <FocusGroup className="mb-8">
-      <FocusButton variant="secondary" onSelect={() => router.push("/stats")}>
+    <FocusGroup className="flex mb-8">
+      <FocusButton variant="secondary" className="mr-4" onSelect={() => router.push("/stats")}>
         <BarChart3 className="w-6 h-6 mr-3" /> Estadísticas
+      </FocusButton>
+      <FocusButton variant="secondary" onSelect={() => router.push("/radio")}>
+        <Radio className="w-6 h-6 mr-3" /> Radio de openings
       </FocusButton>
     </FocusGroup>
   );
@@ -198,9 +201,14 @@ export function MyListScreen() {
           {(items.length > 0 || remote) && (
             <aside className="mb-6 md:w-[21rem] md:flex-shrink-0 p-4 rounded-2xl bg-zinc-950 border-[1.5px] border-line">
               {items.length > 0 && (
-                <FocusButton variant="secondary" className="w-full" onSelect={() => router.push("/stats")}>
-                  <BarChart3 className="w-5 h-5 mr-2" /> Estadísticas
-                </FocusButton>
+                <div className="grid grid-cols-2 gap-2">
+                  <FocusButton variant="secondary" className="w-full !px-3" onSelect={() => router.push("/stats")}>
+                    <BarChart3 className="w-5 h-5 mr-2" /> Estadísticas
+                  </FocusButton>
+                  <FocusButton variant="secondary" className="w-full !px-3" onSelect={() => router.push("/radio")}>
+                    <Radio className="w-5 h-5 mr-2" /> Radio
+                  </FocusButton>
+                </div>
               )}
               {remote && (
                 <div className={items.length > 0 ? "mt-4 pt-4 border-t border-line" : undefined}>
