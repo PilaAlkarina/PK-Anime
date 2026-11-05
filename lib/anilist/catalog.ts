@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { BY_MAL_IDS_QUERY, buildRowsQuery, DESCRIPTIONS_QUERY, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DESCRIPTIONS_QUERY, DETAIL_QUERY, EPISODE_AIRING_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
 import { aniZipEpisodesOrNone } from "./anizip";
@@ -289,6 +289,28 @@ export const getAnimeWithEpisodes = cache(async (id: number): Promise<AnimeDetai
   const [anime, episodeDetails] = await Promise.all([getAnime(id), aniZipEpisodesOrNone(id)]);
   return anime && { ...anime, episodeDetails };
 });
+
+/**
+ * When an episode aired or airs (Unix seconds), or null when AniList has no schedule for it.
+ * For the player's "aired 25 min ago" while no server has it yet: the details' schedule only
+ * lists the episodes still to come.
+ */
+export const getEpisodeAiring = unstable_cache(
+  async (id: number, episode: number): Promise<number | null> => {
+    try {
+      const { AiringSchedule } = await anilistQuery<{ AiringSchedule: { airingAt: number } | null }>(EPISODE_AIRING_QUERY, {
+        id,
+        episode,
+      });
+      return AiringSchedule?.airingAt ?? null;
+    } catch (err) {
+      if (err instanceof AniListError && err.status === 404) return null;
+      throw err;
+    }
+  },
+  ["anilist:episode-airing"],
+  { revalidate: DETAIL_TTL, tags: ["anilist"] }
+);
 
 /** Episodes airing between two Unix timestamps (seconds), oldest first */
 export const getSchedule = unstable_cache(

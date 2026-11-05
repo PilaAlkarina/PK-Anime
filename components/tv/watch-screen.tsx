@@ -57,12 +57,15 @@ export function WatchScreen({
   episode,
   audio: audioParam,
   party,
+  airingAt: airingAtProp,
 }: {
   anime: AnimeDetail;
   episode: number;
   audio?: AudioPreference;
   /** "Ver juntos" room code: playback follows the room's */
   party?: string | null;
+  /** When this episode aired or airs, looked up by the page for a recent one */
+  airingAt?: number | null;
 }) {
   const { replace, goBack, backTo } = useLibraryNavigation();
   const isTv = useIsTv();
@@ -78,6 +81,17 @@ export function WatchScreen({
   const preferredServer = audio ? getPlaybackPreferences().preferredServer : "auto";
   const episodes = useMemo(() => episodeInfo(anime), [anime]);
   const next = episodes.get(episode + 1);
+  // When this episode airs or aired: what the page looked up, AniList's schedule in the details,
+  // else ani.zip's air time
+  const airingAt = useMemo(() => {
+    if (airingAtProp) return airingAtProp;
+    const scheduled =
+      anime.upcomingAirings?.find((a) => a.episode === episode)?.airingAt ??
+      (anime.nextEpisode?.episode === episode ? anime.nextEpisode.airingAt : undefined);
+    if (scheduled) return scheduled;
+    const utc = anime.episodeDetails?.find((d) => d.number === episode)?.airDateUtc;
+    return utc ? Math.floor(Date.parse(utc) / 1000) || null : null;
+  }, [anime, episode, airingAtProp]);
 
   useEffect(() => {
     const initial = audioParam ?? getAudioPreference();
@@ -215,6 +229,7 @@ export function WatchScreen({
           }
           onBack={() => finishThen(goBack, savedLocallyRef.current)}
           poster={episodes.get(episode)?.thumbnail || anime.banner || anime.cover}
+          airingAt={airingAt}
           // Always this anime's page, whatever page playback started from (home, search…)
           onEpisodes={() => finishThen(() => backTo(`/anime/${anime.id}`), savedLocallyRef.current)}
           // Replace, so Back from the next episode still returns to the anime page

@@ -166,6 +166,12 @@ query ($ids: [Int], $since: Int) {
 }
 ${CARD_FRAGMENT}`;
 
+/** When one episode aired (or airs) */
+export const EPISODE_AIRING_QUERY = `
+query ($id: Int, $episode: Int) {
+  AiringSchedule(mediaId: $id, episode: $episode) { airingAt }
+}`;
+
 /** Only the synopses, for up to 50 anime: what the home hero shows of a title */
 export const DESCRIPTIONS_QUERY = `
 query ($ids: [Int]) {

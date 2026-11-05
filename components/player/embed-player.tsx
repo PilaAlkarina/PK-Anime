@@ -40,6 +40,7 @@ import { profileKey } from "@/lib/library/profiles";
 import { RemoteHints } from "./ui/remote-hints";
 import { SubtitleText } from "./ui/subtitle-text";
 import { LoadingVeil } from "./ui/loading-veil";
+import { PlayerErrorScreen, type PlayerErrorKind, type TriedServer } from "./ui/error-screen";
 import { arrowStep, focusFirst, moveFocus, type NavAxis } from "./ui/focus-nav";
 import type { NextEpisodeInfo } from "./ui/types";
 import { detectSubtitleLanguage, isForcedSubtitle, subtitleLanguageName } from "./player-core/subtitle-language";
@@ -166,7 +167,13 @@ export interface EmbedPlayerProps {
   onNextEpisode?: () => void;
   /** Art behind the loading screen: the episode's thumbnail, else the anime's banner */
   poster?: string | null;
+  /** When this episode airs or aired (Unix seconds), when known: an episode still ahead isn't
+   *  looked for, and one just aired that no server has yet says so */
+  airingAt?: number | null;
 }
+
+/** While no server has the episode yet, they're asked again this often */
+const RECHECK_MS = 5 * 60 * 1000;
 
 /** Seconds of countdown before the next episode starts on its own */
 const NEXT_COUNTDOWN = 10;
@@ -197,6 +204,7 @@ export function EmbedPlayer({
   onEpisodes,
   onNextEpisode,
   poster,
+  airingAt = null,
 }: EmbedPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -218,6 +226,13 @@ export function EmbedPlayer({
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  // Why it can't play (the error screen's wording and actions), and the servers that were tried
+  const [errorKind, setErrorKind] = useState<PlayerErrorKind>("failed");
+  const [triedServers, setTriedServers] = useState<TriedServer[]>([]);
+  const [nextCheckAt, setNextCheckAt] = useState<number | null>(null);
+  // Servers tried for this episode and audio since the last (re)start, by source id: the
+  // failover moves on to one not in here, and stops when they've all failed
+  const triedRef = useRef(new Map<string, TriedServer>());
 
   // Server & Audio options
   const [selectedType, setSelectedType] = useState<"sub" | "dub">(initialAudio);
@@ -363,7 +378,8 @@ export function EmbedPlayer({
   const gainNodeRef = useRef<GainNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const connectedVideoRef = useRef<HTMLVideoElement | null>(null);
-  const fallbackRef = useRef<() => void>(() => {});
+  // Moves to the next server not tried yet; "missing" when this one answered it doesn't have the episode
+  const fallbackRef = useRef<(reason?: TriedServer["reason"]) => void>(() => {});
 
   const lastProgressEmitRef = useRef<number>(0);
   const malSyncedRef = useRef<boolean>(false);
@@ -422,6 +438,41 @@ export function EmbedPlayer({
     },
     []
   );
+
+  /** Stops trying and shows the error screen with `kind`'s wording */
+  const failPlayback = useCallback(
+    (kind: PlayerErrorKind, message: string) => {
+      setErrorKind(kind);
+      setTriedServers(Array.from(triedRef.current.values()));
+      setFatalError(message);
+      setIsLoading(false);
+      postToParent("PLAYER_EVENT", {
+        type: "error",
+        code: kind === "offline" ? "OFFLINE" : kind === "not-aired" ? "NOT_AIRED" : "CONTENT_UNAVAILABLE",
+        message,
+      });
+    },
+    [postToParent]
+  );
+
+  /** Starts over from the first server, as on opening the episode */
+  const retryPlayback = useCallback(() => {
+    const time = videoRef.current?.currentTime ?? 0;
+    if (time > 0) preserveTimeRef.current = time;
+    triedRef.current.clear();
+    setTriedServers([]);
+    setNextCheckAt(null);
+    setFatalError(null);
+    setIsLoading(true);
+    setReloadCounter((prev) => prev + 1);
+  }, []);
+
+  // A new episode or audio starts with every server untried
+  useEffect(() => {
+    triedRef.current.clear();
+    setTriedServers([]);
+    setNextCheckAt(null);
+  }, [anilistId, malId, episodeNumber, selectedType]);
 
   // Show status toast
   const showToast = useCallback((type: "refreshing" | "success" | "info" | "error", message: string) => {
@@ -615,6 +666,15 @@ export function EmbedPlayer({
     async function loadStream() {
       setIsLoading(true);
       setFatalError(null);
+      // Still ahead: no server can have it, so none is asked; the screen counts down instead
+      if (airingAt && airingAt * 1000 > Date.now()) {
+        failPlayback("not-aired", "Este episodio todavía no se ha emitido");
+        return;
+      }
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        failPlayback("offline", "No hay conexión a internet");
+        return;
+      }
       try {
         const params = new URLSearchParams();
         if (anilistId) params.set("anilistId", anilistId.toString());
@@ -842,13 +902,12 @@ export function EmbedPlayer({
       } catch (err: any) {
         if (!cancelled) {
           console.error("Stream loading failed:", err);
-          setFatalError(err.message || "No se ha podido cargar el vídeo");
-          setIsLoading(false);
-          postToParent("PLAYER_EVENT", {
-            type: "error",
-            code: "CONTENT_UNAVAILABLE",
-            message: err.message,
-          });
+          // fetch rejects with a TypeError when the network is down
+          const offline = navigator.onLine === false || (err instanceof TypeError && /fetch|network/i.test(err.message));
+          failPlayback(
+            offline ? "offline" : "failed",
+            offline ? "No hay conexión a internet" : err.message || "No se ha podido cargar el vídeo"
+          );
         }
       }
     }
@@ -856,7 +915,7 @@ export function EmbedPlayer({
     return () => {
       cancelled = true;
     };
-  }, [anilistId, malId, episodeNumber, selectedType, server, reloadCounter, postToParent]);
+  }, [anilistId, malId, episodeNumber, selectedType, server, reloadCounter, postToParent, failPlayback, airingAt]);
 
   // HLS player setup & Native fallback
   useEffect(() => {
@@ -947,7 +1006,7 @@ export function EmbedPlayer({
                   `[EmbedPlayer] Fatal network error (${httpStatus || data.details}). Failing over to alternative server...`
                 );
                 hls.destroy();
-                fallbackRef.current?.();
+                fallbackRef.current?.(httpStatus === 404 || httpStatus === 410 ? "missing" : "error");
                 break;
               }
 
@@ -2122,34 +2181,57 @@ export function EmbedPlayer({
     });
   }, [currentTime, selectedType, getSourceProvider, formatServerRouteName, showToast, postToParent, duration, rawSkipTimes]);
 
-  const handleFallbackToNextServer = useCallback(() => {
-    const isDub = selectedType === "dub";
-    const available = isDub ? nativeDubSources : nativeSubSources;
-    if (available.length <= 1) {
-      setFatalError("Ningún servidor tiene este episodio ahora mismo");
-      setIsLoading(false);
-      return;
-    }
+  // Each server is tried once: going round the list again (the old `(index + 1) % length`) kept
+  // switching forever when none had the episode, e.g. one that has only just aired
+  const handleFallbackToNextServer = useCallback(
+    (reason: TriedServer["reason"] = "error") => {
+      // Offline, every server would fail: wait for the connection instead of using them up
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        failPlayback("offline", "No hay conexión a internet");
+        return;
+      }
+      const available = selectedType === "dub" ? nativeDubSources : nativeSubSources;
+      const current = available.find((s) => s.id === activeSourceId || s.videoUrl === streamUrl);
+      if (current) triedRef.current.set(current.id, { name: getSourceProvider(current), reason });
 
-    const currentIndex = available.findIndex(
-      (s) => s.id === activeSourceId || s.videoUrl === streamUrl
-    );
-    const nextIndex = (currentIndex + 1) % available.length;
-    const nextServer = available[nextIndex];
+      const nextServer = available.find((s) => !triedRef.current.has(s.id));
+      if (nextServer) {
+        console.warn(`[EmbedPlayer] Auto-failing over to alternative server: ${formatServerRouteName(nextServer)}`);
+        showToast("refreshing", `Probando con ${formatServerRouteName(nextServer)}…`);
+        handleSelectSource(nextServer);
+        return;
+      }
 
-    if (nextServer && nextServer.id !== activeSourceId) {
-      console.warn(`[EmbedPlayer] Auto-failing over to alternative server: ${formatServerRouteName(nextServer)}`);
-      showToast("refreshing", `Probando con ${formatServerRouteName(nextServer)}…`);
-      handleSelectSource(nextServer);
-    } else {
-      setFatalError("No se ha podido reproducir en ningún servidor");
-      setIsLoading(false);
-    }
-  }, [selectedType, nativeDubSources, nativeSubSources, activeSourceId, streamUrl, formatServerRouteName, showToast, handleSelectSource]);
+      const tried = Array.from(triedRef.current.values());
+      const noneHasIt = tried.length > 0 && tried.every((t) => t.reason === "missing");
+      failPlayback(
+        noneHasIt ? "unavailable" : "failed",
+        noneHasIt ? "Ningún servidor tiene este episodio ahora mismo" : "No se ha podido reproducir en ningún servidor"
+      );
+    },
+    [selectedType, nativeDubSources, nativeSubSources, activeSourceId, streamUrl, getSourceProvider, formatServerRouteName, showToast, handleSelectSource, failPlayback]
+  );
 
   useEffect(() => {
     fallbackRef.current = handleFallbackToNextServer;
   }, [handleFallbackToNextServer]);
+
+  // The error screen tries again on its own: every few minutes while no server has the episode
+  // yet, as soon as the connection is back, and once an episode still ahead airs
+  useEffect(() => {
+    if (!fatalError) return;
+    if (errorKind === "offline") {
+      window.addEventListener("online", retryPlayback);
+      return () => window.removeEventListener("online", retryPlayback);
+    }
+    const at =
+      errorKind === "unavailable" ? Date.now() + RECHECK_MS : errorKind === "not-aired" && airingAt ? airingAt * 1000 : null;
+    // setTimeout can't wait much past 24 days; a date that far is checked on the next visit
+    if (!at || at - Date.now() > 24 * 86_400_000) return;
+    if (errorKind === "unavailable") setNextCheckAt(at);
+    const timer = setTimeout(retryPlayback, Math.max(0, at - Date.now()));
+    return () => clearTimeout(timer);
+  }, [fatalError, errorKind, airingAt, retryPlayback]);
 
   // Current player state snapshot
   const getPlayerState = useCallback(() => {
@@ -2692,49 +2774,23 @@ export function EmbedPlayer({
         </header>
       )}
 
-      {/* Fatal error */}
+      {/* Can't play: why, what happens next and what can be done */}
       {fatalError && !isLoading && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 p-6 text-center bg-black/90 animate-in fade-in duration-200">
-          <div className={cn("flex items-center justify-center rounded-full bg-zinc-900 border-[1.5px] border-line text-amber-500", tv ? "w-20 h-20" : "w-14 h-14")}>
-            <Tv className={tv ? "w-10 h-10" : "w-7 h-7"} />
-          </div>
-          <div className="max-w-md space-y-1.5">
-            <h2 className={cn("font-bold", tv ? "text-3xl" : "text-lg")}>No se puede reproducir este episodio</h2>
-            <p className={cn("text-zinc-400", tv ? "text-xl" : "text-sm")}>{fatalError}</p>
-          </div>
-          <div data-nav="x" className="flex flex-wrap justify-center gap-2.5 pt-1">
-            <button
-              type="button"
-              autoFocus={tv}
-              onClick={(e) => {
-                e.stopPropagation();
-                setFatalError(null);
-                setIsLoading(true);
-                setReloadCounter((prev) => prev + 1);
-              }}
-              className={tv ? tvPill("bg-red-500 border-red-500 text-black") : "h-11 px-5 rounded-full bg-red-500 text-black text-sm font-bold hover:bg-red-400"}
-            >
-              Reintentar
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setFatalError(null);
-                setIsLoading(true);
-                setServer((prev) => (prev === "flow" ? "zuri" : "flow"));
-              }}
-              className={tv ? tvPill() : "h-11 px-5 rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800"}
-            >
-              Probar con {server === "flow" ? "Zuri" : "Flow"}
-            </button>
-            {onBack && !tv && (
-              <button type="button" onClick={onBack} className="h-11 px-5 rounded-full bg-ink-3 border-[1.5px] border-line text-sm font-bold hover:bg-zinc-800">
-                Volver a la ficha
-              </button>
-            )}
-          </div>
-        </div>
+        <PlayerErrorScreen
+          kind={errorKind}
+          tv={tv}
+          poster={poster}
+          detail={fatalError}
+          airingAt={airingAt}
+          nextCheckAt={nextCheckAt}
+          tried={triedServers}
+          onRetry={retryPlayback}
+          onChooseServer={() => {
+            setFatalError(null);
+            openPanel("main");
+          }}
+          onBack={onBack}
+        />
       )}
 
       {/* Muted autoplay */}
