@@ -1,17 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FocusButton, Screen } from "@/components/tv/focusable";
+import { LibraryErrorScreen } from "@/components/library-error";
 
+/** An anime, episode or address that doesn't exist */
 export default function LibraryNotFound() {
   const router = useRouter();
   return (
-    <Screen className="flex flex-col items-start justify-center min-h-screen pl-12">
-      <h1 className="text-4xl font-bold">No hemos encontrado este anime</h1>
-      <p className="mt-3 text-xl text-zinc-400">Puede que el enlace sea incorrecto o que AniList ya no lo tenga.</p>
-      <FocusButton variant="primary" className="mt-8" onSelect={() => router.replace("/")}>
-        Volver al inicio
-      </FocusButton>
-    </Screen>
+    <LibraryErrorScreen
+      code="404"
+      stamp="NO ENCONTRADO"
+      japanese="見つかりません"
+      title="Esta página no existe"
+      text="Puede que el enlace esté mal, que el episodio no exista o que AniList ya no tenga este anime."
+      actions={[
+        { label: "Volver al inicio", primary: true, onSelect: () => router.replace("/") },
+        { label: "Buscar un anime", onSelect: () => router.push("/search") },
+      ]}
+    />
   );
 }

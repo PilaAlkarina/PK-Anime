@@ -8,6 +8,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { getUiMode } from "@/lib/ui-mode-server";
 import { ProfileGate } from "@/components/profiles";
 import { TvScreensaver } from "@/components/tv/screensaver";
+import { OfflineNotice } from "@/components/offline-notice";
 import "./library.css";
 import "./score-chips.css";
 
@@ -31,6 +32,7 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
         <TvLinkProvider>
           <div data-ui="web">
             <NavigationProgress />
+            <OfflineNotice />
             <WebShell>
               <ProfileGate>{children}</ProfileGate>
             </WebShell>
@@ -47,6 +49,7 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
           <style dangerouslySetInnerHTML={{ __html: TV_SCALE }} />
           <div data-ui="tv" lang="es" className="relative min-h-screen bg-black text-white overflow-hidden">
             <NavigationProgress />
+            <OfflineNotice />
             <Sidebar />
             <main className="pl-[7rem]">
               <ProfileGate>{children}</ProfileGate>
