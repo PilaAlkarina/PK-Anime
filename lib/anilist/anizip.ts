@@ -21,6 +21,24 @@ interface RawEpisode {
   runtime?: number | null;
 }
 
+// A failure isn't cached by unstable_cache (it throws), so it's remembered here for a while:
+// otherwise every page render while ani.zip is down would wait out the timeout again
+const FAILURE_MS = 10 * 60 * 1000;
+const failedUntil = new Map<number, number>();
+
+/** ani.zip's episodes, or none while it's failing for this anime (retried after ten minutes) */
+export async function aniZipEpisodesOrNone(anilistId: number): Promise<EpisodeDetail[]> {
+  if ((failedUntil.get(anilistId) ?? 0) > Date.now()) return [];
+  try {
+    const episodes = await getAniZipEpisodes(anilistId);
+    failedUntil.delete(anilistId);
+    return episodes;
+  } catch {
+    failedUntil.set(anilistId, Date.now() + FAILURE_MS);
+    return [];
+  }
+}
+
 /** Throws when ani.zip can't be reached, so a failure isn't cached for the whole TTL */
 export const getAniZipEpisodes = unstable_cache(
   async (anilistId: number): Promise<EpisodeDetail[]> => {

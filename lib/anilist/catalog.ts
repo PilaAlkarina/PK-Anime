@@ -1,9 +1,10 @@
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
 import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
-import { getAniZipEpisodes } from "./anizip";
+import { aniZipEpisodesOrNone } from "./anizip";
 import { GENRE_LABELS, HIDDEN_GENRES } from "./genres";
 import { getCurrentSeason, getNextSeason, SEASON_LABELS } from "./season";
 import type {
@@ -279,11 +280,15 @@ export const getAnime = unstable_cache(
 /**
  * getAnime plus ani.zip's episode titles and thumbnails, for the anime page and the player. Each
  * source is cached on its own, so ani.zip being down only leaves the episodes without art.
+ *
+ * Memoized per request with React's cache(): the page and its generateMetadata both load it and
+ * run in the same render, and unstable_cache doesn't merge concurrent calls, so without it a cold
+ * or stale entry was fetched twice.
  */
-export async function getAnimeWithEpisodes(id: number): Promise<AnimeDetail | null> {
-  const [anime, episodeDetails] = await Promise.all([getAnime(id), getAniZipEpisodes(id).catch(() => [])]);
+export const getAnimeWithEpisodes = cache(async (id: number): Promise<AnimeDetail | null> => {
+  const [anime, episodeDetails] = await Promise.all([getAnime(id), aniZipEpisodesOrNone(id)]);
   return anime && { ...anime, episodeDetails };
-}
+});
 
 /** Episodes airing between two Unix timestamps (seconds), oldest first */
 export const getSchedule = unstable_cache(
