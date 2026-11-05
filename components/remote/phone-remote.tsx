@@ -17,12 +17,15 @@ import {
   Unlink,
 } from "lucide-react";
 import type { RemoteCommand } from "@/lib/pairing/store";
+import type { CatalogItem } from "@/lib/anilist/types";
+import { metaLine } from "@/lib/library/format";
 import { authClient } from "@/lib/auth-client";
 import { useAccount } from "@/lib/library/account";
 import { cn } from "@/lib/utils";
 
 const TOKEN_KEY = "pk_remote_token";
 const TEXT_DELAY_MS = 300;
+const MAX_RESULTS = 8;
 const STATUS_POLL_MS = 15_000;
 
 type Phase = "starting" | "enter-code" | "linked" | "unlinked";
@@ -86,6 +89,10 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
   const [tvListening, setTvListening] = useState(true);
   const [text, setText] = useState("");
   const textTimer = useRef<ReturnType<typeof setTimeout>>();
+  // The same search the TV runs, listed here too so a result opens on the TV with one tap
+  const [results, setResults] = useState<CatalogItem[]>([]);
+  const [opened, setOpened] = useState<number | null>(null);
+  const searchSeq = useRef(0);
   const account = useAccount();
 
   const claim = async (code: string) => {
@@ -157,10 +164,31 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
 
   const key = (k: Extract<RemoteCommand, { kind: "key" }>["key"]) => () => send({ kind: "key", key: k });
 
+  const search = async (value: string) => {
+    const seq = ++searchSeq.current;
+    const query = value.trim();
+    if (query.length < 2) return setResults([]);
+    const data = await fetch(`/api/catalog/row?kind=search&value=${encodeURIComponent(query.slice(0, 60))}`)
+      .then((res) => res.json())
+      .catch(() => null);
+    // A later keystroke already asked for something else
+    if (seq !== searchSeq.current) return;
+    setResults(data?.success ? data.row.items.slice(0, MAX_RESULTS) : []);
+  };
+
   const onText = (value: string) => {
     setText(value);
+    setOpened(null);
     clearTimeout(textTimer.current);
-    textTimer.current = setTimeout(() => send({ kind: "text", text: value }), TEXT_DELAY_MS);
+    textTimer.current = setTimeout(() => {
+      send({ kind: "text", text: value });
+      search(value);
+    }, TEXT_DELAY_MS);
+  };
+
+  const openOnTv = (item: CatalogItem) => {
+    setOpened(item.id);
+    send({ kind: "navigate", href: `/anime/${item.id}` });
   };
 
   const signInTv = async () => {
@@ -273,6 +301,29 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
           className="flex-1 bg-transparent outline-none text-lg"
         />
       </label>
+      {results.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2" aria-label="Resultados">
+          {results.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                onClick={() => openOnTv(item)}
+                className="flex items-center w-full p-2 rounded-xl bg-white/5 text-left active:bg-white/20"
+              >
+                <span className="flex-shrink-0 w-11 h-16 rounded-md overflow-hidden bg-white/10">
+                  {item.cover && <img src={item.cover} alt="" loading="lazy" className="w-full h-full object-cover" />}
+                </span>
+                <span className="flex flex-col min-w-0 ml-3">
+                  <span className="font-bold line-clamp-2">{item.title}</span>
+                  <span className="text-sm text-zinc-400 line-clamp-1">
+                    {opened === item.id ? "Abierto en la TV" : metaLine(item)}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <section className="mt-10 pt-6 border-t border-white/10">
         <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Cuenta</h2>

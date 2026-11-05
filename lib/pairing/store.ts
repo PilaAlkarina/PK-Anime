@@ -25,6 +25,10 @@ export type RemoteKey = (typeof REMOTE_KEYS)[number];
 
 export const REMOTE_DESTINATIONS = ["/", "/search", "/schedule", "/genres", "/my-list", "/account", "/settings"];
 
+/** The fixed destinations, plus any anime page (a search result picked on the phone) */
+export const isRemoteDestination = (href: unknown) =>
+  typeof href === "string" && (REMOTE_DESTINATIONS.includes(href) || /^\/anime\/\d{1,9}$/.test(href));
+
 export type RemoteCommand =
   | { kind: "key"; key: RemoteKey }
   | { kind: "text"; text: string }

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import {
   emit,
   findByController,
-  REMOTE_DESTINATIONS,
+  isRemoteDestination,
   REMOTE_KEYS,
   touch,
   type RemoteCommand,
@@ -19,7 +19,7 @@ function parseCommand(input: unknown): RemoteCommand | null {
   const cmd = input as Record<string, unknown>;
   if (cmd.kind === "key" && REMOTE_KEYS.includes(cmd.key as RemoteKey)) return { kind: "key", key: cmd.key as RemoteKey };
   if (cmd.kind === "text" && typeof cmd.text === "string") return { kind: "text", text: cmd.text.slice(0, MAX_TEXT) };
-  if (cmd.kind === "navigate" && REMOTE_DESTINATIONS.includes(cmd.href as string)) {
+  if (cmd.kind === "navigate" && isRemoteDestination(cmd.href)) {
     return { kind: "navigate", href: cmd.href as string };
   }
   if (cmd.kind === "signout") return { kind: "signout" };

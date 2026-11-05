@@ -25,7 +25,7 @@ PK Anime is a personal anime library you host on your own machine and open from 
 - **TV and web interfaces**, picked per device: spatial navigation with the remote on Smart TVs, a top bar on computers and bottom tabs on phones.
 - **Catalog from AniList**: home rows, advanced search, the airing schedule, details, trailers, related titles and recommendations.
 - **List sync with MyAnimeList or AniList**: *Seguir viendo* and *Mi lista* merge your list with this device, statuses and scores can be changed from the anime page, and the player marks episodes as watched.
-- **Phone as remote**: pair a phone by QR to control the TV, type searches and sign in without the TV remote.
+- **Phone as remote**: pair a phone by QR to control the TV, type searches (the results also show on the phone, and a tap opens one on the TV) and sign in without the TV remote.
 - **Player** with dub and subtitle preferences, intro and ending skipping and automatic server failover.
 
 It is built on the [AniFlow API](https://github.com/realmichaelstetson/AniFlow-API), whose embed player, HLS endpoints and REST API it keeps. See [AniFlow API](#aniflow-api).
@@ -54,7 +54,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |
-| `/link` | Phone page opened from the TV's QR: remote control, keyboard and sign-in |
+| `/link` | Phone page opened from the TV's QR: remote control, keyboard with the search results (a tap opens the anime on the TV) and sign-in |
 | `/license` | MIT license text, copyright holders and credits (linked from every page's footer) |
 
 **Advanced search.** On computers this is the *Biblioteca* section of the top bar (on phones, the *Buscar* tab); with nothing chosen it lists the whole catalog, most popular first. `/search` combines the title text with filters: format (series, movie, special, OVA, ONA…), status, season, a range of years, genres and community tags (each one included or excluded; several of either must all match), source material, number of episodes, minimum score and country of origin, plus the sort order. The state lives in the URL (`/search?q=…&genre=Action&no-genre=Romance&tag=Isekai&format=TV&from=2018&to=2024&sort=SCORE_DESC`), so searches can be shared and survive going back from an anime. Genres and tags on an anime's page, and the genre tiles, open it with that filter applied. On TV every filter is a chip reachable with the remote; tags there are a list of the most common ones, while the web screens search all of them by name.
