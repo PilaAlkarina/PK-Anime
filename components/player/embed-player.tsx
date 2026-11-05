@@ -443,6 +443,8 @@ export function EmbedPlayer({
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        // The saved entry, so the page can update its copy of the list instead of downloading it again
+        if (data?.entry) postToParent("list_entry", { entry: data.entry });
         if (data?.updated) {
           const service = data.provider?.name || "tu lista";
           setMarkedOn(service);
@@ -450,7 +452,7 @@ export function EmbedPlayer({
         }
       })
       .catch(() => {});
-  }, [anilistId, malId, episodeNumber, showToast]);
+  }, [anilistId, malId, episodeNumber, showToast, postToParent]);
 
   // Web Audio Graph setup for Volume Boost past 100%
   const setupAudioGraph = useCallback(() => {

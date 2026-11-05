@@ -101,8 +101,9 @@ export const aniList: Tracker = {
   name: "AniList",
   idKind: "anilist",
 
-  async getList(token) {
-    const { Viewer } = await query<{ Viewer: { id: number } }>(token, `query { Viewer { id } }`);
+  async getList(token, knownUserId) {
+    // The session already names the user; asking AniList is the fallback
+    const userId = knownUserId || (await query<{ Viewer: { id: number } }>(token, `query { Viewer { id } }`)).Viewer.id;
     const entries = new Map<number, TrackerEntry>();
     const cards = new Map<number, CatalogItem>();
 
@@ -121,7 +122,7 @@ export const aniList: Tracker = {
           }
         }
         ${CARD_FRAGMENT}`,
-        { userId: Viewer.id, chunk, perChunk: CHUNK_SIZE }
+        { userId, chunk, perChunk: CHUNK_SIZE }
       );
       // Custom lists repeat entries already in the status lists
       for (const list of MediaListCollection.lists) {

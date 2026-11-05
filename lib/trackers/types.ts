@@ -49,8 +49,8 @@ export interface Tracker {
   name: string;
   /** Which ID the service addresses anime by; the other one is resolved before calling it */
   idKind: "mal" | "anilist";
-  /** Every entry on the signed-in user's anime list */
-  getList(token: string): Promise<TrackerList>;
+  /** Every entry on the signed-in user's anime list; `userId` saves asking who the user is */
+  getList(token: string, userId?: number | null): Promise<TrackerList>;
   getEntry(token: string, ids: TrackerIds): Promise<TrackerEntry | null>;
   /** Marks `episode` as watched; never lowers the progress already on the list */
   saveProgress(token: string, ids: TrackerIds, episode: number): Promise<{ updated: boolean; entry: TrackerEntry | null }>;

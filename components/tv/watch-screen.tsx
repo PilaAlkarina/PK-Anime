@@ -7,7 +7,7 @@ import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo } from "@/lib/anilist/episodes";
 import { recordWatch, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, saveLocalProgress, useMyList } from "@/lib/library/my-list";
-import { findRemoteEntry, useRemoteLibrary } from "@/lib/library/remote";
+import { findRemoteEntry, upsertRemoteEntry, useRemoteLibrary } from "@/lib/library/remote";
 import { getAudioPreference, type AudioPreference } from "@/lib/library/preferences";
 import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
@@ -110,6 +110,9 @@ export function WatchScreen({
       audioRef.current = data.audio;
     }
     if (name === "ended") finishThen(goBack, true);
+    // The episode marked as watched on the list: merged into the copy (and the finale's rating
+    // prompt sees it) without downloading the whole list again
+    if (name === "list_entry" && data?.entry) upsertRemoteEntry(data.entry, anime);
     if (name === "progress" && !savedLocallyRef.current && data?.duration > 0 && data.currentTime / data.duration >= WATCHED_FRACTION) {
       savedLocallyRef.current = true;
       saveLocalProgress(anime, episode);

@@ -115,7 +115,8 @@ export async function exportToRemote(
     upsertRemoteEntry(entry, catalogSnapshot(anime));
     result[isNew ? "added" : "updated"]++;
   }
-  await refreshRemoteLibrary();
+  // Every success is already merged; only a failure leaves the copy unsure of the service's state
+  if (result.failed > 0) await refreshRemoteLibrary();
   return result;
 }
 

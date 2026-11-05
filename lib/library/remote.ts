@@ -20,7 +20,11 @@ export interface RemoteLibrary {
   fetchedAt: number;
 }
 
-const MAX_AGE_MS = 60_000;
+// The whole list is several requests to the service, and this app's own writes are merged in as
+// they happen (upsertRemoteEntry), so a copy only goes stale through other devices: refetched
+// after ten minutes, or after one when coming back to the tab
+const MAX_AGE_MS = 10 * 60_000;
+const FOCUS_MAX_AGE_MS = 60_000;
 
 export const REMOTE_STATUS_LABELS: Record<ListStatus, string> = {
   watching: "Viendo",
@@ -42,7 +46,13 @@ function set(next: RemoteLibrary | null) {
   listeners.forEach((l) => l());
 }
 
-function build(provider: RemoteLibrary["provider"], entries: TrackerEntry[], anime: CatalogItem[]): RemoteLibrary {
+/** `fetchedAt` stays the download's time when merging a local write, so the copy can still age */
+function build(
+  provider: RemoteLibrary["provider"],
+  entries: TrackerEntry[],
+  anime: CatalogItem[],
+  fetchedAt = Date.now()
+): RemoteLibrary {
   const byAnilistId = new Map<number, TrackerEntry>();
   const byMalId = new Map<number, TrackerEntry>();
   for (const entry of entries) {
@@ -55,8 +65,21 @@ function build(provider: RemoteLibrary["provider"], entries: TrackerEntry[], ani
     anime: new Map(anime.map((a) => [a.id, a])),
     byAnilistId,
     byMalId,
-    fetchedAt: Date.now(),
+    fetchedAt,
   };
+}
+
+let focusListening = false;
+
+/** Back on the tab after a while: the list may have changed on another device */
+function refreshOnReturn() {
+  if (focusListening || typeof document === "undefined") return;
+  focusListening = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && library && Date.now() - library.fetchedAt > FOCUS_MAX_AGE_MS) {
+      refreshRemoteLibrary();
+    }
+  });
 }
 
 export function refreshRemoteLibrary() {
@@ -82,7 +105,7 @@ export function upsertRemoteEntry(entry: TrackerEntry, card?: CatalogItem) {
   const entries = [merged, ...library.entries.filter((e) => !matches(e))];
   const anime = Array.from(library.anime.values());
   if (card && !library.anime.has(card.id)) anime.push(card);
-  set(build(library.provider, entries, anime));
+  set(build(library.provider, entries, anime, library.fetchedAt));
 }
 
 /** Records a removal from the remote list without refetching it */
@@ -91,7 +114,7 @@ export function removeRemoteEntry(anime: Pick<CatalogItem, "id" | "malId">) {
   const entries = library.entries.filter(
     (e) => e.anilistId !== anime.id && !(anime.malId && e.malId === anime.malId)
   );
-  set(build(library.provider, entries, Array.from(library.anime.values())));
+  set(build(library.provider, entries, Array.from(library.anime.values()), library.fetchedAt));
 }
 
 const subscribe = (listener: () => void) => {
@@ -106,6 +129,7 @@ export function useRemoteLibrary() {
   const signedIn = account?.signedIn;
 
   useEffect(() => {
+    refreshOnReturn();
     if (signedIn === false && library) set(null);
     if (signedIn && (!library || Date.now() - library.fetchedAt > MAX_AGE_MS)) refreshRemoteLibrary();
   }, [signedIn]);

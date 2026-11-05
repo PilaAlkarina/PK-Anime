@@ -8,6 +8,8 @@ export interface TrackerSession {
   tracker: Tracker;
   accessToken: string;
   user: { name: string; image: string | null };
+  /** The user's ID on the service when the session already holds it (AniList), to skip asking */
+  remoteUserId: number | null;
   /** Set-Cookie headers from a token refresh, to be passed on with the reply */
   setCookies: string[];
 }
@@ -29,6 +31,8 @@ export async function getTrackerSession(request: NextRequest): Promise<TrackerSe
       tracker,
       accessToken: token.response.accessToken,
       user: { name: session.user.name, image: session.user.image ?? null },
+      // lib/auth.ts names AniList users "anilist-<id>@anilist.invalid"
+      remoteUserId: Number(session.user.email.match(/^anilist-(\d+)@/)?.[1]) || null,
       setCookies: token.headers.getSetCookie(),
     };
   } catch {
