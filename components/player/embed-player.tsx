@@ -3244,6 +3244,11 @@ export function EmbedPlayer({
           onQualityChange={handleSelectQuality}
           speed={playbackSpeed}
           onSpeedChange={(speed) => {
+            // Everyone in a room plays at normal speed, or they'd drift apart
+            if (syncRef.current && speed !== 1) {
+              showToast("info", "En una sala de «Ver juntos» la velocidad es siempre la normal");
+              return;
+            }
             if (videoRef.current) videoRef.current.playbackRate = speed;
             setPlaybackSpeed(speed);
           }}

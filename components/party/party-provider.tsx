@@ -317,10 +317,12 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     partyPost("/select", { code: membership.code, member: membership.member, ...target, audio: currentAudio() });
   }, [membership, isHost, target?.animeId, target?.episode, onPick]);
 
-  // Away from the episode, barriers don't wait for this device
+  // Away from the episode, barriers don't wait for this device. Only once the room is known: before
+  // that, every page would count as away
+  const known = !!party;
   useEffect(() => {
-    if (membership) partyPost("/answer", { code: membership.code, member: membership.member, away: !onPick });
-  }, [membership, onPick, reconnect]);
+    if (membership && known) partyPost("/answer", { code: membership.code, member: membership.member, away: !onPick });
+  }, [membership, known, onPick, reconnect]);
 
   // Anyone else opening an episode that isn't the pick is asked to leave the room first; the next
   // episode the player moves on to by itself gets a moment, as the host's is about to pick it too
@@ -358,7 +360,7 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
     };
 
     const goTo = (position: number) => {
-      if (video && Math.abs(video.currentTime - position) > 0.25) video.currentTime = position;
+      if (video && Math.abs(video.currentTime - position) > 0.1) video.currentTime = position;
     };
 
     const apply = () => {
@@ -421,6 +423,16 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       }, STALL_MS);
     };
     const onPlaying = () => clearTimeout(stallTimer);
+    // A new source (another server, a retry) loads from scratch: the others wait for it right
+    // away, from where this one was, rather than this device skipping ahead to catch up later.
+    // After the old source is dropped currentTime reads 0, so the last time seen is used.
+    let lastTime = 0;
+    const onTime = () => video && video.currentTime > 0 && (lastTime = video.currentTime);
+    const onReload = () => {
+      const s = partyRef.current?.state;
+      if (!s?.playing || s.barrier || mismatch || s.at > serverNow()) return;
+      partyPost("/playback", { code: membership.code, member: membership.member, action: "stall", position: lastTime });
+    };
 
     const bind = (next: HTMLVideoElement | null) => {
       if (next === video) return;
@@ -428,6 +440,8 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
         video.removeEventListener("play", onPlay);
         video.removeEventListener("waiting", onWaiting);
         video.removeEventListener("playing", onPlaying);
+        video.removeEventListener("emptied", onReload);
+        video.removeEventListener("timeupdate", onTime);
         video.removeEventListener("loadedmetadata", apply);
       }
       video = next;
@@ -435,7 +449,11 @@ export function PartyProvider({ children }: { children: React.ReactNode }) {
       video.addEventListener("play", onPlay);
       video.addEventListener("waiting", onWaiting);
       video.addEventListener("playing", onPlaying);
+      video.addEventListener("emptied", onReload);
+      video.addEventListener("timeupdate", onTime);
       video.addEventListener("loadedmetadata", apply);
+      // Same room playback rate for everyone
+      if (video.playbackRate !== 1) video.playbackRate = 1;
       apply();
     };
 
