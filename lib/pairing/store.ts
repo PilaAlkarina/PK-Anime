@@ -40,7 +40,9 @@ export type LinkEvent =
   | { type: "unlinked" }
   | { type: "command"; command: RemoteCommand }
   /** The phone handed over its session; the TV fetches it from /api/pair/session/accept */
-  | { type: "session"; name: string };
+  | { type: "session"; name: string }
+  /** The phone sent its profile (list, history); the TV fetches it from /api/pair/profile/accept */
+  | { type: "profile"; name: string; entries: number; history: number };
 
 export interface SessionCookie {
   name: string;
@@ -54,6 +56,8 @@ interface Link {
   createdAt: number;
   touchedAt: number;
   pendingSession: SessionCookie[] | null;
+  /** A profile the phone sent, as the JSON it posted; dropped once the TV takes it */
+  pendingProfile: string | null;
   listeners: Set<(event: LinkEvent) => void>;
 }
 
@@ -101,6 +105,7 @@ export function createLink() {
     createdAt: now,
     touchedAt: now,
     pendingSession: null,
+    pendingProfile: null,
     listeners: new Set(),
   };
   links.set(link.tvToken, link);
@@ -175,4 +180,16 @@ export function takeSession(link: Link) {
   const cookies = link.pendingSession;
   link.pendingSession = null;
   return cookies;
+}
+
+export function offerProfile(link: Link, json: string, summary: { name: string; entries: number; history: number }) {
+  link.pendingProfile = json;
+  touch(link);
+  emit(link, { type: "profile", ...summary });
+}
+
+export function takeProfile(link: Link) {
+  const json = link.pendingProfile;
+  link.pendingProfile = null;
+  return json;
 }

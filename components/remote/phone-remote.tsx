@@ -15,12 +15,14 @@ import {
   Rewind,
   Search,
   Unlink,
+  Upload,
 } from "lucide-react";
 import type { RemoteCommand } from "@/lib/pairing/store";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { metaLine } from "@/lib/library/format";
 import { authClient } from "@/lib/auth-client";
 import { useAccount } from "@/lib/library/account";
+import { collectProfile } from "@/lib/library/profile-transfer";
 import { cn } from "@/lib/utils";
 
 const TOKEN_KEY = "pk_remote_token";
@@ -191,6 +193,29 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
     send({ kind: "navigate", href: `/anime/${item.id}` });
   };
 
+  const [sending, setSending] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const sendProfile = async () => {
+    if (!token || sending) return;
+    setSending(true);
+    setProfileMessage(null);
+    const profile = collectProfile();
+    const { status, data } = await postJSON("/api/pair/profile", { token, profile }).catch(() => ({ status: 0, data: {} }));
+    setSending(false);
+    if (status === 404) {
+      writeToken(null);
+      setPhase("unlinked");
+    } else if (data.success) {
+      setProfileMessage(
+        data.delivered
+          ? `Enviado: ${profile.entries.length} animes. Elige en la TV qué hacer con ellos.`
+          : "Enviado, pero la TV no responde. Abre la biblioteca en la TV para recibirlo."
+      );
+    } else {
+      setProfileMessage("No se pudo enviar. Vuelve a intentarlo.");
+    }
+  };
+
   const signInTv = async () => {
     setMessage(null);
     const { data } = await postJSON("/api/pair/session", { token });
@@ -324,6 +349,23 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
           ))}
         </ul>
       )}
+
+      <section className="mt-10 pt-6 border-t border-white/10">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Tu lista</h2>
+        <p className="mt-3 text-zinc-400">
+          Envía a la TV la Mi lista, el historial y lo que llevas visto en este móvil, sin cuenta de MyAnimeList ni
+          AniList. En la TV eliges si crear un perfil con ello o unirlo al suyo.
+        </p>
+        <button
+          type="button"
+          onClick={sendProfile}
+          disabled={sending}
+          className="flex items-center mt-4 h-11 px-4 rounded-xl bg-white text-black font-bold disabled:opacity-60"
+        >
+          <Upload className="w-5 h-5 mr-2" /> {sending ? "Enviando…" : "Enviar mi lista a la TV"}
+        </button>
+        {profileMessage && <p className="mt-3 text-emerald-300">{profileMessage}</p>}
+      </section>
 
       <section className="mt-10 pt-6 border-t border-white/10">
         <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Cuenta</h2>

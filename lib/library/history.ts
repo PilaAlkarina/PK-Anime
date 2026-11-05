@@ -37,6 +37,17 @@ export function catalogSnapshot(item: CatalogItem): CatalogItem {
 }
 
 export const useWatchHistory = store.useValue;
+export const getWatchHistory = store.get;
+
+/** Adds history from elsewhere (a phone's profile): per anime, the latest one wins */
+export function mergeHistory(entries: HistoryEntry[]) {
+  const byId = new Map(store.get().map((e) => [e.anime.id, e]));
+  for (const entry of entries) {
+    const current = byId.get(entry.anime.id);
+    if (!current || entry.updatedAt > current.updatedAt) byId.set(entry.anime.id, entry);
+  }
+  store.set(Array.from(byId.values()).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_ENTRIES));
+}
 
 export function recordWatch(anime: CatalogItem, episode: number) {
   const others = store.get().filter((e) => e.anime.id !== anime.id);

@@ -64,11 +64,22 @@ function write(next: ProfilesState) {
   listeners.forEach((l) => l());
 }
 
+/** The storage key for a profile */
+export function keyForProfile(key: string, profileId: string) {
+  return DEVICE_KEYS.has(key) || profileId === MAIN_ID ? key : `${key}::${profileId}`;
+}
+
 /** The storage key for the active profile */
 export function profileKey(key: string) {
-  if (typeof window === "undefined" || DEVICE_KEYS.has(key)) return key;
-  const { active } = read();
-  return active === MAIN_ID ? key : `${key}::${active}`;
+  if (typeof window === "undefined") return key;
+  return keyForProfile(key, read().active);
+}
+
+/** Whether a stored key belongs to `profileId`, and its base name if so */
+export function baseKeyFor(storedKey: string, profileId: string): string | null {
+  if (profileId === MAIN_ID) return storedKey.includes("::") ? null : storedKey;
+  const suffix = `::${profileId}`;
+  return storedKey.endsWith(suffix) ? storedKey.slice(0, -suffix.length) : null;
 }
 
 export const getProfiles = read;

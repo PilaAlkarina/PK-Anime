@@ -8,6 +8,8 @@ import { refreshAccount } from "@/lib/library/account";
 import { REMOTE_TEXT_EVENT, setPendingRemoteText } from "@/lib/tv/remote-text";
 import { useIsTv } from "@/components/ui-mode";
 import type { UiMode } from "@/lib/ui-mode";
+import { ProfileOfferDialog, type ProfileOffer } from "@/components/profile-offer";
+import type { ProfileTransfer } from "@/lib/library/profile-transfer";
 
 const STORAGE_KEY = "pk_tv_link";
 const RECONNECT_MS = 3000;
@@ -128,6 +130,19 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
 
+  // A profile the phone sent, waiting for the TV to say what to do with it
+  const [profileOffer, setProfileOffer] = useState<ProfileOffer | null>(null);
+  const takeProfile = useCallback(async (): Promise<ProfileTransfer | null> => {
+    const data = await fetch("/api/pair/profile/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tvToken: tokenRef.current }),
+    })
+      .then((res) => res.json())
+      .catch(() => null);
+    return data?.success ? (data.profile as ProfileTransfer) : null;
+  }, []);
+
   const showToast = useCallback((message: string) => {
     setToast(message);
     setTimeout(() => setToast((current) => (current === message ? null : current)), TOAST_MS);
@@ -225,6 +240,8 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
         runCommand(event.command);
       } else if (event.type === "session") {
         acceptSession(event.name);
+      } else if (event.type === "profile") {
+        setProfileOffer({ name: event.name, entries: event.entries, history: event.history });
       }
     };
     // EventSource retries on its own, but not after a 404 (a link the server dropped, e.g.
@@ -267,6 +284,16 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   return (
     <TvLinkContext.Provider value={{ available: true, state, startLinking, unlink }}>
       {children}
+      {profileOffer && (
+        <ProfileOfferDialog
+          offer={profileOffer}
+          take={takeProfile}
+          onClose={(message) => {
+            setProfileOffer(null);
+            if (message) showToast(message);
+          }}
+        />
+      )}
       {toast && (
         <div className="fixed right-4 bottom-20 z-[80] px-4 py-3 rounded-2xl bg-zinc-900/95 text-sm font-bold tv-fade-in md:bottom-6 tv:right-[4vw] tv:bottom-[6vh] tv:px-6 tv:py-4 tv:text-xl">
           {toast}
