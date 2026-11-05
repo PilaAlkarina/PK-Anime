@@ -5,7 +5,7 @@
  * Dependency-free apart from the other player-core helpers.
  */
 
-import { detectSubtitleLanguage, isForcedSubtitle } from "./subtitle-language";
+import { detectSubtitleLanguage, isForcedSubtitle, subtitleVariantRank } from "./subtitle-language";
 import { getServerScopeKey, type ScopableSource } from "./subtitle-scope";
 
 export type ServerCode = "flow" | "kitty" | "yuri" | "zuri" | "buzz";
@@ -74,8 +74,11 @@ export function pickSubtitleTrack(
 
   const fitting = tracks.filter((t) => trackFits(t, audio, prefs));
   for (const lang of wantedLanguages(audio, prefs)) {
-    const inLang = fitting.filter((t) => detectSubtitleLanguage(t) === lang);
-    const pick = inLang.find((t) => t.default || t.isDefault) || inLang[0];
+    // Spanish from Spain before Latin American; then the provider's default
+    const isDefault = (t: TrackLike) => (t.default || t.isDefault ? 0 : 1);
+    const pick = fitting
+      .filter((t) => detectSubtitleLanguage(t) === lang)
+      .sort((a, b) => subtitleVariantRank(a) - subtitleVariantRank(b) || isDefault(a) - isDefault(b))[0];
     if (pick) return trackKey(pick);
   }
 
@@ -135,25 +138,36 @@ export async function choosePreferredServer({
     ...DEFAULT_SERVER_ORDER,
   ].filter((code, i, all) => all.indexOf(code) === i && tracksByServer.has(code));
 
-  const hasLanguage = (tracks: TrackLike[] | null | undefined, lang: string) =>
-    (tracks || []).some((t) => trackFits(t, audio, prefs) && detectSubtitleLanguage(t) === lang);
+  // Best variant of the language a server has (0 = Spanish from Spain…), Infinity without it
+  const bestRank = (tracks: TrackLike[] | null | undefined, lang: string) =>
+    Math.min(
+      Infinity,
+      ...(tracks || [])
+        .filter((t) => trackFits(t, audio, prefs) && detectSubtitleLanguage(t) === lang)
+        .map((t) => subtitleVariantRank(t))
+    );
+  const firstWith = (codes: ServerCode[], lang: string, rank: number) =>
+    codes.find((code) => bestRank(tracksByServer.get(code), lang) <= rank);
+  const choose = (code: ServerCode, lang: string) => (code === current ? null : { server: code, language: lang });
 
   const languages = prefs.switchServerForSubtitles ? wantedLanguages(audio, prefs) : [];
   const probed = new Set<ServerCode>();
   for (const lang of languages) {
-    for (const code of order) {
-      if (hasLanguage(tracksByServer.get(code), lang)) return code === current ? null : { server: code, language: lang };
-    }
-    // Not in the listing: ask the servers that came without tracks, once each
+    // The best variant on offer wins over server order (Spanish from Spain over Latin American)
+    const best = firstWith(order, lang, 0);
+    if (best) return choose(best, lang);
+    const listed = firstWith(order, lang, 1) ?? firstWith(order, lang, 2);
+    // Not in the listing, or Spanish without Spain's: ask the servers that came without tracks, once each
     const unknown = order.filter((code) => !tracksByServer.get(code) && !probed.has(code));
-    const results = await Promise.all(unknown.map((code) => probeSubtitles(code).catch(() => [])));
-    unknown.forEach((code, i) => {
-      probed.add(code);
-      tracksByServer.set(code, results[i]);
-    });
-    for (const code of unknown) {
-      if (hasLanguage(tracksByServer.get(code), lang)) return code === current ? null : { server: code, language: lang };
+    if (unknown.length > 0 && (!listed || lang === "es")) {
+      const results = await Promise.all(unknown.map((code) => probeSubtitles(code).catch(() => [])));
+      unknown.forEach((code, i) => {
+        probed.add(code);
+        tracksByServer.set(code, results[i]);
+      });
     }
+    const found = firstWith(order, lang, 0) ?? firstWith(order, lang, 1) ?? listed ?? firstWith(order, lang, 2);
+    if (found) return choose(found, lang);
   }
 
   // No wanted language anywhere: honour the preferred server if it serves this audio

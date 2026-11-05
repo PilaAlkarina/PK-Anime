@@ -39,11 +39,12 @@ import { NextEpisodeScreen } from "./ui/next-episode-screen";
 import { profileKey } from "@/lib/library/profiles";
 import { RemoteHints } from "./ui/remote-hints";
 import { SubtitleText } from "./ui/subtitle-text";
+import { cleanCueText, vttSettingsOnTop } from "./player-core/subtitle-cues";
 import { LoadingVeil } from "./ui/loading-veil";
 import { PlayerErrorScreen, type PlayerErrorKind, type TriedServer } from "./ui/error-screen";
 import { arrowStep, focusFirst, moveFocus, type NavAxis } from "./ui/focus-nav";
 import type { NextEpisodeInfo } from "./ui/types";
-import { detectSubtitleLanguage, isForcedSubtitle, subtitleLanguageName } from "./player-core/subtitle-language";
+import { detectSubtitleLanguage, isForcedSubtitle, subtitleLanguageName, subtitleRegion } from "./player-core/subtitle-language";
 
 export interface SubtitleTrack {
   id?: string;
@@ -57,6 +58,8 @@ export interface SubtitleCue {
   start: number;
   end: number;
   text: string;
+  /** Placed at the top of the screen by the file ({\an8}, "line:0") */
+  top?: boolean;
 }
 
 export interface VideoSourceData {
@@ -124,14 +127,8 @@ export function isNativePlayerSource(s: VideoSourceData): boolean {
 function subtitleLabel(track: SubtitleTrack): string {
   const code = detectSubtitleLanguage(track);
   if (!code) return track.label || track.language;
-  const text = `${track.label || ""} ${track.language || ""}`;
-  const region = /latin|latino|\(la\)|419|mexic/i.test(text)
-    ? "Latinoamérica"
-    : /brazil|brasil|pt-br/i.test(text)
-      ? "Brasil"
-      : /spain|españa|castil|es-es|european/i.test(text)
-        ? "España"
-        : null;
+  const regionNames: Record<string, string> = { latam: "Latinoamérica", brazil: "Brasil", spain: "España" };
+  const region = regionNames[subtitleRegion(track) ?? ""] ?? null;
   const notes = [region, isForcedSubtitle(track) ? "carteles" : null].filter(Boolean);
   return `${subtitleLanguageName(code)}${notes.length ? ` (${notes.join(", ")})` : ""}`;
 }
@@ -280,6 +277,8 @@ export function EmbedPlayer({
   const [activeSubtitleTrack, setActiveSubtitleTrack] = useState<string | null>("en");
   const [cues, setCues] = useState<SubtitleCue[]>([]);
   const [currentSubtitleText, setCurrentSubtitleText] = useState<string>("");
+  // Cues the subtitle file places at the top of the screen ({\an8}, "line:0")
+  const [topSubtitleText, setTopSubtitleText] = useState<string>("");
   const [subtitleStyles, setSubtitleStyles] = useState<SubtitleStyles>({
     fontSize: "base",
     fontFamily: "sans",
@@ -1126,6 +1125,7 @@ export function EmbedPlayer({
     if (activeSubtitleTrack === null || activeSubtitleTrack === "") {
       setCues([]);
       setCurrentSubtitleText("");
+      setTopSubtitleText("");
       return;
     }
 
@@ -1137,6 +1137,7 @@ export function EmbedPlayer({
     if (!currentSub || !subUrl) {
       setCues([]);
       setCurrentSubtitleText("");
+      setTopSubtitleText("");
       return;
     }
 
@@ -1175,18 +1176,9 @@ export function EmbedPlayer({
             if (parts.length < 9) continue;
             const start = parseTime(parts[1]);
             const end = parseTime(parts[2]);
-            const cleanText = parts
-              .slice(9)
-              .join(",")
-              // {\p1} switches to vector drawing ("m 0 0 l 640 0 …") until {\p0}: shapes, not words
-              .replace(/\{[^}]*\\p[1-9][^}]*\}[^{]*/g, "")
-              .replace(/\{[^}]*\}/g, "")
-              .replace(/\\N/gi, "\n")
-              .replace(/\\n/gi, "\n")
-              .replace(/\\h/gi, " ")
-              .trim();
+            const { text: cleanText, top } = cleanCueText(parts.slice(9).join(","), { ass: true });
             if (cleanText && end > start) {
-              parsedCues.push({ start, end, text: cleanText });
+              parsedCues.push({ start, end, text: cleanText, top });
             }
           }
         } else {
@@ -1197,18 +1189,18 @@ export function EmbedPlayer({
               const [startPart, endPart] = line.split("-->");
               if (startPart && endPart) {
                 const startToken = startPart.trim().split(/\s+/)[0];
-                const endToken = endPart.trim().split(/\s+/)[0];
+                const [endToken, ...settings] = endPart.trim().split(/\s+/);
                 const start = parseTime(startToken);
                 const end = parseTime(endToken);
                 i++;
                 const textLines: string[] = [];
                 while (i < lines.length && lines[i].trim() !== "") {
-                  textLines.push(lines[i].trim().replace(/<[^>]*>/g, ""));
+                  textLines.push(lines[i].trim());
                   i++;
                 }
-                const cueContent = textLines.join("\n").trim();
+                const { text: cueContent, top } = cleanCueText(textLines.join("\n"));
                 if (cueContent && end > start) {
-                  parsedCues.push({ start, end, text: cueContent });
+                  parsedCues.push({ start, end, text: cueContent, top: top || vttSettingsOnTop(settings) });
                 }
               }
             }
@@ -1247,12 +1239,15 @@ export function EmbedPlayer({
     }
 
     // Sync subtitle cue
-    if (cues.length > 0) {
-      const active = cues.find((c) => current >= c.start && current <= c.end);
-      setCurrentSubtitleText(active ? active.text : "");
-    } else {
-      setCurrentSubtitleText("");
-    }
+    // Every cue on screen now, at the top or the bottom (a sign can share the moment with dialogue)
+    const showing = (top: boolean) =>
+      cues
+        .filter((c) => Boolean(c.top) === top && current >= c.start && current <= c.end)
+        .map((c) => c.text)
+        .filter((text, idx, all) => all.indexOf(text) === idx)
+        .join("\n");
+    setCurrentSubtitleText(showing(false));
+    setTopSubtitleText(showing(true));
 
     // Auto-skip Intro
     // In a room only the host's player auto-skips, and as a jump for everyone
@@ -2674,6 +2669,19 @@ export function EmbedPlayer({
         >
           <SubtitleText styles={subtitleStyles} playerHeight={playerHeight} className="max-w-[85%]">
             {currentSubtitleText}
+          </SubtitleText>
+        </div>
+      )}
+      {/* The ones the file places at the top, kept clear of the header */}
+      {topSubtitleText && !nextUp && !showPauseScreen && (
+        <div
+          className={cn(
+            "absolute inset-x-4 z-20 flex justify-center text-center pointer-events-none transition-[top] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            showControls && !fatalError ? (tv ? "top-[11rem]" : "top-20 sm:top-28") : "top-[5%]"
+          )}
+        >
+          <SubtitleText styles={subtitleStyles} playerHeight={playerHeight} className="max-w-[85%]">
+            {topSubtitleText}
           </SubtitleText>
         </div>
       )}

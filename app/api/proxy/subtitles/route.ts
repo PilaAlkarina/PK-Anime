@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
+import { cleanCueText } from "@/components/player/player-core/subtitle-cues";
 
 export const dynamic = "force-dynamic";
 
@@ -50,16 +51,12 @@ function convertAssToVtt(assText: string): string {
     const endStr = parts[2].trim();
     const rawText = parts.slice(9).join(",");
 
-    const cleanText = rawText
-      .replace(/\{[^}]*\}/g, "")
-      .replace(/\\N/gi, "\n")
-      .replace(/\\n/gi, "\n")
-      .replace(/\\h/gi, " ")
-      .trim();
+    const { text: cleanText, top } = cleanCueText(rawText, { ass: true });
 
     if (!cleanText) continue;
 
-    vttLines.push(`${formatVttTime(startStr)} --> ${formatVttTime(endStr)}\n${cleanText}\n`);
+    // Lines the ASS file places at the top ({\an8}) keep their place as a VTT setting
+    vttLines.push(`${formatVttTime(startStr)} --> ${formatVttTime(endStr)}${top ? " line:0" : ""}\n${cleanText}\n`);
   }
 
   return vttLines.join("\n");
