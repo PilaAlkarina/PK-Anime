@@ -9,6 +9,7 @@ import { hideFromContinueWatching, newEpisodesBadge, useContinueRows, type NewEp
 import { X } from "lucide-react";
 import { becauseTitle, useBecauseYouWatched } from "@/lib/library/recommendations";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
+import { rowShowsAiring } from "@/components/airing-tag";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
 import { Keycap } from "@/components/brand";
@@ -35,6 +36,7 @@ function PagedRow({
     item,
     badge: item.airedEpisode ? `EP ${item.airedEpisode.episode}` : undefined,
     rank: row.kind === "trending" ? index + 1 : undefined,
+    airing: rowShowsAiring(row.kind),
     onSelect: () => router.push(`/anime/${item.id}`),
   }));
 

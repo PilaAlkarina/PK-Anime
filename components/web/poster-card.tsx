@@ -5,6 +5,7 @@ import type { CatalogItem } from "@/lib/anilist/types";
 import { ScoreFrame, ScorePill, ScoreShine, flairOf } from "@/components/tv/list-styles";
 import { cn } from "@/lib/utils";
 import { RankNumeral } from "@/components/brand";
+import { AiringTag, type AiringMode } from "@/components/airing-tag";
 
 /** Cover with the title under it; the web layout's card for grids and rows */
 export function PosterCard({
@@ -17,6 +18,7 @@ export function PosterCard({
   progress,
   meta,
   rank,
+  airing = true,
   className,
 }: {
   item: CatalogItem;
@@ -32,6 +34,8 @@ export function PosterCard({
   meta?: string;
   /** Trending rank, drawn as an outlined numeral in the cover's bottom-left corner */
   rank?: number;
+  /** The on-air / coming-soon tag; off where a whole row is on air */
+  airing?: AiringMode;
   className?: string;
 }) {
   return (
@@ -89,6 +93,8 @@ export function PosterCard({
               {badge}
             </span>
           )}
+          {/* Top right: on air or coming soon */}
+          {airing && <AiringTag item={item} belowBadge={Boolean(badge)} datedOnly={airing === "dated"} />}
           {/* Bottom corner: on phone-width covers the status badge takes the whole top */}
           <ScorePill score={score} className="top-auto bottom-2 px-1.5 py-1 text-xs" />
           {rank !== undefined && (

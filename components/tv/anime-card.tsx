@@ -9,6 +9,7 @@ import { useIsTv } from "@/components/ui-mode";
 import { PosterCard } from "@/components/web/poster-card";
 import { ScoreFrame, ScorePill, ScoreShine, flairOf } from "./list-styles";
 import { EpisodeNumeral, RankNumeral } from "@/components/brand";
+import { AiringTag, type AiringMode } from "@/components/airing-tag";
 
 interface AnimeCardProps {
   item: CatalogItem;
@@ -29,13 +30,15 @@ interface AnimeCardProps {
   rank?: number;
   /** Landscape card with the artwork and two lines of text under it, for "Seguir viendo" */
   wide?: { title: string; meta: string };
+  /** The on-air / coming-soon tag (poster cards); off where a whole row is on air */
+  airing?: AiringMode;
   className?: string;
 }
 
 export function AnimeCard(props: AnimeCardProps) {
   const isTv = useIsTv();
   if (isTv) return <TvAnimeCard {...props} />;
-  const { item, onSelect, badge, badgeClassName, score, progress, rank } = props;
+  const { item, onSelect, badge, badgeClassName, score, progress, rank, airing } = props;
   return (
     <PosterCard
       item={item}
@@ -45,6 +48,7 @@ export function AnimeCard(props: AnimeCardProps) {
       score={score}
       progress={progress}
       rank={rank}
+      airing={airing}
     />
   );
 }
@@ -61,6 +65,7 @@ function TvAnimeCard({
   episode,
   rank,
   wide,
+  airing = true,
   className,
 }: AnimeCardProps) {
   const { ref, focused, pointerProps } = useTvFocusable({
@@ -156,6 +161,8 @@ function TvAnimeCard({
           </span>
         )}
         <ScorePill score={score} className="px-2 py-1 text-sm" />
+        {/* Under the score when there is one */}
+        {airing && <AiringTag item={item} tv datedOnly={airing === "dated"} className={score ? "top-[2.6rem]" : undefined} />}
         {progress !== undefined && progress > 0 && (
           <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/[0.18]">
             <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />

@@ -6,6 +6,7 @@ import { Info, type LucideIcon } from "lucide-react";
 import type { FocusDetails } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { AnimeCard } from "./anime-card";
+import type { AiringMode } from "@/components/airing-tag";
 import { FocusGroup, isPointerFocus, useTvFocusable } from "./focusable";
 import { scrollToPosition } from "@/lib/tv/scroll";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ export interface RowCard {
   rank?: number;
   /** Landscape card with text under it (see AnimeCard) */
   wide?: { title: string; meta: string };
+  /** The on-air / coming-soon tag; on unless the row is all on air */
+  airing?: AiringMode;
   onSelect: () => void;
   /**
    * More actions in buttons under the card, reached with Down: on "Seguir viendo", where OK
@@ -168,6 +171,7 @@ export function CardRow({
                   episode={card.episode}
                   rank={card.rank}
                   wide={card.wide}
+                  airing={card.airing}
                   onSelect={card.onSelect}
                   onFocused={onFocused}
                   className={card.actions?.length ? undefined : "mr-5"}

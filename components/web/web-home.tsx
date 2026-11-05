@@ -18,6 +18,7 @@ import { usePagedRow } from "@/components/tv/catalog-row";
 import { useSynopsis } from "@/lib/library/synopsis";
 import { HorizontalRow } from "./horizontal-row";
 import { PosterCard } from "./poster-card";
+import { rowShowsAiring } from "@/components/airing-tag";
 import { TodayAiring } from "./today-airing";
 import { AccountAvatar } from "./web-shell";
 import { cn } from "@/lib/utils";
@@ -372,6 +373,7 @@ function CatalogRowSection({ row }: { row: CatalogRow }) {
             item={item}
             badge={item.airedEpisode ? `EP ${item.airedEpisode.episode}` : undefined}
             rank={row.kind === "trending" ? index + 1 : undefined}
+            airing={rowShowsAiring(row.kind)}
           />
         </div>
       ))}
