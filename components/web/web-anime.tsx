@@ -20,6 +20,7 @@ import { setAudioPreference, useAudioPreference } from "@/lib/library/preference
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
 import { useLibraryNavigation } from "@/components/tv/navigation-provider";
+import { EpisodeArt, type EpisodeArtFallback } from "@/components/episode-art";
 import { HorizontalRow } from "./horizontal-row";
 import { ListEntryControls } from "./list-entry-controls";
 import { PosterCard } from "./poster-card";
@@ -45,6 +46,7 @@ function EpisodeItem({
   number,
   title,
   thumbnail,
+  fallback,
   progress,
   duration,
   current,
@@ -55,6 +57,8 @@ function EpisodeItem({
   number: number;
   title?: string;
   thumbnail?: string | null;
+  /** The series' banner and cover, for episodes without a thumbnail */
+  fallback: EpisodeArtFallback;
   progress: number;
   duration: number | null;
   /** The episode to resume: popped out, its numeral filled with the accent */
@@ -91,9 +95,7 @@ function EpisodeItem({
           current && "koma-sm sm:koma-md"
         )}
       >
-        {thumbnail && (
-          <img src={thumbnail} alt="" loading="lazy" decoding="async" className="absolute top-0 left-0 w-full h-full object-cover" />
-        )}
+        <EpisodeArt thumbnail={thumbnail} fallback={fallback} />
         {/* Wider tiles carry the status on the artwork; phones show it under the title */}
         {status && (
           <span className="hidden sm:block absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/85 text-xs font-bold text-white">
@@ -142,7 +144,7 @@ function EpisodeItem({
  * An announced episode that isn't out yet: EpisodeItem's layout, but not a link. Dashed outline,
  * the artwork (if any) greyed under screentone, a lock, and when it airs.
  */
-function UpcomingEpisodeItem({ episode }: { episode: UpcomingEpisode }) {
+function UpcomingEpisodeItem({ episode, fallback }: { episode: UpcomingEpisode; fallback: EpisodeArtFallback }) {
   const when = upcomingLabel(episode.airingAt, episode.exactTime);
   const meta = [when, episode.duration ? `${episode.duration} min` : null].filter(Boolean).join(" · ");
   return (
@@ -153,15 +155,7 @@ function UpcomingEpisodeItem({ episode }: { episode: UpcomingEpisode }) {
       className="flex items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2 scroll-mt-24 cursor-default select-none"
     >
       <div className="relative flex-shrink-0 w-32 h-[4.5rem] sm:w-full sm:h-auto sm:pt-[56.25%] rounded-xl overflow-hidden bg-zinc-900 border-[1.5px] border-dashed border-zinc-600">
-        {episode.thumbnail && (
-          <img
-            src={episode.thumbnail}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute top-0 left-0 w-full h-full object-cover grayscale opacity-30"
-          />
-        )}
+        <EpisodeArt thumbnail={episode.thumbnail} fallback={fallback} className="grayscale opacity-30" />
         <div aria-hidden="true" className="absolute top-0 left-0 w-full h-full screentone-fine opacity-70" />
         {/* Phones put the numeral top left, so the lock goes to the opposite corner there */}
         <span className="absolute right-2 bottom-2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 flex items-center justify-center w-7 h-7 sm:w-11 sm:h-11 rounded-full bg-black/85 border-[1.5px] border-zinc-600 text-zinc-300">
@@ -536,13 +530,14 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                 <div className="grid gap-3 sm:gap-x-4 sm:gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]">
                   {episodes.map((number) =>
                     number > total ? (
-                      <UpcomingEpisodeItem key={number} episode={upcoming[number - total - 1]} />
+                      <UpcomingEpisodeItem key={number} episode={upcoming[number - total - 1]} fallback={anime} />
                     ) : (
                       <EpisodeItem
                         key={number}
                         number={number}
                         title={titles.get(number)?.title}
                         thumbnail={titles.get(number)?.thumbnail}
+                        fallback={anime}
                         progress={progressOf(number)}
                         duration={anime.duration}
                         current={hasPosition && number === playEpisode}

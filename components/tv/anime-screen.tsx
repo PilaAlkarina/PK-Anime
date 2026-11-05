@@ -28,6 +28,7 @@ import { setAudioPreference, useAudioPreference } from "@/lib/library/preference
 import { revealVertically, scrollToPosition } from "@/lib/tv/scroll";
 import { CardRow, type RowCard } from "./catalog-row";
 import { FocusButton, FocusGroup, Screen, isPointerFocus, useTvFocusable } from "./focusable";
+import { EpisodeArt, type EpisodeArtFallback } from "@/components/episode-art";
 import { cn } from "@/lib/utils";
 
 const EPISODES_PER_RANGE = 50;
@@ -51,6 +52,7 @@ function EpisodeTile({
   number,
   title,
   thumbnail,
+  fallback,
   progress,
   duration,
   current,
@@ -62,6 +64,8 @@ function EpisodeTile({
   number: number;
   title?: string;
   thumbnail?: string | null;
+  /** The series' banner and cover, for episodes without a thumbnail */
+  fallback: EpisodeArtFallback;
   progress: number;
   duration: number | null;
   /** The episode to resume: its numeral is filled with the accent */
@@ -96,15 +100,7 @@ function EpisodeTile({
           focused && "koma"
         )}
       >
-        {thumbnail ? (
-          <img
-            src={thumbnail}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute top-0 left-0 w-full h-full object-cover"
-          />
-        ) : null}
+        <EpisodeArt thumbnail={thumbnail} fallback={fallback} />
         {status && (
           <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-md bg-black/85 text-[0.95rem] font-bold text-white">
             {status}
@@ -129,9 +125,11 @@ function EpisodeTile({
  */
 function UpcomingEpisodeTile({
   episode,
+  fallback,
   onFocused,
 }: {
   episode: UpcomingEpisode;
+  fallback: EpisodeArtFallback;
   onFocused: (node: HTMLElement, details: FocusDetails) => void;
 }) {
   const { ref, focused, pointerProps } = useTvFocusable({
@@ -148,15 +146,7 @@ function UpcomingEpisodeTile({
           focused ? "border-zinc-300" : "border-zinc-600"
         )}
       >
-        {episode.thumbnail && (
-          <img
-            src={episode.thumbnail}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute top-0 left-0 w-full h-full object-cover grayscale opacity-30"
-          />
-        )}
+        <EpisodeArt thumbnail={episode.thumbnail} fallback={fallback} className="grayscale opacity-30" />
         <div aria-hidden="true" className="absolute top-0 left-0 w-full h-full screentone opacity-70" />
         <span
           className={cn(
@@ -472,7 +462,12 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
             <FocusGroup key={range} className="grid grid-cols-4 gap-x-6 gap-y-8 mt-6">
               {episodes.map((number) =>
                 number > total ? (
-                  <UpcomingEpisodeTile key={number} episode={upcoming[number - total - 1]} onFocused={revealTile} />
+                  <UpcomingEpisodeTile
+                    key={number}
+                    episode={upcoming[number - total - 1]}
+                    fallback={anime}
+                    onFocused={revealTile}
+                  />
                 ) : (
                   <EpisodeTile
                     key={number}
@@ -480,6 +475,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
                     number={number}
                     title={titles.get(number)?.title}
                     thumbnail={titles.get(number)?.thumbnail}
+                    fallback={anime}
                     progress={Math.max(
                       entry ? episodeProgress(anime.id, number) : 0,
                       // Episodes a list counts as watched show as finished

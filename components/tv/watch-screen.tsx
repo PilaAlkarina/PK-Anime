@@ -157,7 +157,13 @@ export function WatchScreen({
           synopsis={anime.description || null}
           nextEpisode={
             hasNext
-              ? { number: episode + 1, title: next?.title || null, thumbnail: next?.thumbnail ?? null, duration: anime.duration }
+              ? {
+                  number: episode + 1,
+                  title: next?.title || null,
+                  // Same stand-ins as the episode tiles
+                  thumbnail: next?.thumbnail || anime.banner || anime.cover,
+                  duration: anime.duration,
+                }
               : null
           }
           onBack={() => finishThen(goBack, savedLocallyRef.current)}
