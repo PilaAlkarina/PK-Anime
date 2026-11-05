@@ -123,6 +123,7 @@ const LIST_PAGE = 60;
 
 export function MyListScreen() {
   const router = useRouter();
+  const isTv = useIsTv();
   const openAnime = useOpenAnime();
   const mounted = useMounted();
   const list = useMyList();
@@ -155,6 +156,23 @@ export function MyListScreen() {
     setShown(LIST_PAGE);
   };
 
+  const statsButton = items.length > 0 && (
+    <FocusGroup className="mb-8">
+      <FocusButton variant="secondary" onSelect={() => router.push("/stats")}>
+        <BarChart3 className="w-6 h-6 mr-3" /> Estadísticas
+      </FocusButton>
+    </FocusGroup>
+  );
+  const controls = items.length > 0 && (
+    <MyListControls
+      statuses={statuses}
+      formats={formats}
+      scores={scores}
+      view={{ ...view, status, format, score }}
+      onChange={change}
+    />
+  );
+
   const subtitle = remote
     ? `Unida con tu lista de ${remote.provider.name}. «LOCAL» marca lo que solo está en este dispositivo.`
     : account && !account.signedIn && account.providers.length > 0
@@ -163,26 +181,35 @@ export function MyListScreen() {
 
   return (
     <PageFrame title="Mi lista" subtitle={subtitle} ready={mounted}>
-      {items.length > 0 && (
-        <FocusGroup className="mb-6 tv:mb-8">
-          <FocusButton variant="secondary" onSelect={() => router.push("/stats")}>
-            <BarChart3 className="w-5 h-5 mr-2 tv:w-6 tv:h-6 tv:mr-3" /> Estadísticas
-          </FocusButton>
-        </FocusGroup>
-      )}
-      {remote && (
-        <div className="mb-8 tv:mb-10">
-          <ListTransfer />
+      {isTv ? (
+        <>
+          {statsButton}
+          {remote && (
+            <div className="mb-10">
+              <ListTransfer />
+            </div>
+          )}
+          {controls}
+        </>
+      ) : (
+        // Computers: the filters on the left, the stats and the transfer in a card on the right
+        <div className="md:flex md:items-start md:gap-8">
+          <div className="flex-1 min-w-0">{controls}</div>
+          {(items.length > 0 || remote) && (
+            <aside className="mb-6 md:w-[21rem] md:flex-shrink-0 p-4 rounded-2xl bg-zinc-950 border-[1.5px] border-line">
+              {items.length > 0 && (
+                <FocusButton variant="secondary" className="w-full" onSelect={() => router.push("/stats")}>
+                  <BarChart3 className="w-5 h-5 mr-2" /> Estadísticas
+                </FocusButton>
+              )}
+              {remote && (
+                <div className={items.length > 0 ? "mt-4 pt-4 border-t border-line" : undefined}>
+                  <ListTransfer />
+                </div>
+              )}
+            </aside>
+          )}
         </div>
-      )}
-      {items.length > 0 && (
-        <MyListControls
-          statuses={statuses}
-          formats={formats}
-          scores={scores}
-          view={{ ...view, status, format, score }}
-          onChange={change}
-        />
       )}
       <CardGrid
         cards={visible.slice(0, shown).map(({ item, origin, entry }) => {

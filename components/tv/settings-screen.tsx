@@ -102,23 +102,29 @@ function focusSoon(...keys: string[]) {
   }, 0);
 }
 
+/*
+ * On computers each setting is a row, the label and its hint on the left and the choices on the
+ * right, with the section's name in a column of its own; phones and the TV stack them.
+ */
 function Setting({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="mb-8 tv:mb-10">
-      <h3 className="text-base font-bold tv:text-2xl">{label}</h3>
-      {hint && <p className="mt-1 max-w-[60rem] text-sm text-zinc-400 leading-snug tv:mt-2 tv:text-lg">{hint}</p>}
-      <div className="mt-3 tv:mt-4">{children}</div>
+    <div className="mb-8 md:mb-0 md:py-5 md:grid md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:gap-x-10 tv:block tv:mb-10 tv:py-0">
+      <div>
+        <h3 className="text-base font-bold tv:text-2xl">{label}</h3>
+        {hint && <p className="mt-1 max-w-[60rem] text-sm text-zinc-400 leading-snug tv:mt-2 tv:text-lg">{hint}</p>}
+      </div>
+      <div className="mt-3 md:mt-0 tv:mt-4">{children}</div>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-12 tv:mb-16">
-      <h2 className="mb-6 pb-2 text-sm font-bold uppercase tv:mb-8 tv:pb-3 tv:text-lg tracking-widest text-zinc-500 border-b border-white/10">
+    <section className="mb-12 md:mb-10 md:grid md:grid-cols-[11rem_minmax(0,1fr)] md:gap-x-10 tv:block tv:mb-16">
+      <h2 className="mb-6 pb-2 text-sm font-bold uppercase tracking-widest text-zinc-500 border-b border-white/10 md:mb-0 md:pt-5 md:pb-0 md:border-b-0 md:self-start md:sticky md:top-20 tv:static tv:mb-8 tv:pb-3 tv:pt-0 tv:text-lg tv:border-b">
         {title}
       </h2>
-      {children}
+      <div className="md:border-t md:border-white/10 md:divide-y md:divide-white/10 tv:border-t-0 tv:divide-y-0">{children}</div>
     </section>
   );
 }
@@ -232,7 +238,7 @@ function LanguageList({ languages }: { languages: string[] }) {
 function SubtitlePreview({ styles }: { styles: SubtitleStyles }) {
   const blur = styles.background.includes("0.4");
   return (
-    <div className="relative mb-10 flex items-end justify-center w-full max-w-[48rem] h-[13rem] sm:h-[22rem] rounded-2xl tv:w-[48rem] tv:h-[27rem] overflow-hidden bg-gradient-to-br from-sky-900 via-indigo-950 to-zinc-900">
+    <div className="relative mb-10 flex items-end justify-center w-full max-w-[48rem] h-[13rem] sm:h-[22rem] md:mt-5 lg:mb-0 lg:h-[16rem] rounded-2xl tv:mt-0 tv:mb-10 tv:w-[48rem] tv:h-[27rem] overflow-hidden bg-gradient-to-br from-sky-900 via-indigo-950 to-zinc-900">
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.18),transparent_45%)]" />
       <div
         className={`relative mb-6 px-3.5 py-1.5 rounded-lg text-center whitespace-pre-line leading-snug tracking-wide ${
@@ -402,28 +408,35 @@ export function SettingsScreen() {
       </Section>
 
       <Section title="Formato de los subtítulos">
-        <SubtitlePreview styles={styles} />
-        <Setting label="Tamaño">
-          <Options value={styles.fontSize} options={SIZE_OPTIONS} onChange={(fontSize) => setStyle({ fontSize })} />
-        </Setting>
-        <Setting label="Tipo de letra">
-          <Options value={styles.fontFamily || "sans"} options={FONT_OPTIONS} onChange={(fontFamily) => setStyle({ fontFamily })} />
-        </Setting>
-        <Setting label="Grosor">
-          <Options value={styles.fontWeight || "bold"} options={WEIGHT_OPTIONS} onChange={(fontWeight) => setStyle({ fontWeight })} />
-        </Setting>
-        <Setting label="Color">
-          <Options value={styles.color} options={COLOR_OPTIONS} onChange={(color) => setStyle({ color })} />
-        </Setting>
-        <Setting label="Fondo">
-          <Options value={styles.background} options={BACKGROUND_OPTIONS} onChange={(background) => setStyle({ background })} />
-        </Setting>
-        <Setting label="Contorno">
-          <Options value={styles.outline || "thick"} options={OUTLINE_OPTIONS} onChange={(outline) => setStyle({ outline })} />
-        </Setting>
-        <Setting label="Sombra">
-          <Options value={styles.shadow} options={ON_OFF} onChange={(shadow) => setStyle({ shadow })} />
-        </Setting>
+        {/* Computers: the preview stays in view beside the choices */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-x-8 tv:block">
+          <div className="lg:order-2 lg:self-start lg:sticky lg:top-20 tv:static">
+            <SubtitlePreview styles={styles} />
+          </div>
+          <div className="md:divide-y md:divide-white/10 tv:divide-y-0">
+            <Setting label="Tamaño">
+              <Options value={styles.fontSize} options={SIZE_OPTIONS} onChange={(fontSize) => setStyle({ fontSize })} />
+            </Setting>
+            <Setting label="Tipo de letra">
+              <Options value={styles.fontFamily || "sans"} options={FONT_OPTIONS} onChange={(fontFamily) => setStyle({ fontFamily })} />
+            </Setting>
+            <Setting label="Grosor">
+              <Options value={styles.fontWeight || "bold"} options={WEIGHT_OPTIONS} onChange={(fontWeight) => setStyle({ fontWeight })} />
+            </Setting>
+            <Setting label="Color">
+              <Options value={styles.color} options={COLOR_OPTIONS} onChange={(color) => setStyle({ color })} />
+            </Setting>
+            <Setting label="Fondo">
+              <Options value={styles.background} options={BACKGROUND_OPTIONS} onChange={(background) => setStyle({ background })} />
+            </Setting>
+            <Setting label="Contorno">
+              <Options value={styles.outline || "thick"} options={OUTLINE_OPTIONS} onChange={(outline) => setStyle({ outline })} />
+            </Setting>
+            <Setting label="Sombra">
+              <Options value={styles.shadow} options={ON_OFF} onChange={(shadow) => setStyle({ shadow })} />
+            </Setting>
+          </div>
+        </div>
       </Section>
 
       <FocusGroup>

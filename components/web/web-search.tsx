@@ -196,7 +196,8 @@ export function WebSearch({ genres }: { genres: Genre[] }) {
       <div className="flex items-start gap-10 mt-6 md:mt-8">
         <aside
           aria-label="Filtros"
-          className="hidden md:block sticky top-24 w-72 flex-shrink-0 max-h-[calc(100vh-7rem)] overflow-y-auto pr-3 tv-no-scrollbar"
+          // As tall as the window under the top bar, and it stays while the results scroll
+          className="hidden md:block sticky top-16 w-72 flex-shrink-0 h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain -mt-6 pt-6 pb-10 pr-3 pk-menu-scroll"
         >
           <FilterPanel filters={filters} onChange={update} genres={genres} tags={tags} />
         </aside>

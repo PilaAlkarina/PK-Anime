@@ -40,13 +40,15 @@
   * {
     @apply border-border;
   }
+  /* Only on html, which hands it to the viewport: on body it would make body a scroll container
+     of its own (it never scrolls), and every position: sticky on the page would stop sticking */
   html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
   html,
   body {
     @apply bg-black text-white antialiased selection:bg-red-500 selection:text-black;
-    overflow-x: hidden;
     max-width: 100vw;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;

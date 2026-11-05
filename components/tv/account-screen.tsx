@@ -167,7 +167,7 @@ function WebShortcuts() {
     { href: "/link", icon: Tv, title: "Usar como mando de la TV", text: "Introduce el código que muestra la TV en Cuenta" },
   ];
   return (
-    <div className="flex flex-col gap-2.5 max-w-xl">
+    <div className="grid gap-2.5 md:grid-cols-3">
       {links.map(({ href, icon: Icon, title, text }) => (
         <Link key={href} href={href} className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-950 border border-zinc-900 hover:bg-zinc-900">
           <Icon className="w-6 h-6 flex-shrink-0 text-zinc-300" aria-hidden />
@@ -193,14 +193,17 @@ export function AccountScreen() {
   const isTv = useIsTv();
   return (
     <PageFrame title={isTv ? "Cuenta" : "Perfil"} ready={mounted && account !== null}>
-      <section className="mb-12 tv:mb-16">
-        <SectionTitle>Sincronización</SectionTitle>
-        <AccountSection />
-      </section>
-      <section className="mb-12 tv:mb-16">
-        <SectionTitle>Perfiles</SectionTitle>
-        <ProfilesOnPage />
-      </section>
+      {/* Computers: sync and profiles side by side */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 tv:block">
+        <section className="mb-12 tv:mb-16">
+          <SectionTitle>Sincronización</SectionTitle>
+          <AccountSection />
+        </section>
+        <section className="mb-12 tv:mb-16">
+          <SectionTitle>Perfiles</SectionTitle>
+          <ProfilesOnPage />
+        </section>
+      </div>
       {isTv ? (
         <section>
           <SectionTitle>Móvil</SectionTitle>
