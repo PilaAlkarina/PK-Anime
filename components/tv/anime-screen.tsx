@@ -257,7 +257,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
       onSelect: () => router.push(`/anime/${r.item.id}`),
     }));
   // The franchise in watch order, marking where this one is and what's watched
-  const order = useWatchOrder(anime.id);
+  const order = useWatchOrder(anime);
   const orderMarks = watchOrderMarks(order, anime.id, (item) => findRemoteEntry(remote, item) ?? findLocalEntry(myList, item));
   const orderCards: RowCard[] = order.map((item, index) => ({
     item,

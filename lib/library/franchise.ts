@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CatalogItem } from "@/lib/anilist/types";
+import type { AnimeDetail, CatalogItem } from "@/lib/anilist/types";
 import type { TrackerEntry } from "@/lib/trackers/types";
 
 // Watch orders by AniList ID, kept for the session (every entry of a franchise shares one)
@@ -22,17 +22,23 @@ function watchOrder(id: number) {
   return found;
 }
 
-/** The franchise of an anime in watch order (prequels and sequels by release), or [] */
-export function useWatchOrder(id: number) {
+/**
+ * The franchise of an anime in watch order (prequels and sequels by release), or []. The page
+ * already has the anime's relations: with no prequel or sequel there's nothing to walk, and no
+ * request.
+ */
+export function useWatchOrder(anime: Pick<AnimeDetail, "id" | "relations">) {
+  const { id } = anime;
+  const linked = anime.relations.some((r) => r.relationType === "PREQUEL" || r.relationType === "SEQUEL");
   const [items, setItems] = useState<CatalogItem[]>([]);
   useEffect(() => {
     let cancelled = false;
     setItems([]);
-    watchOrder(id).then((found) => !cancelled && setItems(found));
+    if (linked) watchOrder(id).then((found) => !cancelled && setItems(found));
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, linked]);
   return items;
 }
 

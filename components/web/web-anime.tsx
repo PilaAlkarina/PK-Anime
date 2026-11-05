@@ -275,7 +275,7 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   const themes = useAnimeThemes(anime.id);
   const [themeIndex, setThemeIndex] = useState<number | null>(null);
   // The franchise in watch order, marking where this one is and what's watched
-  const order = useWatchOrder(anime.id);
+  const order = useWatchOrder(anime);
   const orderMarks = watchOrderMarks(order, anime.id, (item) => findRemoteEntry(remote, item) ?? findLocalEntry(myList, item));
   const subtitle = anime.romajiTitle && anime.romajiTitle !== anime.title ? anime.romajiTitle : anime.nativeTitle;
   const image = anime.banner || anime.cover;

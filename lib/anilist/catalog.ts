@@ -340,30 +340,46 @@ interface RawSequels extends RawCard {
   relations: { edges: { relationType: string; node: { id: number; type: string } | null }[] } | null;
 }
 
-/** One anime with the IDs of its prequels and sequels */
-const getSequelLinks = unstable_cache(
-  async (id: number) => {
-    let media: RawSequels | null;
-    try {
-      media = (await anilistQuery<{ Media: RawSequels | null }>(SEQUELS_QUERY, { id })).Media;
-    } catch (err) {
-      if (err instanceof AniListError && err.status === 404) return null;
-      throw err;
-    }
-    if (!isListable(media)) return null;
-    const d = media.startDate;
-    return {
-      card: toCatalogItem(media),
-      // YYYYMMDD with unknown parts as 99, so an undated entry sorts after the dated ones of its year
-      start: d?.year ? d.year * 10000 + (d.month ?? 99) * 100 + (d.day ?? 99) : 99999999,
-      linked: (media.relations?.edges || [])
-        .filter((e) => (e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && e.node?.type === "ANIME")
-        .map((e) => e.node!.id),
-    };
-  },
-  ["anilist:sequels"],
-  { revalidate: DETAIL_TTL, tags: ["anilist"] }
-);
+interface SequelLinks {
+  card: CatalogItem;
+  /** Release date as YYYYMMDD, for the order */
+  start: number;
+  /** Prequels and sequels */
+  linked: number[];
+}
+
+const SEQUELS_CHUNK = 50;
+const SEQUELS_TTL_MS = DETAIL_TTL * 1000;
+// Each anime's links, kept in memory as long as the details: every entry of a franchise reuses them
+const sequelCache = new Map<number, { links: SequelLinks | null; expires: number }>();
+
+function toSequelLinks(media: RawSequels): SequelLinks {
+  const d = media.startDate;
+  return {
+    card: toCatalogItem(media),
+    // YYYYMMDD with unknown parts as 99, so an undated entry sorts after the dated ones of its year
+    start: d?.year ? d.year * 10000 + (d.month ?? 99) * 100 + (d.day ?? 99) : 99999999,
+    linked: (media.relations?.edges || [])
+      .filter((e) => (e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && e.node?.type === "ANIME")
+      .map((e) => e.node!.id),
+  };
+}
+
+/** Prequels and sequels of several anime, 50 per request (null for one AniList doesn't list) */
+async function getSequelLinks(ids: number[]): Promise<Map<number, SequelLinks | null>> {
+  const now = Date.now();
+  const missing = ids.filter((id) => (sequelCache.get(id)?.expires ?? 0) <= now);
+  for (let i = 0; i < missing.length; i += SEQUELS_CHUNK) {
+    const chunk = missing.slice(i, i + SEQUELS_CHUNK);
+    const { Page } = await anilistQuery<{ Page: { media: RawSequels[] | null } }>(SEQUELS_QUERY, { ids: chunk });
+    const found = new Map((Page.media || []).filter(isListable).map((m) => [m.id, toSequelLinks(m)]));
+    for (const id of chunk) sequelCache.set(id, { links: found.get(id) ?? null, expires: now + SEQUELS_TTL_MS });
+  }
+  if (sequelCache.size > MAL_CARD_CACHE_MAX) {
+    for (const [id, entry] of sequelCache) if (entry.expires <= now) sequelCache.delete(id);
+  }
+  return new Map(ids.map((id) => [id, sequelCache.get(id)?.links ?? null]));
+}
 
 const MAX_FRANCHISE = 24;
 
@@ -371,22 +387,29 @@ const MAX_FRANCHISE = 24;
  * Every season, film and OVA reachable from an anime through prequels and sequels, in release
  * order: the franchise's watch order. Side stories and spin-offs stay out. Empty when the anime
  * stands alone.
+ *
+ * Walked a level at a time, each level in one request, where it used to be one request per
+ * entry, one after another (up to 24 for a long franchise).
  */
 export async function getWatchOrder(id: number): Promise<CatalogItem[]> {
   const found = new Map<number, { card: CatalogItem; start: number }>();
-  const queue = [id];
-  const queued = new Set(queue);
-  while (queue.length > 0 && found.size < MAX_FRANCHISE) {
-    const next = queue.shift()!;
-    const links = await getSequelLinks(next);
-    if (!links) continue;
-    found.set(next, { card: links.card, start: links.start });
-    for (const linked of links.linked) {
-      if (!queued.has(linked)) {
-        queued.add(linked);
-        queue.push(linked);
+  const queued = new Set([id]);
+  let level = [id];
+  while (level.length > 0 && found.size < MAX_FRANCHISE) {
+    const links = await getSequelLinks(level);
+    const next: number[] = [];
+    for (const current of level) {
+      const entry = links.get(current);
+      if (!entry || found.size >= MAX_FRANCHISE) continue;
+      found.set(current, { card: entry.card, start: entry.start });
+      for (const linked of entry.linked) {
+        if (!queued.has(linked)) {
+          queued.add(linked);
+          next.push(linked);
+        }
       }
     }
+    level = next;
   }
   if (found.size < 2) return [];
   return Array.from(found.values())
