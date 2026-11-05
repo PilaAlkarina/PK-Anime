@@ -7,6 +7,7 @@ import { useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor"
 import type { TrackerEntry } from "@/lib/trackers/types";
 import { FocusButton, FocusGroup } from "./focusable";
 import { useBackHandler } from "./navigation-provider";
+import { ScoreChip } from "./score-chip";
 import { useIsTv } from "@/components/ui-mode";
 import { cn } from "@/lib/utils";
 
@@ -81,18 +82,19 @@ export function FinishScreen({
           Se marca como completado en {listName}
         </p>
 
-        <FocusGroup className="flex flex-wrap mt-6" preferredChildFocusKey={`finish:score:${picked || 8}`}>
+        {/* Room above for the tropes that rise out of the chips (clouds, flames, the halo) */}
+        <FocusGroup
+          className={cn("flex flex-wrap pt-[2em]", isTv ? "mt-4 text-[1.375rem]" : "mt-2 text-lg")}
+          preferredChildFocusKey={`finish:score:${picked || 8}`}
+        >
           {SCORES.map((score) => (
-            <FocusButton
+            <ScoreChip
               key={score}
+              score={score}
               focusKey={`finish:score:${score}`}
-              variant="chip"
-              active={picked === score}
-              className={cn("mb-3", isTv ? "mr-3 min-w-[4.5rem]" : "mr-2 min-w-[3rem]")}
+              className={isTv ? "mr-[1.1em] mb-[1.6em]" : "mr-[0.9em] mb-[1.4em]"}
               onSelect={() => rate(score)}
-            >
-              {score}
-            </FocusButton>
+            />
           ))}
         </FocusGroup>
 

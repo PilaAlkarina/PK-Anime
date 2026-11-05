@@ -1,0 +1,492 @@
+/*
+ * Score chips on the finish screen, with a manga trope per score. At rest every chip is the same
+ * dark pill, 9 and 10 included; the focused (or hovered) one lifts onto paper and plays its trope,
+ * and 9 and 10 only turn gold and iridescent then. Sizes are in em of the chip's font size, so the
+ * TV and the web share them. Kept to what old TV browsers support (no inset, no flex gap), and
+ * only transform and opacity are animated.
+ */
+.pk-sc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.4em;
+  min-width: 3em;
+  padding: 0 0.8em;
+  border-radius: 999px;
+  background: rgb(var(--c-ink3));
+  border: 0.075em solid rgb(var(--c-line));
+  color: rgb(var(--c-paper));
+  font-weight: 900;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.pk-sc > b {
+  position: relative;
+  z-index: 3;
+}
+.pk-sc.is-on {
+  z-index: 5;
+  transform: translate(-0.1em, -0.1em);
+  background: rgb(var(--c-paper));
+  border-color: rgb(var(--c-paper));
+  color: rgb(var(--c-ink));
+  box-shadow: 0.2em 0.2em 0 rgb(var(--c-accent));
+}
+.pk-sc-deco {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 4;
+}
+.pk-sc.is-on .pk-sc-deco {
+  opacity: 1;
+}
+.pk-sc svg {
+  display: block;
+  overflow: visible;
+}
+.pk-sc-inside {
+  position: absolute;
+  top: -0.075em;
+  left: -0.075em;
+  right: -0.075em;
+  bottom: -0.075em;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes pk-sc-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.2em);
+  }
+}
+
+@keyframes pk-sc-float {
+  0% {
+    transform: translate(0, 0.2em);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0.3em, -1.3em);
+    opacity: 0;
+  }
+}
+
+@keyframes pk-sc-pop {
+  0%,
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  20%,
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 1 · a raincloud of its own */
+.pk-sc-1.is-on {
+  background: #1f2a36;
+  border-color: #34495e;
+  color: #9fb7cf;
+  box-shadow: 0.1em 0.1em 0 #1b2a3a;
+}
+.pk-sc-cloud {
+  left: 50%;
+  top: -1.5em;
+  width: 2.2em;
+  height: 1em;
+  margin-left: -1.1em;
+}
+.pk-sc-1.is-on .pk-sc-cloud {
+  animation: pk-sc-bob 3s ease-in-out infinite;
+}
+.pk-sc-rain {
+  left: 50%;
+  top: -0.6em;
+  width: 1.5em;
+  height: 0.7em;
+  margin-left: -0.75em;
+}
+.pk-sc-rain i {
+  position: absolute;
+  top: 0;
+  width: 0.075em;
+  height: 0.3em;
+  border-radius: 0.1em;
+  background: #7dd3fc;
+}
+.pk-sc-rain i:nth-child(1) {
+  left: 0.2em;
+}
+.pk-sc-rain i:nth-child(2) {
+  left: 0.7em;
+}
+.pk-sc-rain i:nth-child(3) {
+  left: 1.2em;
+}
+.pk-sc-1.is-on .pk-sc-rain i {
+  animation: pk-sc-rain 0.8s linear infinite;
+}
+.pk-sc-1.is-on .pk-sc-rain i:nth-child(2) {
+  animation-delay: 0.27s;
+}
+.pk-sc-1.is-on .pk-sc-rain i:nth-child(3) {
+  animation-delay: 0.53s;
+}
+@keyframes pk-sc-rain {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0.6em);
+    opacity: 0;
+  }
+}
+
+/* 2 · anger vein */
+.pk-sc-2.is-on {
+  color: #b91c1c;
+}
+.pk-sc-vein {
+  top: -0.6em;
+  right: -0.4em;
+  width: 1.1em;
+  height: 1.1em;
+}
+.pk-sc-2.is-on .pk-sc-vein {
+  animation: pk-sc-vein 0.9s ease-in-out infinite;
+}
+@keyframes pk-sc-vein {
+  0%,
+  100% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* 3 · "…" */
+.pk-sc-dots {
+  top: -1em;
+  left: 50%;
+  width: 1.8em;
+  height: 0.3em;
+  margin-left: -0.9em;
+}
+.pk-sc-dots i {
+  position: absolute;
+  top: 0;
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: rgb(var(--c-paper));
+  opacity: 0;
+}
+.pk-sc-dots i:nth-child(1) {
+  left: 0;
+}
+.pk-sc-dots i:nth-child(2) {
+  left: 0.75em;
+}
+.pk-sc-dots i:nth-child(3) {
+  left: 1.5em;
+}
+.pk-sc-3.is-on .pk-sc-dots i {
+  animation: pk-sc-dot 1.8s infinite;
+}
+.pk-sc-3.is-on .pk-sc-dots i:nth-child(2) {
+  animation-delay: 0.3s;
+}
+.pk-sc-3.is-on .pk-sc-dots i:nth-child(3) {
+  animation-delay: 0.6s;
+}
+@keyframes pk-sc-dot {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  25%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 4 · Zzz */
+.pk-sc-z {
+  right: -0.2em;
+  top: -0.3em;
+  color: #c4b5fd;
+  font-size: 0.6em;
+  line-height: 1;
+}
+.pk-sc-z.b {
+  font-size: 0.75em;
+}
+.pk-sc-z.c {
+  font-size: 0.9em;
+}
+.pk-sc-4.is-on .pk-sc-z {
+  animation: pk-sc-float 2.4s ease-out infinite;
+}
+.pk-sc-4.is-on .pk-sc-z.b {
+  animation-delay: 0.8s;
+}
+.pk-sc-4.is-on .pk-sc-z.c {
+  animation-delay: 1.6s;
+}
+
+/* 6 · blushing cheeks */
+.pk-sc-blush {
+  top: 50%;
+  width: 0.7em;
+  height: 0.4em;
+  margin-top: -0.2em;
+  border-radius: 50%;
+  background: repeating-linear-gradient(-60deg, rgba(244, 114, 182, 0.9) 0, rgba(244, 114, 182, 0.9) 0.075em, rgba(244, 114, 182, 0.35) 0.075em, rgba(244, 114, 182, 0.35) 0.175em);
+  z-index: 2;
+}
+.pk-sc-blush.l {
+  left: 0.25em;
+}
+.pk-sc-blush.r {
+  right: 0.25em;
+}
+.pk-sc-6.is-on .pk-sc-blush {
+  animation: pk-sc-blush 2s ease-in-out infinite;
+}
+@keyframes pk-sc-blush {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 7 · shōjo flowers */
+.pk-sc-flower {
+  width: 0.7em;
+  height: 0.7em;
+}
+.pk-sc-flower.a {
+  top: -0.6em;
+  left: -0.3em;
+}
+.pk-sc-flower.b {
+  top: -0.8em;
+  right: 0.1em;
+  width: 0.55em;
+  height: 0.55em;
+}
+.pk-sc-flower.c {
+  bottom: -0.5em;
+  right: -0.4em;
+}
+.pk-sc-flower.d {
+  bottom: -0.4em;
+  left: 0.4em;
+  width: 0.5em;
+  height: 0.5em;
+}
+.pk-sc-7.is-on .pk-sc-flower {
+  animation: pk-sc-pop 2.4s ease-out infinite;
+}
+.pk-sc-7.is-on .pk-sc-flower.b {
+  animation-delay: 0.3s;
+}
+.pk-sc-7.is-on .pk-sc-flower.c {
+  animation-delay: 0.6s;
+}
+.pk-sc-7.is-on .pk-sc-flower.d {
+  animation-delay: 0.9s;
+}
+
+/* 8 · speed lines and ドン */
+.pk-sc-8.is-on {
+  transform: translate(0.2em, -0.1em);
+}
+/* Short enough to stay in the gap before the previous chip */
+.pk-sc-speed {
+  left: -1.3em;
+  top: 0.4em;
+  width: 1.2em;
+  height: 1.6em;
+}
+.pk-sc-8.is-on .pk-sc-speed {
+  animation: pk-sc-speed 0.35s linear infinite;
+}
+@keyframes pk-sc-speed {
+  0% {
+    transform: translateX(0.3em);
+  }
+  100% {
+    transform: translateX(-0.3em);
+  }
+}
+.pk-sc-don {
+  top: -1.2em;
+  right: -0.9em;
+  color: rgb(var(--c-accent));
+  font-family: "Dela Gothic One", sans-serif;
+  font-weight: 400;
+  font-size: 0.85em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.pk-sc-8.is-on .pk-sc-don {
+  animation: pk-sc-impact 1.6s ease-out infinite;
+}
+@keyframes pk-sc-impact {
+  0% {
+    transform: rotate(10deg) scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    transform: rotate(10deg) scale(1.1);
+    opacity: 1;
+  }
+  30%,
+  70% {
+    transform: rotate(10deg) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(10deg) scale(1);
+    opacity: 0;
+  }
+}
+
+/* 9 · gold, with a golden aura */
+.pk-sc-9.is-on {
+  background: linear-gradient(135deg, #fef3c7, #fbbf24 55%, #f59e0b);
+  border-color: #fbbf24;
+  color: #1c1300;
+  box-shadow: 0.2em 0.2em 0 #78350f, 0 0 0.8em rgba(245, 158, 11, 0.55);
+}
+/* They rise from the top edge like a crown, clear of the number */
+.pk-sc-flame {
+  bottom: 2.05em;
+  width: 1em;
+  height: 1.5em;
+  transform-origin: 50% 100%;
+}
+.pk-sc-flame.a {
+  left: 0;
+}
+.pk-sc-flame.b {
+  left: 50%;
+  width: 1.2em;
+  height: 1.9em;
+  margin-left: -0.6em;
+}
+.pk-sc-flame.c {
+  right: 0;
+}
+.pk-sc-9.is-on .pk-sc-flame {
+  animation: pk-sc-flame 0.6s ease-in-out infinite alternate;
+}
+.pk-sc-9.is-on .pk-sc-flame.b {
+  animation-delay: 0.2s;
+}
+.pk-sc-9.is-on .pk-sc-flame.c {
+  animation-delay: 0.4s;
+}
+@keyframes pk-sc-flame {
+  0% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(1.18) translateY(-0.1em);
+  }
+}
+
+/* 10 · iridescent, with a halo and falling sakura */
+.pk-sc-10.is-on {
+  background: linear-gradient(135deg, #fde68a, #f9a8d4 50%, #c4b5fd);
+  border-color: #f9a8d4;
+  color: #1a0b2e;
+  box-shadow: 0.2em 0.2em 0 #7c3aed, 0 0 1.1em rgba(249, 168, 212, 0.7);
+}
+.pk-sc-10.is-on .pk-sc-inside::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 15%, rgba(255, 255, 255, 0.75) 50%, rgba(255, 255, 255, 0) 85%);
+  animation: pk-shine 3.4s ease-in-out infinite;
+}
+.pk-sc-halo {
+  left: 50%;
+  top: -0.8em;
+  width: 2em;
+  height: 0.6em;
+  margin-left: -1em;
+}
+.pk-sc-10.is-on .pk-sc-halo {
+  animation: pk-sc-bob 2.2s ease-in-out infinite;
+}
+.pk-sc-petal {
+  top: -0.8em;
+  width: 0.45em;
+  height: 0.6em;
+}
+.pk-sc-petal.a {
+  left: -0.5em;
+}
+.pk-sc-petal.b {
+  left: 50%;
+}
+.pk-sc-petal.c {
+  right: -0.6em;
+}
+.pk-sc-10.is-on .pk-sc-petal {
+  animation: pk-sc-petal 3s linear infinite;
+}
+.pk-sc-10.is-on .pk-sc-petal.b {
+  animation-delay: 1s;
+}
+.pk-sc-10.is-on .pk-sc-petal.c {
+  animation-delay: 2s;
+}
+@keyframes pk-sc-petal {
+  0% {
+    transform: translate(0, -0.3em) rotate(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-0.7em, 3.1em) rotate(200deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-sc,
+  .pk-sc *,
+  .pk-sc .pk-sc-inside::before {
+    animation: none !important;
+  }
+}

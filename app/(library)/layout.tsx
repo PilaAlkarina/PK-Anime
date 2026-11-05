@@ -8,6 +8,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { getUiMode } from "@/lib/ui-mode-server";
 import { ProfileGate } from "@/components/profiles";
 import "./library.css";
+import "./score-chips.css";
 
 export const metadata: Metadata = {
   title: { default: "PK Anime", template: "%s · PK Anime" },
