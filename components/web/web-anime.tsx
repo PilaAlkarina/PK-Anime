@@ -12,6 +12,7 @@ import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { airingLabel, episodesLabel, metaLine, statusLabel, upcomingLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
+import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
 import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
@@ -273,6 +274,9 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   };
 
   const relations = anime.relations.filter((r) => RELATION_LABELS[r.relationType]);
+  // The franchise in watch order, marking where this one is and what's watched
+  const order = useWatchOrder(anime.id);
+  const orderMarks = watchOrderMarks(order, anime.id, (item) => findRemoteEntry(remote, item) ?? findLocalEntry(myList, item));
   const subtitle = anime.romajiTitle && anime.romajiTitle !== anime.title ? anime.romajiTitle : anime.nativeTitle;
   const image = anime.banner || anime.cover;
   const subtitlesLabel = !prefs.subtitlesEnabled
@@ -613,6 +617,22 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
         </div>
       </div>
 
+      {order.length > 1 && (
+        <div className="max-w-[1360px] mx-auto mt-12">
+          <HorizontalRow title="Orden de visionado" itemCount={order.length}>
+            {order.map((item, index) => (
+              <div key={item.id} className="flex-shrink-0 w-[7.5rem] md:w-[10.5rem] snap-start">
+                <PosterCard
+                  item={item}
+                  rank={index + 1}
+                  badge={orderMarks[index]?.label}
+                  badgeClassName={orderMarks[index]?.className}
+                />
+              </div>
+            ))}
+          </HorizontalRow>
+        </div>
+      )}
       {anime.recommendations.length > 0 && (
         <div className="max-w-[1360px] mx-auto mt-12">
           <HorizontalRow title="Recomendados">

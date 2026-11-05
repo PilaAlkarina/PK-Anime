@@ -166,6 +166,17 @@ query ($ids: [Int], $since: Int) {
 }
 ${CARD_FRAGMENT}`;
 
+/** An anime's prequels and sequels, one step of walking a franchise in watch order */
+export const SEQUELS_QUERY = `
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    ...card
+    startDate { year month day }
+    relations { edges { relationType(version: 2) node { id type } } }
+  }
+}
+${CARD_FRAGMENT}`;
+
 export const BY_MAL_IDS_QUERY = `
 query ($ids: [Int]) {
   Page(perPage: 50) {

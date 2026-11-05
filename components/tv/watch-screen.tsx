@@ -13,6 +13,7 @@ import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
 import { useLibraryNavigation } from "./navigation-provider";
 import { FinishScreen } from "./finish-screen";
+import { FocusButton } from "./focusable";
 import { useIsTv } from "@/components/ui-mode";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,8 @@ export function WatchScreen({
   const isLast = anime.status === "FINISHED" && !!anime.episodes && episode === anime.episodes;
   const rated = listEntry?.status === "completed" && !!listEntry.score;
   const [finish, setFinish] = useState<(() => void) | null>(null);
+  // The next season, offered on that screen
+  const sequel = anime.relations.find((r) => r.relationType === "SEQUEL")?.item ?? null;
   const askedRef = useRef(false);
   /** Leaves with `go`, through the score screen when it's due */
   const finishThen = (go: () => void, watched: boolean) => {
@@ -130,7 +133,13 @@ export function WatchScreen({
           target={remote ? "remote" : "local"}
           listName={remote ? remote.provider.name : "Mi lista"}
           onDone={() => leave(finish)}
-        />
+        >
+          {sequel && (
+            <FocusButton variant="primary" className="mr-4 mb-3" onSelect={() => leave(() => replace(`/anime/${sequel.id}`))}>
+              Siguiente: {sequel.title}
+            </FocusButton>
+          )}
+        </FinishScreen>
       )}
       {audio && !finish && (
         <EmbedPlayer

@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, SEQUELS_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
 import { getAniZipEpisodes } from "./anizip";
@@ -329,6 +329,65 @@ export const getTags = unstable_cache(
   ["anilist:tags"],
   { revalidate: GENRES_TTL, tags: ["anilist"] }
 );
+
+interface RawSequels extends RawCard {
+  startDate: { year: number | null; month: number | null; day: number | null } | null;
+  relations: { edges: { relationType: string; node: { id: number; type: string } | null }[] } | null;
+}
+
+/** One anime with the IDs of its prequels and sequels */
+const getSequelLinks = unstable_cache(
+  async (id: number) => {
+    let media: RawSequels | null;
+    try {
+      media = (await anilistQuery<{ Media: RawSequels | null }>(SEQUELS_QUERY, { id })).Media;
+    } catch (err) {
+      if (err instanceof AniListError && err.status === 404) return null;
+      throw err;
+    }
+    if (!isListable(media)) return null;
+    const d = media.startDate;
+    return {
+      card: toCatalogItem(media),
+      // YYYYMMDD with unknown parts as 99, so an undated entry sorts after the dated ones of its year
+      start: d?.year ? d.year * 10000 + (d.month ?? 99) * 100 + (d.day ?? 99) : 99999999,
+      linked: (media.relations?.edges || [])
+        .filter((e) => (e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && e.node?.type === "ANIME")
+        .map((e) => e.node!.id),
+    };
+  },
+  ["anilist:sequels"],
+  { revalidate: DETAIL_TTL, tags: ["anilist"] }
+);
+
+const MAX_FRANCHISE = 24;
+
+/**
+ * Every season, film and OVA reachable from an anime through prequels and sequels, in release
+ * order: the franchise's watch order. Side stories and spin-offs stay out. Empty when the anime
+ * stands alone.
+ */
+export async function getWatchOrder(id: number): Promise<CatalogItem[]> {
+  const found = new Map<number, { card: CatalogItem; start: number }>();
+  const queue = [id];
+  const queued = new Set(queue);
+  while (queue.length > 0 && found.size < MAX_FRANCHISE) {
+    const next = queue.shift()!;
+    const links = await getSequelLinks(next);
+    if (!links) continue;
+    found.set(next, { card: links.card, start: links.start });
+    for (const linked of links.linked) {
+      if (!queued.has(linked)) {
+        queued.add(linked);
+        queue.push(linked);
+      }
+    }
+  }
+  if (found.size < 2) return [];
+  return Array.from(found.values())
+    .sort((a, b) => a.start - b.start || a.card.id - b.card.id)
+    .map((f) => f.card);
+}
 
 /** How far back an aired episode still counts as new */
 const NEW_EPISODE_WINDOW_S = 21 * 24 * 60 * 60;

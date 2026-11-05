@@ -20,6 +20,7 @@ import { episodeInfo, upcomingEpisodes, type UpcomingEpisode } from "@/lib/anili
 import { airingLabel, metaLine, statusLabel, upcomingLabel } from "@/lib/library/format";
 import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } from "@/lib/library/history";
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
+import { useWatchOrder, watchOrderMarks } from "@/lib/library/franchise";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
 import type { EditTarget } from "@/lib/library/use-entry-editor";
@@ -262,6 +263,16 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
       badge: RELATION_LABELS[r.relationType],
       onSelect: () => router.push(`/anime/${r.item.id}`),
     }));
+  // The franchise in watch order, marking where this one is and what's watched
+  const order = useWatchOrder(anime.id);
+  const orderMarks = watchOrderMarks(order, anime.id, (item) => findRemoteEntry(remote, item) ?? findLocalEntry(myList, item));
+  const orderCards: RowCard[] = order.map((item, index) => ({
+    item,
+    rank: index + 1,
+    badge: orderMarks[index]?.label,
+    badgeClassName: orderMarks[index]?.className,
+    onSelect: () => item.id !== anime.id && router.push(`/anime/${item.id}`),
+  }));
   const recommendationCards: RowCard[] = anime.recommendations.map((item) => ({
     item,
     onSelect: () => router.push(`/anime/${item.id}`),
@@ -486,6 +497,9 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
         )}
 
         <div className="relative pl-[7rem] mt-12 space-y-6">
+          {orderCards.length > 1 && (
+            <CardRow rowKey="watch-order" title="Orden de visionado" cards={orderCards} onRowFocus={revealRow} />
+          )}
           {relationCards.length > 0 && (
             <CardRow rowKey="relations" title="Relacionados" cards={relationCards} onRowFocus={revealRow} />
           )}
