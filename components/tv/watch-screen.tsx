@@ -6,11 +6,13 @@ import { pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo } from "@/lib/anilist/episodes";
 import { recordWatch, WATCHED_FRACTION } from "@/lib/library/history";
-import { saveLocalProgress } from "@/lib/library/my-list";
+import { findLocalEntry, saveLocalProgress, useMyList } from "@/lib/library/my-list";
+import { findRemoteEntry, useRemoteLibrary } from "@/lib/library/remote";
 import { getAudioPreference, type AudioPreference } from "@/lib/library/preferences";
 import { getPlaybackPreferences } from "@/lib/playback-preferences";
 import { EmbedPlayer } from "@/components/player/embed-player";
 import { useLibraryNavigation } from "./navigation-provider";
+import { FinishScreen } from "./finish-screen";
 import { useIsTv } from "@/components/ui-mode";
 import { cn } from "@/lib/utils";
 
@@ -51,12 +53,30 @@ export function WatchScreen({
     setAudio(initial);
   }, [audioParam]);
 
-  // Spatial navigation only runs in the TV layout
+  // After the last episode of a finished anime, a screen asks for a score before leaving. Only
+  // once it was watched, and not when it's already completed with a score.
+  const remote = useRemoteLibrary();
+  const myList = useMyList();
+  const listEntry = remote ? findRemoteEntry(remote, anime) : findLocalEntry(myList, anime);
+  const isLast = anime.status === "FINISHED" && !!anime.episodes && episode === anime.episodes;
+  const rated = listEntry?.status === "completed" && !!listEntry.score;
+  const [finish, setFinish] = useState<(() => void) | null>(null);
+  const askedRef = useRef(false);
+  /** Leaves with `go`, through the score screen when it's due */
+  const finishThen = (go: () => void, watched: boolean) => {
+    if (isLast && watched && !rated && !askedRef.current) {
+      askedRef.current = true;
+      setFinish(() => go);
+    } else leave(go);
+  };
+
+  // Spatial navigation only runs in the TV layout; the player moves focus itself, the score
+  // screen doesn't
   useEffect(() => {
-    if (!isTv) return;
+    if (!isTv || finish) return;
     pause();
     return () => resume();
-  }, [isTv]);
+  }, [isTv, finish]);
 
   useEffect(() => {
     recordWatch(anime, episode);
@@ -86,6 +106,7 @@ export function WatchScreen({
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
       audioRef.current = data.audio;
     }
+    if (name === "ended") finishThen(goBack, true);
     if (name === "progress" && !savedLocallyRef.current && data?.duration > 0 && data.currentTime / data.duration >= WATCHED_FRACTION) {
       savedLocallyRef.current = true;
       saveLocalProgress(anime, episode);
@@ -102,7 +123,16 @@ export function WatchScreen({
       )}
       style={{ transitionDuration: `${EXIT_FADE_MS}ms` }}
     >
-      {audio && (
+      {finish && (
+        <FinishScreen
+          anime={anime}
+          entry={listEntry}
+          target={remote ? "remote" : "local"}
+          listName={remote ? remote.provider.name : "Mi lista"}
+          onDone={() => leave(finish)}
+        />
+      )}
+      {audio && !finish && (
         <EmbedPlayer
           anilistId={anime.id}
           malId={anime.malId}
@@ -121,10 +151,10 @@ export function WatchScreen({
               ? { number: episode + 1, title: next?.title || null, thumbnail: next?.thumbnail ?? null, duration: anime.duration }
               : null
           }
-          onBack={() => leave(goBack)}
+          onBack={() => finishThen(goBack, savedLocallyRef.current)}
           poster={episodes.get(episode)?.thumbnail || anime.banner || anime.cover}
           // Always this anime's page, whatever page playback started from (home, search…)
-          onEpisodes={() => leave(() => backTo(`/anime/${anime.id}`))}
+          onEpisodes={() => finishThen(() => backTo(`/anime/${anime.id}`), savedLocallyRef.current)}
           // Replace, so Back from the next episode still returns to the anime page
           onNextEpisode={
             hasNext
