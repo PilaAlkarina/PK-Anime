@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { CatalogRow, Tag } from "@/lib/anilist/types";
 import { filtersKey, filtersToParams, hasAnyFilter, parseFilters, type CatalogFilters } from "@/lib/anilist/filters";
 
@@ -13,17 +13,20 @@ const SEARCH_DELAY_MS = 350;
  */
 export function useUrlFilters(): [CatalogFilters, (next: CatalogFilters) => void] {
   const params = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
   const query = params.toString();
   const filters = useMemo(() => parseFilters(new URLSearchParams(query)), [query]);
 
+  // The page doesn't read the filters on the server (results are fetched from here), so the URL
+  // is rewritten in place: router.replace re-rendered the force-dynamic page on the server for
+  // every typed letter. Next keeps useSearchParams in step with history.replaceState, as long as
+  // the state passed isn't its own (it carries `__NA` and is then left alone): hence null.
   const setFilters = useCallback(
     (next: CatalogFilters) => {
       const qs = filtersToParams(next).toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [router, pathname]
+    [pathname]
   );
 
   return [filters, setFilters];

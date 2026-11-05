@@ -89,8 +89,10 @@ function TopSearch() {
     const next = new URLSearchParams(pathname === "/search" ? params.toString() : "");
     if (q) next.set("q", q);
     else next.delete("q");
-    const qs = next.toString();
-    router[pathname === "/search" ? "replace" : "push"](qs ? `/search?${qs}` : "/search", { scroll: false });
+    const href = next.toString() ? `/search?${next.toString()}` : "/search";
+    // Already there: rewrite the URL in place (the results follow it), with no server round trip per letter
+    if (pathname === "/search") window.history.replaceState(null, "", href);
+    else router.push(href, { scroll: false });
   };
 
   return (
