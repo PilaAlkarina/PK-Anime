@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { useRouter } from "next/navigation";
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
-import { continueWatching, useWatchHistory } from "@/lib/library/history";
-import { useMyList } from "@/lib/library/my-list";
-import { mergeContinueWatching, useRemoteLibrary } from "@/lib/library/remote";
+import type { ContinueItem } from "@/lib/library/history";
+import { newEpisodesBadge, useContinueRows, type NewEpisodesItem } from "@/lib/library/continue";
 import { CardRow, usePagedRow, type RowCard } from "./catalog-row";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
@@ -71,14 +71,21 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
   // Initial focus waits for the stored history, so it lands on "Seguir viendo" when there is one
   const mounted = useMounted();
-  const history = useWatchHistory();
-  const remote = useRemoteLibrary();
-  const myList = useMyList();
-  // The watch history merged with what both lists are watching
-  const resume = useMemo(
-    () => mergeContinueWatching(continueWatching(history), remote, myList),
-    [history, remote, myList]
-  );
+  // The watch history merged with what both lists are watching; caught-up shows with a new
+  // episode out go to their own row
+  const { newEpisodes, resume } = useContinueRows();
+  // That row waits for current data from AniList, so it can show up after the first focus went
+  // to "Seguir viendo". It takes the focus then, unless the remote was already used.
+  const touchedRef = useRef(false);
+  useEffect(() => {
+    const onKey = () => (touchedRef.current = true);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const firstNewId = newEpisodes[0]?.anime.id;
+  useEffect(() => {
+    if (mounted && firstNewId && !touchedRef.current) setFocus(`new-episodes:${firstNewId}`);
+  }, [mounted, firstNewId]);
   const [hero, setHero] = useState<CatalogItem | null>(rows[0]?.items[0] ?? null);
   const heroTimer = useRef<ReturnType<typeof setTimeout>>();
   const listRef = useRef<HTMLDivElement>(null);
@@ -106,7 +113,7 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
   // The hero wears the "TENDENCIA N.º …" stamp while it shows a title from the trending row
   const heroRank = hero && rows[0].kind === "trending" ? rows[0].items.findIndex((i) => i.id === hero.id) + 1 : 0;
 
-  const resumeCards: RowCard[] = resume.map(({ anime, episode, progress }) => ({
+  const toCard = ({ anime, episode, progress }: ContinueItem): RowCard => ({
     item: anime,
     key: `${anime.id}`,
     progress,
@@ -118,7 +125,13 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
     onSelect: () => router.push(`/watch/${anime.id}/${episode}`),
     // OK plays; Down reaches this, for the episode list, the trailer or the list status
     secondary: { label: "Ver ficha", onSelect: () => router.push(`/anime/${anime.id}`) },
+  });
+  const newCards: RowCard[] = newEpisodes.map((item: NewEpisodesItem) => ({
+    ...toCard(item),
+    badge: newEpisodesBadge(item.newCount),
+    badgeClassName: "bg-red-500 text-black",
   }));
+  const resumeCards = resume.map(toCard);
 
   return (
     <Screen ready={mounted}>
@@ -128,6 +141,15 @@ export function HomeScreen({ rows }: { rows: CatalogRow[] }) {
         ref={listRef}
         className="fixed left-[7rem] right-0 bottom-0 top-[50vh] overflow-y-auto overflow-x-hidden tv-no-scrollbar"
       >
+        {newCards.length > 0 && (
+          <CardRow
+            rowKey="new-episodes"
+            title="Nuevos episodios"
+            cards={newCards}
+            onCardFocus={showInHero}
+            onRowFocus={scrollToRow}
+          />
+        )}
         {resumeCards.length > 0 && (
           <CardRow
             rowKey="continue"

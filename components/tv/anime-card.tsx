@@ -94,6 +94,17 @@ function TvAnimeCard({
           {episode !== undefined && (
             <EpisodeNumeral n={episode} current={focused} className="top-2.5 left-3.5 text-[2.5rem]" />
           )}
+          {/* Top right here, clear of the episode numeral */}
+          {badge && (
+            <span
+              className={cn(
+                "absolute top-3 right-3 px-2.5 py-0.5 rounded-md text-base font-bold uppercase",
+                badgeClassName ?? "bg-black/80"
+              )}
+            >
+              {badge}
+            </span>
+          )}
           {progress !== undefined && progress > 0 && (
             <div className="absolute left-0 right-0 bottom-0 h-1.5 bg-white/[0.18]">
               <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />

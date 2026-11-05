@@ -140,7 +140,9 @@ const isActive = (entry: TrackerEntry) => entry.status === "watching" || entry.r
 export function mergeContinueWatching(
   history: ContinueItem[],
   remote: RemoteLibrary | null,
-  local: LocalEntry[] = []
+  local: LocalEntry[] = [],
+  /** Swaps a saved card for a current one (see fresh-cards) */
+  refresh: (anime: CatalogItem) => CatalogItem = (anime) => anime
 ): ContinueItem[] {
   const localById = new Map(local.map((entry) => [entry.anime.id, entry]));
   const listEntry = (anime: Pick<CatalogItem, "id" | "malId">) => findRemoteEntry(remote, anime) ?? localById.get(anime.id) ?? null;
@@ -153,7 +155,8 @@ export function mergeContinueWatching(
       })
       .map((item) => [item.anime.id, { ...item }])
   );
-  const consider = (anime: CatalogItem | undefined, entry: TrackerEntry) => {
+  const consider = (saved: CatalogItem | undefined, entry: TrackerEntry) => {
+    const anime = saved && refresh(saved);
     // Both this entry and the one that decides (a local entry the remote list has paused doesn't count)
     const decider = anime ? listEntry(anime) : null;
     if (!anime || !isActive(entry) || !decider || !isActive(decider)) return;

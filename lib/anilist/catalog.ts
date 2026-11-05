@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { anilistQuery, AniListError } from "./client";
-import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
+import { BY_MAL_IDS_QUERY, buildRowsQuery, DETAIL_QUERY, FRESH_CARDS_QUERY, GENRES_QUERY, SCHEDULE_QUERY, TAGS_QUERY, type RowSource } from "./queries";
 import { parseFilters } from "./filters";
 import { cleanTrailer } from "./trailer";
 import { getAniZipEpisodes } from "./anizip";
@@ -329,6 +329,46 @@ export const getTags = unstable_cache(
   ["anilist:tags"],
   { revalidate: GENRES_TTL, tags: ["anilist"] }
 );
+
+/** How far back an aired episode still counts as new */
+const NEW_EPISODE_WINDOW_S = 21 * 24 * 60 * 60;
+const FRESH_TTL_MS = 10 * 60 * 1000;
+const FRESH_CHUNK = 50;
+const freshCache = new Map<number, { card: CatalogItem | null; expires: number }>();
+
+/**
+ * Up-to-date cards for AniList IDs (lists and the watch history keep old copies). A show that
+ * aired an episode in the last three weeks has it in `airedEpisode`. Cached per ID for ten
+ * minutes, so each anime is asked for once however many lists it is on.
+ */
+export async function getFreshCards(ids: number[]): Promise<CatalogItem[]> {
+  const now = Date.now();
+  const unique = Array.from(new Set(ids)).sort((a, b) => a - b);
+  const missing = unique.filter((id) => (freshCache.get(id)?.expires ?? 0) <= now);
+
+  for (let i = 0; i < missing.length; i += FRESH_CHUNK) {
+    const chunk = missing.slice(i, i + FRESH_CHUNK);
+    const data = await anilistQuery<{
+      cards: RawPage;
+      aired: { airingSchedules: { mediaId: number; episode: number; airingAt: number }[] | null };
+    }>(FRESH_CARDS_QUERY, { ids: chunk, since: Math.floor(now / 1000) - NEW_EPISODE_WINDOW_S });
+    const latest = new Map<number, AiringEpisode>();
+    for (const s of data.aired.airingSchedules || []) {
+      const known = latest.get(s.mediaId);
+      if (!known || s.episode > known.episode) latest.set(s.mediaId, { episode: s.episode, airingAt: s.airingAt });
+    }
+    const found = new Map<number, CatalogItem>();
+    for (const m of data.cards.media || []) {
+      if (!isListable(m)) continue;
+      const aired = latest.get(m.id);
+      found.set(m.id, aired ? { ...toCatalogItem(m), airedEpisode: aired } : toCatalogItem(m));
+    }
+    for (const id of chunk) freshCache.set(id, { card: found.get(id) ?? null, expires: now + FRESH_TTL_MS });
+  }
+  const cards = unique.map((id) => freshCache.get(id)?.card).filter((c): c is CatalogItem => !!c);
+  if (freshCache.size > MAL_CARD_CACHE_MAX) freshCache.clear();
+  return cards;
+}
 
 /** AniList allows 50 IDs per idMal_in page */
 const MAL_ID_CHUNK = 50;

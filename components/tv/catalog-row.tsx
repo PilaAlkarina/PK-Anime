@@ -21,6 +21,7 @@ export interface RowCard {
   /** Unique within the row; defaults to the anime ID */
   key?: string;
   badge?: string;
+  badgeClassName?: string;
   progress?: number;
   /** Episode drawn as a big numeral on wide cards */
   episode?: number;
@@ -158,6 +159,7 @@ export function CardRow({
                   focusKey={`${rowKey}:${key}`}
                   item={card.item}
                   badge={card.badge}
+                  badgeClassName={card.badgeClassName}
                   progress={card.progress}
                   episode={card.episode}
                   rank={card.rank}

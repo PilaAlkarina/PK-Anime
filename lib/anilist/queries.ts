@@ -151,6 +151,21 @@ export const GENRES_QUERY = `query { GenreCollection }`;
 
 export const TAGS_QUERY = `query { MediaTagCollection { name description category isAdult } }`;
 
+/**
+ * Current cards for AniList IDs, plus the episodes they aired since `since` (newest first), so
+ * the library can tell when a show on someone's list has a new episode
+ */
+export const FRESH_CARDS_QUERY = `
+query ($ids: [Int], $since: Int) {
+  cards: Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) { ...card }
+  }
+  aired: Page(perPage: 50) {
+    airingSchedules(mediaId_in: $ids, airingAt_greater: $since, notYetAired: false, sort: TIME_DESC) { mediaId episode airingAt }
+  }
+}
+${CARD_FRAGMENT}`;
+
 export const BY_MAL_IDS_QUERY = `
 query ($ids: [Int]) {
   Page(perPage: 50) {

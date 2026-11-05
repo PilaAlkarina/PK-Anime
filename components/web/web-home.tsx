@@ -8,9 +8,10 @@ import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Info, Play } from "
 import type { CatalogItem, CatalogRow } from "@/lib/anilist/types";
 import { GENRE_LABELS } from "@/lib/anilist/genres";
 import { metaLine } from "@/lib/library/format";
-import { continueWatching, useWatchHistory, type ContinueItem } from "@/lib/library/history";
+import type { ContinueItem } from "@/lib/library/history";
+import { newEpisodesBadge, useContinueRows } from "@/lib/library/continue";
 import { findLocalEntry, removeLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
-import { findRemoteEntry, mergeContinueWatching, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
+import { findRemoteEntry, REMOTE_STATUS_LABELS, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote, removeFromRemote } from "@/lib/library/sync";
 import { usePagedRow } from "@/components/tv/catalog-row";
 import { useAnimeDetail } from "@/components/tv/hero";
@@ -279,7 +280,7 @@ function FeaturedActions({
  * Wide card for "Seguir viendo": artwork, the episode and how far it got. The `current` one (the
  * latest) stands out like a selected panel, with its episode number in the accent
  */
-function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?: boolean }) {
+function ResumeCard({ entry, current = false, badge }: { entry: ContinueItem; current?: boolean; badge?: string }) {
   const { anime, episode, progress } = entry;
   const image = anime.banner || anime.cover;
   return (
@@ -315,6 +316,11 @@ function ResumeCard({ entry, current = false }: { entry: ContinueItem; current?:
             outline="text-outline-hair md:text-outline-thin"
             className="top-2 left-2.5 text-[1.6rem] md:left-3 md:text-[1.9rem]"
           />
+          {badge && (
+            <span className="absolute bottom-2 left-2.5 md:left-3 px-2 py-0.5 rounded-md bg-red-500 text-black text-[0.7rem] font-bold uppercase">
+              {badge}
+            </span>
+          )}
           {progress > 0 && (
             <div className="absolute left-0 right-0 bottom-0 h-1 md:h-[5px] bg-white/[0.18]">
               <div className="h-full bg-red-500" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -363,13 +369,9 @@ function CatalogRowSection({ row }: { row: CatalogRow }) {
 /** Home for computers and phones: the same sections as the TV home, in the same order */
 export function WebHome({ rows }: { rows: CatalogRow[] }) {
   const router = useRouter();
-  const history = useWatchHistory();
-  const remote = useRemoteLibrary();
-  const myList = useMyList();
-  const resume = useMemo(
-    () => mergeContinueWatching(continueWatching(history), remote, myList),
-    [history, remote, myList]
-  );
+  // Caught-up shows with a new episode out get their own row, ahead of "Seguir viendo"
+  const { newEpisodes, resume } = useContinueRows();
+  const resumable = useMemo(() => [...newEpisodes, ...resume], [newEpisodes, resume]);
 
   return (
     <div className="max-w-[1360px] mx-auto pb-10">
@@ -397,7 +399,14 @@ export function WebHome({ rows }: { rows: CatalogRow[] }) {
         </div>
       ) : (
         <div className="flex flex-col gap-8 md:gap-11 md:pt-7">
-          <Featured row={rows[0]} resume={resume} />
+          <Featured row={rows[0]} resume={resumable} />
+          {newEpisodes.length > 0 && (
+            <HorizontalRow title="Nuevos episodios">
+              {newEpisodes.map((entry) => (
+                <ResumeCard key={entry.anime.id} entry={entry} badge={newEpisodesBadge(entry.newCount)} />
+              ))}
+            </HorizontalRow>
+          )}
           {resume.length > 0 && (
             <HorizontalRow title="Seguir viendo">
               {resume.map((entry, index) => (
