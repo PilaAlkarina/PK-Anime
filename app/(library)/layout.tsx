@@ -7,6 +7,7 @@ import { WebShell } from "@/components/web/web-shell";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { getUiMode } from "@/lib/ui-mode-server";
 import { ProfileGate } from "@/components/profiles";
+import { TvScreensaver } from "@/components/tv/screensaver";
 import "./library.css";
 import "./score-chips.css";
 
@@ -50,6 +51,7 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
             <main className="pl-[7rem]">
               <ProfileGate>{children}</ProfileGate>
             </main>
+            <TvScreensaver />
           </div>
         </TvLinkProvider>
       </NavigationProvider>

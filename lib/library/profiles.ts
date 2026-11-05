@@ -30,7 +30,7 @@ interface ProfilesState {
 const KEY = "pk_profiles";
 const MAIN_ID = "main";
 /** Keys that belong to the device, not to a profile */
-const DEVICE_KEYS = new Set([KEY, "pk_theme", "pk_tv_link", "pk_remote_token"]);
+const DEVICE_KEYS = new Set([KEY, "pk_theme", "pk_tv_link", "pk_remote_token", "pk_screensaver"]);
 export const PROFILE_COLORS = ["#FF4A2E", "#2EE6FF", "#A6E35A", "#FFD23F", "#FF5C9A", "#8B7CFF", "#FF8A1F", "#E8E4DA"];
 export const MAX_PROFILES = 6;
 

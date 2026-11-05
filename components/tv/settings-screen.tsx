@@ -12,6 +12,7 @@ import {
   type PlaybackPreferences,
 } from "@/lib/playback-preferences";
 import { THEMES } from "@/lib/themes";
+import { SCREENSAVER_OPTIONS, setScreensaverMinutes, useScreensaverMinutes, type ScreensaverMinutes } from "@/lib/tv/screensaver";
 import { setThemePreference, useThemePreference } from "@/lib/theme-preference";
 import { useUiMode } from "@/components/ui-mode";
 import type { UiMode } from "@/lib/ui-mode";
@@ -300,6 +301,11 @@ function ThemePicker() {
   );
 }
 
+const SCREENSAVER_CHOICES: Option<ScreensaverMinutes>[] = SCREENSAVER_OPTIONS.map((value) => ({
+  value,
+  label: value ? `${value} min` : "Nunca",
+}));
+
 const UI_OPTIONS: Option<UiMode>[] = [
   { value: "web", label: "Ordenador y móvil" },
   { value: "tv", label: "TV, con mando" },
@@ -310,6 +316,7 @@ export function SettingsScreen() {
   const mounted = useMounted();
   const uiMode = useUiMode();
   const prefs = usePlaybackPreferences();
+  const screensaver = useScreensaverMinutes();
   const styles = prefs.subtitleStyles;
   const setStyle = (patch: Partial<SubtitleStyles>) =>
     updatePlaybackPreferences({ subtitleStyles: { ...styles, ...patch } });
@@ -326,6 +333,14 @@ export function SettingsScreen() {
         >
           <Options value={uiMode} options={UI_OPTIONS} onChange={(mode) => mode !== uiMode && switchUiMode(mode)} />
         </Setting>
+        {uiMode === "tv" && (
+          <Setting
+            label="Salvapantallas"
+            hint="Tras este tiempo sin tocar el mando, un pase de las portadas de tu lista con la hora. Nunca sale durante un episodio."
+          >
+            <Options value={screensaver} options={SCREENSAVER_CHOICES} onChange={setScreensaverMinutes} />
+          </Setting>
+        )}
       </Section>
 
       <Section title="Audio">

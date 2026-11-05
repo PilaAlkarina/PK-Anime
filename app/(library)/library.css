@@ -253,3 +253,23 @@
     scrollbar-color: rgb(var(--c-zinc-600)) transparent;
   }
 }
+
+/* TV screensaver: the artwork drifts and grows slowly while it's on screen */
+@keyframes pk-saver-pan {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.08) translate(-1.5%, -1%);
+  }
+}
+
+.pk-saver-pan {
+  animation: pk-saver-pan 13s linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-saver-pan {
+    animation: none;
+  }
+}
