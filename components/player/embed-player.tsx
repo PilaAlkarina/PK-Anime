@@ -36,6 +36,7 @@ import { Timeline } from "./ui/timeline";
 import { SettingsPanel, type PanelView } from "./ui/settings-panel";
 import { PauseScreen } from "./ui/pause-screen";
 import { NextEpisodeScreen } from "./ui/next-episode-screen";
+import { profileKey } from "@/lib/library/profiles";
 import { RemoteHints } from "./ui/remote-hints";
 import { SubtitleText } from "./ui/subtitle-text";
 import { LoadingVeil } from "./ui/loading-veil";
@@ -370,7 +371,8 @@ export function EmbedPlayer({
   const autoServerDoneRef = useRef<string | null>(null);
 
   // Watch position is saved in this browser, per anime and episode
-  const progressKey = `anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`;
+  // Per library profile, like the rest of what the library keeps on the device
+  const progressKey = profileKey(`anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`);
 
   // Resume from the saved position unless the embed URL asks for a start time
   useEffect(() => {

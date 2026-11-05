@@ -11,6 +11,7 @@ import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 import { ListTransfer } from "./list-transfer";
 import { useLinkCountdown, useTvLink } from "./tv-link";
+import { ProfilesSection } from "@/components/profiles";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -181,6 +182,11 @@ function WebShortcuts() {
   );
 }
 
+function ProfilesOnPage() {
+  const reveal = useRevealOnFocus();
+  return <ProfilesSection onReveal={(node) => reveal(node)} />;
+}
+
 export function AccountScreen() {
   const mounted = useMounted();
   const account = useAccount();
@@ -190,6 +196,10 @@ export function AccountScreen() {
       <section className="mb-12 tv:mb-16">
         <SectionTitle>Sincronización</SectionTitle>
         <AccountSection />
+      </section>
+      <section className="mb-12 tv:mb-16">
+        <SectionTitle>Perfiles</SectionTitle>
+        <ProfilesOnPage />
       </section>
       {isTv ? (
         <section>

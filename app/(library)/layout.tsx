@@ -6,6 +6,7 @@ import { UiModeProvider } from "@/components/ui-mode";
 import { WebShell } from "@/components/web/web-shell";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { getUiMode } from "@/lib/ui-mode-server";
+import { ProfileGate } from "@/components/profiles";
 import "./library.css";
 
 export const metadata: Metadata = {
@@ -28,7 +29,9 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
         <TvLinkProvider>
           <div data-ui="web">
             <NavigationProgress />
-            <WebShell>{children}</WebShell>
+            <WebShell>
+              <ProfileGate>{children}</ProfileGate>
+            </WebShell>
           </div>
         </TvLinkProvider>
       </UiModeProvider>
@@ -43,7 +46,9 @@ export default function LibraryLayout({ children }: { children: React.ReactNode 
           <div data-ui="tv" lang="es" className="relative min-h-screen bg-black text-white overflow-hidden">
             <NavigationProgress />
             <Sidebar />
-            <main className="pl-[7rem]">{children}</main>
+            <main className="pl-[7rem]">
+              <ProfileGate>{children}</ProfileGate>
+            </main>
           </div>
         </TvLinkProvider>
       </NavigationProvider>

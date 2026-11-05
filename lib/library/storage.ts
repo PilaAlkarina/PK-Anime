@@ -1,14 +1,15 @@
 import { useSyncExternalStore } from "react";
+import { profileKey } from "./profiles";
 
 /**
  * localStorage-backed stores for per-device library state ("Mi lista", watch history,
  * preferences). Reads and writes never throw: private mode or blocked storage just
- * behaves like an empty store.
+ * behaves like an empty store. Keys belong to the active profile (see profiles.ts).
  */
 
 export function readJSON<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(profileKey(key));
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
@@ -17,7 +18,7 @@ export function readJSON<T>(key: string, fallback: T): T {
 
 export function writeJSON(key: string, value: unknown) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(profileKey(key), JSON.stringify(value));
   } catch {}
 }
 
@@ -45,7 +46,7 @@ export function createStore<T>(key: string, fallback: T, normalize?: (stored: un
     listeners.add(listener);
     // Another tab changed the same key
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== key) return;
+      if (e.key !== profileKey(key)) return;
       cached = undefined;
       listener();
     };
