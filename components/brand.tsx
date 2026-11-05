@@ -30,6 +30,7 @@ const SECTIONS: [RegExp, string][] = [
   [/^nuevos episodios/i, "新着"],
   [/^porque viste/i, "おすすめ"],
   [/^orden de visionado/i, "視聴順"],
+  [/^estadísticas/i, "統計"],
   [/^tendencias/i, "人気"],
   [/^temporada de/i, "今期"],
   [/^próxima temporada/i, "来期"],

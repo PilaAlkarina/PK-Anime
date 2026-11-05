@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useIsTv } from "@/components/ui-mode";
 import type { CatalogItem, CatalogRow, Genre, ScheduleEntry } from "@/lib/anilist/types";
@@ -29,7 +30,7 @@ import { MyListControls } from "./my-list-controls";
 import { CardGrid, PageFrame, useMounted, useRevealOnFocus } from "./page-frame";
 import { cn } from "@/lib/utils";
 
-function useOpenAnime() {
+export function useOpenAnime() {
   const router = useRouter();
   return (item: CatalogItem) => router.push(`/anime/${item.id}`);
 }
@@ -121,6 +122,7 @@ export function RowGridScreen({ row, subtitle }: { row: CatalogRow; subtitle?: s
 const LIST_PAGE = 60;
 
 export function MyListScreen() {
+  const router = useRouter();
   const openAnime = useOpenAnime();
   const mounted = useMounted();
   const list = useMyList();
@@ -161,6 +163,13 @@ export function MyListScreen() {
 
   return (
     <PageFrame title="Mi lista" subtitle={subtitle} ready={mounted}>
+      {items.length > 0 && (
+        <FocusGroup className="mb-6 tv:mb-8">
+          <FocusButton variant="secondary" onSelect={() => router.push("/stats")}>
+            <BarChart3 className="w-5 h-5 mr-2 tv:w-6 tv:h-6 tv:mr-3" /> Estadísticas
+          </FocusButton>
+        </FocusGroup>
+      )}
       {remote && (
         <div className="mb-8 tv:mb-10">
           <ListTransfer />
