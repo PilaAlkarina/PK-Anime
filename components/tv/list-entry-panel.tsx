@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
-import { useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
+import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
 import { FocusButton, FocusGroup } from "./focusable";
 import { StatusDot } from "./list-styles";
@@ -35,6 +35,9 @@ export function ListEntryPanel({
   onReveal?: (node: HTMLElement) => void;
 }) {
   const { saving, failed, update, remove } = useEntryEditor(anime, target);
+  // Episodes out so far, for anime still airing
+  const total = anime.availableEpisodes ?? anime.episodes;
+  const setProgress = (progress: number) => update(progressChanges(anime, entry, progress));
 
   useBackHandler(() => {
     onClose();
@@ -95,6 +98,39 @@ export function ListEntryPanel({
             {score ? score : "Sin nota"}
           </FocusButton>
         ))}
+      </FocusGroup>
+
+      <p className="mt-3 text-lg text-zinc-400">Episodios vistos</p>
+      <FocusGroup
+        className="flex flex-wrap items-center mt-3"
+        onFocusInside={onReveal}
+        preferredChildFocusKey="entry:progress:more"
+      >
+        <FocusButton
+          variant="chip"
+          focusKey="entry:progress:less"
+          className="mr-3 mb-3 min-w-[3.5rem]"
+          onSelect={() => entry.progress > 0 && setProgress(entry.progress - 1)}
+        >
+          −
+        </FocusButton>
+        <span className="mr-3 mb-3 min-w-[7rem] text-center text-xl font-bold">
+          {entry.progress}
+          {total ? ` de ${total}` : ""}
+        </span>
+        <FocusButton
+          variant="chip"
+          focusKey="entry:progress:more"
+          className="mr-3 mb-3 min-w-[3.5rem]"
+          onSelect={() => (!total || entry.progress < total) && setProgress(entry.progress + 1)}
+        >
+          +
+        </FocusButton>
+        {!!total && entry.progress < total && (
+          <FocusButton variant="chip" className="mr-3 mb-3" onSelect={() => setProgress(total)}>
+            Todos vistos
+          </FocusButton>
+        )}
       </FocusGroup>
 
       <FocusGroup className="flex items-center mt-4" onFocusInside={onReveal}>

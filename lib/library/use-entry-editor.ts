@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CatalogItem } from "@/lib/anilist/types";
-import type { EntryChanges } from "@/lib/trackers/types";
+import type { EntryChanges, TrackerEntry } from "@/lib/trackers/types";
 import { removeLocalEntry, updateLocalEntry } from "./my-list";
 import { removeFromRemote, updateRemoteEntry } from "./sync";
 
@@ -43,4 +43,17 @@ export function useEntryEditor(anime: CatalogItem, target: EditTarget) {
     update: (changes: EntryChanges) => run(() => updateRemoteEntry(anime, changes)),
     remove: () => run(() => removeFromRemote(anime)),
   };
+}
+
+/**
+ * Episodes watched set by hand, with the status that goes with it: every episode of a finished
+ * anime makes it completed, and some progress on a planned or completed one makes it watching
+ */
+export function progressChanges(anime: CatalogItem, entry: TrackerEntry | null, progress: number): EntryChanges {
+  const total = anime.episodes;
+  if (total && progress >= total && anime.status === "FINISHED") return { progress: total, status: "completed" };
+  if (progress > 0 && (!entry || entry.status === "planning" || entry.status === "completed")) {
+    return { progress, status: "watching" };
+  }
+  return { progress };
 }

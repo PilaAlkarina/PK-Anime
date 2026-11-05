@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { ScorePill, StatusDot } from "@/components/tv/list-styles";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
-import { useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
+import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
 import { Select, type SelectOption } from "./select";
 
@@ -42,13 +42,17 @@ export function ListEntryControls({
 }) {
   const { saving, failed, update, remove } = useEntryEditor(anime, target);
   const [confirming, setConfirming] = useState(false);
+  // Episodes out so far, for anime still airing
+  const total = anime.availableEpisodes ?? anime.episodes;
+  const setProgress = (progress: number) => update(progressChanges(anime, entry, progress));
+  const stepClass =
+    "flex items-center justify-center w-9 h-10 text-lg text-white hover:bg-zinc-800 disabled:opacity-40 disabled:hover:bg-transparent";
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
       <span className="flex items-center w-full sm:w-auto">
         <StatusDot status={entry.status} className="w-2.5 h-2.5 mr-2" />
         En {providerName}
-        {entry.progress > 0 && ` · ${entry.progress}${anime.episodes ? ` de ${anime.episodes}` : ""} vistos`}
         {entry.score ? <ScorePill score={entry.score} inline className="ml-2 px-1.5 py-1 text-xs" /> : null}
       </span>
       <Select<ListStatus>
@@ -66,6 +70,40 @@ export function ListEntryControls({
         onChange={(score) => update({ score: score || null })}
         buttonClassName="min-w-[7rem]"
       />
+      <span className="flex items-center h-10 rounded-lg border-[1.5px] border-line bg-ink-3 overflow-hidden" role="group" aria-label="Episodios vistos">
+        <button
+          type="button"
+          className={stepClass}
+          disabled={saving || entry.progress <= 0}
+          onClick={() => setProgress(entry.progress - 1)}
+          aria-label="Un episodio visto menos"
+        >
+          −
+        </button>
+        <span className="px-2 min-w-[4.5rem] text-center text-white tabular-nums">
+          {entry.progress}
+          {total ? `/${total}` : ""} vistos
+        </span>
+        <button
+          type="button"
+          className={stepClass}
+          disabled={saving || (!!total && entry.progress >= total)}
+          onClick={() => setProgress(entry.progress + 1)}
+          aria-label="Un episodio visto más"
+        >
+          +
+        </button>
+      </span>
+      {!!total && entry.progress < total && (
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => setProgress(total)}
+          className="h-10 px-3 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-60"
+        >
+          Todos vistos
+        </button>
+      )}
       <button
         type="button"
         disabled={saving}

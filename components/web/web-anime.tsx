@@ -4,7 +4,7 @@ import { useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, MetaWithScore, ScoreStar } from "@/components/brand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Captions, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
+import { Bookmark, Captions, Check, ChevronLeft, ChevronRight, Clapperboard, ListPlus, Lock, Play } from "lucide-react";
 import { trailerEmbedUrl } from "@/lib/anilist/trailer";
 import type { AnimeDetail } from "@/lib/anilist/types";
 import { episodeInfo, upcomingEpisodes, type UpcomingEpisode } from "@/lib/anilist/episodes";
@@ -14,7 +14,7 @@ import { continueWatching, episodeProgress, useWatchHistory, WATCHED_FRACTION } 
 import { findLocalEntry, toggleMyList, useMyList } from "@/lib/library/my-list";
 import { findRemoteEntry, REMOTE_STATUS_LABELS, remoteNextEpisode, useRemoteLibrary } from "@/lib/library/remote";
 import { addToRemote } from "@/lib/library/sync";
-import type { EditTarget } from "@/lib/library/use-entry-editor";
+import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import { setAudioPreference, useAudioPreference } from "@/lib/library/preferences";
 import { usePlaybackPreferences } from "@/lib/playback-preferences";
 import { subtitleLanguageName } from "@/components/player/player-core/subtitle-language";
@@ -48,6 +48,8 @@ function EpisodeItem({
   duration,
   current,
   href,
+  marked,
+  onMark,
 }: {
   number: number;
   title?: string;
@@ -57,6 +59,10 @@ function EpisodeItem({
   /** The episode to resume: popped out, its numeral filled with the accent */
   current: boolean;
   href: string;
+  /** Counted as watched on the list, so the button unmarks it */
+  marked: boolean;
+  /** Sets the list's progress up to this episode, or to the one before when `marked` */
+  onMark: () => void;
 }) {
   const watched = progress >= WATCHED_FRACTION;
   const status = watched
@@ -67,7 +73,10 @@ function EpisodeItem({
         ? `${duration} min`
         : null;
 
+  const markLabel = marked ? `Marcar el episodio ${number} como no visto` : `Marcar como vistos hasta el episodio ${number}`;
   return (
+    // The tile plays; the check over it sets the list's progress (shown on hover, always on phones)
+    <div className="group/ep relative">
     <Link
       id={`ep-${number}`}
       href={href}
@@ -109,6 +118,22 @@ function EpisodeItem({
         {status && <span className="sm:hidden text-xs font-medium text-zinc-400">{status}</span>}
       </span>
     </Link>
+      <button
+        type="button"
+        onClick={onMark}
+        aria-label={markLabel}
+        title={marked ? "Marcar como no visto" : "Marcar como visto hasta aquí"}
+        aria-pressed={marked}
+        className={cn(
+          "absolute right-0 top-1/2 -translate-y-1/2 sm:translate-y-0 sm:top-2 sm:right-2 flex items-center justify-center w-8 h-8 rounded-full",
+          "transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-white",
+          "sm:opacity-0 sm:group-hover/ep:opacity-100 sm:focus-visible:opacity-100",
+          marked ? "bg-white text-black hover:bg-zinc-200" : "bg-black/75 text-white hover:bg-black"
+        )}
+      >
+        <Check className="w-4 h-4" />
+      </button>
+    </div>
   );
 }
 
@@ -214,6 +239,10 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
   useEffect(() => {
     if (playEpisode > 1) setRange(Math.floor((playEpisode - 1) / EPISODES_PER_RANGE));
   }, [playEpisode]);
+
+  // Marking from an episode tile edits the same list as the controls above
+  const editor = useEntryEditor(anime, listTarget);
+  const markUpTo = (progress: number) => editor.update(progressChanges(anime, listEntry, progress));
 
   const watchHref = (episode: number) => `/watch/${anime.id}/${episode}?audio=${audio}`;
   const progressOf = (number: number) =>
@@ -514,6 +543,8 @@ export function WebAnimeScreen({ anime }: { anime: AnimeDetail }) {
                         duration={anime.duration}
                         current={hasPosition && number === playEpisode}
                         href={watchHref(number)}
+                        marked={watchedUpTo >= number}
+                        onMark={() => markUpTo(watchedUpTo >= number ? number - 1 : number)}
                       />
                     )
                   )}
