@@ -33,6 +33,7 @@ const SECTIONS: [RegExp, string][] = [
   [/^estadísticas/i, "統計"],
   [/^openings/i, "主題歌"],
   [/^radio/i, "ラジオ"],
+  [/^biblioteca/i, "ライブラリ"],
   [/^ver juntos/i, "一緒に見る"],
   [/^tendencias/i, "人気"],
   [/^temporada de/i, "今期"],

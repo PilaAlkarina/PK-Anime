@@ -53,7 +53,7 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 | `/genres`, `/genres/{genre}` | Genre list and a paged grid per genre |
 | `/my-list` | Saved series |
 | `/settings` | *Ajustes*: playback preferences (audio, subtitle languages in order, server, subtitle format) |
-| `/radio` | *Radio de openings*, opened from *Mi lista*: the openings and/or endings of the anime being watched, completed or paused, shuffled or best scored first, played one after another |
+| `/radio` | *Radio de openings*, opened from *Mi lista*: the openings and/or endings of the anime being watched, completed or paused, shuffled or best scored first, played one after another; below, a *Biblioteca* with every song by anime A–Z (searchable on the web) to start the radio from any of them |
 | `/party` | *Ver juntos*: the room this device is in, or create one or join one by code (an on-screen keyboard on TV); `?code=` joins straight away |
 | `/stats` | *Estadísticas*, opened from *Mi lista*, for all time or one year (an anime counts in the year it was finished, as MyAnimeList's `finish_date` or AniList's `completedAt` say, or the year of its last change): totals, statuses as one split bar with counts and percentages, anime finished per year or per month, formats, most watched genres, the score distribution and the best scored |
 | `/account` | *Cuenta*: list service sign-in, export of local data and phone pairing |

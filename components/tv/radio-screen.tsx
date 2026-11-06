@@ -9,6 +9,7 @@ import { loadThemes } from "@/lib/library/themes";
 import { ThemePlayer, type ThemeTrack } from "@/components/theme-player";
 import { FocusButton, FocusGroup } from "./focusable";
 import { PageFrame, useMounted } from "./page-frame";
+import { RadioLibrary, type LibraryGroup } from "./radio-library";
 
 type Kind = "OP" | "ED" | "both";
 type Order = "shuffle" | "score";
@@ -53,7 +54,8 @@ export function RadioScreen() {
   const [loaded, setLoaded] = useState<Map<number, ThemeTrack[]>>(new Map());
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  /** What the player is playing: the radio from the start, or the library from a song */
+  const [playing, setPlaying] = useState<{ tracks: ThemeTrack[]; index: number } | null>(null);
 
   // The anime to draw from, best scored first
   const anime = useMemo(() => {
@@ -87,7 +89,9 @@ export function RadioScreen() {
             for (const [id, themes] of found) {
               next.set(
                 id,
-                themes.filter((t) => !t.nsfw).map((theme) => ({ theme, animeTitle: byId.get(id)?.title ?? "" }))
+                themes
+                  .filter((t) => !t.nsfw)
+                  .map((theme) => ({ theme, animeTitle: byId.get(id)?.title ?? "", animeId: id, cover: byId.get(id)?.cover ?? null }))
               );
             }
             return next;
@@ -115,7 +119,24 @@ export function RadioScreen() {
     return order === "shuffle" ? shuffled(ordered, seed) : ordered;
   }, [anime, loaded, kind, order, seed]);
 
-  const withThemes = Array.from(loaded.values()).filter((t) => t.length > 0).length;
+
+  // The library: the same songs, by anime A–Z
+  const groups = useMemo<LibraryGroup[]>(
+    () =>
+      anime
+        .map((a) => ({
+          animeId: a.id,
+          animeTitle: a.title,
+          cover: a.cover,
+          tracks: (loaded.get(a.id) ?? []).filter((t) => kind === "both" || t.theme.type === kind),
+        }))
+        .filter((g) => g.tracks.length > 0)
+        .sort((a, b) => a.animeTitle.localeCompare(b.animeTitle, "es", { sensitivity: "base" })),
+    [anime, loaded, kind]
+  );
+  // Anime with songs of the chosen kind, the same count the library shows
+  const withThemes = groups.length;
+  const radioLabel = kind === "ED" ? "Radio de endings" : kind === "both" ? "Radio de openings y endings" : "Radio de openings";
 
   return (
     <PageFrame
@@ -143,7 +164,7 @@ export function RadioScreen() {
           </FocusGroup>
 
           <FocusGroup className="flex flex-wrap items-center mt-6 tv:mt-8">
-            <FocusButton variant="primary" className="mr-5 mb-2" onSelect={() => tracks.length > 0 && setPlaying(true)}>
+            <FocusButton variant="primary" className="mr-5 mb-2" onSelect={() => tracks.length > 0 && setPlaying({ tracks, index: 0 })}>
               <Radio className="w-5 h-5 mr-2 tv:w-7 tv:h-7 tv:mr-3" />
               {tracks.length > 0 ? "Empezar" : "Cargando temas…"}
             </FocusButton>
@@ -153,16 +174,13 @@ export function RadioScreen() {
               {failed && " · AnimeThemes no responde; se usan los que han llegado"}
             </span>
           </FocusGroup>
+
+          <RadioLibrary groups={groups} onPlay={(list, index) => setPlaying({ tracks: list, index })} />
         </>
       )}
 
-      {playing && tracks.length > 0 && (
-        <ThemePlayer
-          tracks={tracks}
-          loop
-          label={kind === "ED" ? "Radio de endings" : kind === "both" ? "Radio de openings y endings" : "Radio de openings"}
-          onClose={() => setPlaying(false)}
-        />
+      {playing && playing.tracks.length > 0 && (
+        <ThemePlayer tracks={playing.tracks} startIndex={playing.index} loop label={radioLabel} onClose={() => setPlaying(null)} />
       )}
     </PageFrame>
   );
