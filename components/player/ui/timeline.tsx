@@ -20,6 +20,8 @@ interface TimelineProps {
   showKnob?: boolean;
   /** Paused: a slightly thinner track and a smaller knob */
   thin?: boolean;
+  /** What the slider moves through, for screen readers */
+  label?: string;
 }
 
 const pct = (value: number, duration: number) => `${Math.min(100, Math.max(0, (value / duration) * 100))}%`;
@@ -72,6 +74,7 @@ export function Timeline({
   showLabels = false,
   showKnob = false,
   thin = false,
+  label = "Progreso del episodio",
 }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -105,7 +108,7 @@ export function Timeline({
       <div
         ref={trackRef}
         role="slider"
-        aria-label="Progreso del episodio"
+        aria-label={label}
         aria-valuemin={0}
         aria-valuemax={Math.round(duration)}
         aria-valuenow={Math.round(shown)}
