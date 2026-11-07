@@ -43,7 +43,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "node scripts/deploy.mjs",
+    "rollback": "node scripts/deploy.mjs --rollback",
+    "serve": "node scripts/serve.mjs"
   },
   "dependencies": {
     "@consumet/extensions": "^1.8.8",

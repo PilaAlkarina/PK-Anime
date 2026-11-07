@@ -126,6 +126,24 @@ npm run build
 npm run start
 ```
 
+### Updating a running server without downtime
+
+On a machine that keeps the site up, run the server with `npm run serve` instead of `npm run start`, and update with `npm run deploy`:
+
+```bash
+npm run serve -- -p 3000   # arguments go to next start
+```
+
+```bash
+git pull && npm install && npm run deploy
+```
+
+- `npm run deploy` builds into whichever of `.next-a` / `.next-b` isn't live while the server keeps running from the other, and only when the build has finished points `.next-active` at it. A failed build changes nothing.
+- `npm run serve` serves the live folder and restarts on the new build within a couple of seconds of the switch; if the server dies on its own, it starts it again. Before the first deploy it serves a build in `.next`, if there is one.
+- `npm run rollback` points back at the previous build, which stays until the next deploy.
+- `.next` is never touched, so `npm run dev` can run alongside. The build's change to `tsconfig.json` is undone, so the checkout stays clean for the next `git pull`.
+- Stop the server with Ctrl+C or by closing its terminal. Killing only the `serve` process (from a task manager) leaves the Next.js server it started running on the port.
+
 ### List sync sign-in (optional)
 
 Visitors can sign in with MyAnimeList or AniList through [Better Auth](https://www.better-auth.com/). Their list then merges with the library, and episodes they watch past 90% are marked on it. No database is needed: the session and the service's tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`. Configure one service or both; the sign-in screens offer only the ones with credentials.
