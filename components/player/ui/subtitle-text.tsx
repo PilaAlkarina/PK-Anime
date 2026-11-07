@@ -19,6 +19,7 @@ export function SubtitleText({
   children,
   playerHeight,
   scale = 1,
+  color,
   className,
 }: {
   styles: SubtitleStyles;
@@ -27,6 +28,8 @@ export function SubtitleText({
   playerHeight?: number;
   /** Size relative to the chosen one (signs grouped small) */
   scale?: number;
+  /** Text color instead of the chosen one (on-screen text, a shade darker) */
+  color?: string;
   className?: string;
 }) {
   const size = SIZE[styles.fontSize] || SIZE.base;
@@ -48,7 +51,7 @@ export function SubtitleText({
         fontSize,
         fontFamily: subtitleFontFamily(styles.fontFamily),
         fontWeight: styles.fontWeight === "normal" ? 400 : 700,
-        color: styles.color,
+        color: color ?? styles.color,
         backgroundColor: background,
         ...subtitleOutlineStyles(styles),
       }}

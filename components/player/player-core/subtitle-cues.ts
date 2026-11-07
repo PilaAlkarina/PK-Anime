@@ -47,6 +47,12 @@ export interface SubtitleCue {
    * many lines starting and ending together. Shown small and grouped instead of stacked.
    */
   sign?: boolean;
+  /**
+   * Translation of on-screen text that the file tells apart by setting the whole line in bold
+   * (Crunchyroll's VTTs do): it often shows together with the dialogue, so the player draws it a
+   * shade darker and a little apart.
+   */
+  screen?: boolean;
 }
 
 // ———————————————————————————————————————————— shared
@@ -538,7 +544,19 @@ function parseVttOrSrt(text: string): SubtitleCue[] {
     });
   }
   markSignBursts(cues, backdrops);
+  markScreenText(cues);
   return cues;
+}
+
+/**
+ * Fully bold lines are on-screen text when the rest of the file isn't bold (a file all in bold just
+ * chose that look). Bursts already grouped as signs stay as they are.
+ */
+function markScreenText(cues: SubtitleCue[]) {
+  const isBold = (cue: SubtitleCue) => cue.spans.every((s) => s.bold || !s.text.trim());
+  const bold = cues.filter((c) => !c.sign && isBold(c));
+  if (bold.length === 0 || bold.length > cues.length / 2) return;
+  for (const cue of bold) cue.screen = true;
 }
 
 /** Lines that share a start and an end with at least this many others are a burst of signs */

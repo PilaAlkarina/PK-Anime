@@ -13,6 +13,18 @@ const SIGN_SCALE = 0.62;
 /** A sign without a size in the file: a share of the picture's height */
 const DEFAULT_SIGN_SIZE = 0.045;
 
+/** On-screen text next to the dialogue: the chosen color this much darker */
+const SCREEN_SHADE = 0.72;
+
+/** "#rrggbb" mixed towards black; other color formats stay as they are */
+function shade(color: string, amount: number) {
+  const m = color.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return color;
+  const n = parseInt(m[1], 16);
+  const ch = (shift: number) => Math.round(((n >> shift) & 255) * amount);
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+
 const rowOf = (align: CueAlign) => Math.floor((align - 1) / 3); // 0 bottom, 1 middle, 2 top
 const colOf = (align: CueAlign) => (align - 1) % 3; // 0 left, 1 center, 2 right
 
@@ -194,6 +206,16 @@ export function SubtitleLayer({
       {Array.from(regions.entries()).map(([align, list]) => {
         const row = rowOf(align);
         const col = colOf(align);
+        // On-screen text on top, a shade darker, and the dialogue under it, a little apart
+        const screen = list.filter((c) => c.screen);
+        const talk = list.filter((c) => !c.screen);
+        const lines = (cues: SubtitleCue[]) =>
+          cues.map((cue, i) => (
+            <Fragment key={`${i}-${cue.text}`}>
+              {i > 0 && "\n"}
+              <CueLine cue={cue} />
+            </Fragment>
+          ));
         return (
           <div
             key={align}
@@ -205,14 +227,18 @@ export function SubtitleLayer({
               col === 0 ? "justify-start pl-[3%] text-left" : col === 2 ? "justify-end pr-[3%] text-right" : "justify-center text-center"
             )}
           >
-            <SubtitleText styles={styles} playerHeight={playerHeight} className="max-w-[85%]">
-              {list.map((cue, i) => (
-                <Fragment key={`${i}-${cue.text}`}>
-                  {i > 0 && "\n"}
-                  <CueLine cue={cue} />
-                </Fragment>
-              ))}
-            </SubtitleText>
+            <div className={cn("flex flex-col max-w-[85%]", col === 0 ? "items-start" : col === 2 ? "items-end" : "items-center")}>
+              {screen.length > 0 && (
+                <SubtitleText styles={styles} playerHeight={playerHeight} color={shade(styles.color, SCREEN_SHADE)}>
+                  {lines(screen)}
+                </SubtitleText>
+              )}
+              {talk.length > 0 && (
+                <SubtitleText styles={styles} playerHeight={playerHeight} className={screen.length > 0 ? "mt-[0.5em]" : undefined}>
+                  {lines(talk)}
+                </SubtitleText>
+              )}
+            </div>
           </div>
         );
       })}

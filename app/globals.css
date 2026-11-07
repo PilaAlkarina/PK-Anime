@@ -65,6 +65,19 @@
     font-synthesis: none;
     letter-spacing: -0.005em;
   }
+  /*
+   * Its descenders (y, g, p) hang below the tight line heights titles use, and a clamped or
+   * truncated title hides whatever leaves its box: room for them under the last line. Plain
+   * selectors, no :is(), for older TV browsers
+   */
+  [data-ui] h1.truncate,
+  [data-ui] h1[class*="line-clamp-"],
+  [data-ui] h2.truncate,
+  [data-ui] h2[class*="line-clamp-"],
+  .font-display.truncate,
+  .font-display[class*="line-clamp-"] {
+    padding-bottom: 0.14em;
+  }
 }
 
 @layer utilities {
