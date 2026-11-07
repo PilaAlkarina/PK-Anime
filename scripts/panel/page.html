@@ -26,6 +26,18 @@
   .wrap { max-width: 780px; margin: 0 auto; padding: 16px; }
   [hidden] { display: none !important; }
 
+  /* Wide screens: controls on the left, the console filling the right, all in one screen.
+     Each column scrolls on its own if it has to; the page itself doesn't */
+  @media (min-width: 1000px) {
+    #mainView { max-width: 1600px; height: 100vh; display: flex; flex-direction: column; padding-bottom: 0; }
+    .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); gap: 16px; padding-bottom: 16px; }
+    .side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+    .side .card:last-child { margin-bottom: 0; }
+    .console-card { margin-bottom: 0; min-height: 0; display: flex; flex-direction: column; }
+    .console-card .console-wrap { flex: 1; min-height: 0; }
+    .console-card #console { height: 100%; }
+  }
+
   header { display: flex; align-items: center; gap: 12px; padding: 4px 0 16px; }
   header img { width: 34px; height: 25px; }
   header h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
@@ -140,6 +152,8 @@
     <button class="btn ghost small" id="logout" title="Cerrar sesión">Salir</button>
   </header>
 
+  <div class="layout">
+  <div class="side">
   <section class="card">
     <h2>Servidor</h2>
     <div class="row">
@@ -173,8 +187,9 @@
     <ul class="steps" id="jobSteps"></ul>
     <div id="jobNotices"></div>
   </section>
+  </div>
 
-  <section class="card">
+  <section class="card console-card">
     <h2>
       <span class="grow">Consola</span>
       <span class="seg" role="group" aria-label="Filtrar la consola">
@@ -188,6 +203,7 @@
       <button class="btn small" id="toBottom" hidden>↓ Ir al final</button>
     </div>
   </section>
+  </div>
 </main>
 
 <div class="toast" id="toast" role="status" hidden></div>
