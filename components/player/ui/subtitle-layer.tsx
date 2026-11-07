@@ -83,7 +83,12 @@ export function SubtitleLayer({
   const rootRef = useRef<HTMLDivElement>(null);
   const box = useVideoBox(rootRef, videoRef);
 
-  const placed = cues.filter((c) => c.pos);
+  // Placed signs and drawings, lower layers first so higher ones paint over them
+  const placed = cues
+    .map((cue, i) => ({ cue, i }))
+    .filter(({ cue }) => cue.pos)
+    .sort((a, b) => (a.cue.layer ?? 0) - (b.cue.layer ?? 0) || a.i - b.i)
+    .map(({ cue }) => cue);
   const signs = cues.filter((c) => !c.pos && c.sign);
   const regions = new Map<CueAlign, SubtitleCue[]>();
   for (const cue of cues) {
@@ -102,23 +107,69 @@ export function SubtitleLayer({
       {placed.map((cue, i) => {
         const row = rowOf(cue.align);
         const col = colOf(cue.align);
+        const anchorX = box.x + cue.pos!.x * box.w;
+        const anchorY = box.y + cue.pos!.y * box.h;
+        const blur = cue.blur ? `blur(${Math.max(0.5, cue.blur * box.h).toFixed(1)}px)` : undefined;
+
+        // A drawing: the box behind a sign, a card, an arrow…
+        if (cue.shape) {
+          const width = cue.shape.width * box.w;
+          const height = cue.shape.height * box.h;
+          return (
+            <svg
+              key={`d${i}-${cue.start}`}
+              aria-hidden
+              className="absolute overflow-visible"
+              viewBox={cue.shape.box.join(" ")}
+              preserveAspectRatio="none"
+              style={{
+                left: anchorX - (col * width) / 2,
+                top: anchorY - (row === 2 ? 0 : row === 1 ? height / 2 : height),
+                width,
+                height,
+                filter: blur,
+              }}
+            >
+              <path
+                d={cue.shape.d}
+                fill={cue.color ?? "#fff"}
+                stroke={cue.outline?.color ?? "none"}
+                strokeWidth={cue.outline ? cue.outline.width * box.h * 2 : 0}
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
+            </svg>
+          );
+        }
+
         const tx = ["0%", "-50%", "-100%"][col];
         const ty = ["-100%", "-50%", "0%"][row];
         const origin = `${["left", "center", "right"][col]} ${["bottom", "center", "top"][row]}`;
+        // The file's own colors when it has them, so a sign reads on the box drawn behind it
+        const look: React.CSSProperties = cue.color
+          ? cue.outline
+            ? {
+                color: cue.color,
+                WebkitTextStroke: `${Math.max(1, cue.outline.width * box.h * 2).toFixed(1)}px ${cue.outline.color}`,
+                paintOrder: "stroke fill",
+                textShadow: "none",
+              }
+            : { color: cue.color, WebkitTextStroke: "0px transparent", textShadow: "none" }
+          : { color: styles.color, ...signOutline };
         return (
           <span
             key={`p${i}-${cue.start}-${cue.text}`}
             className={cn("absolute whitespace-pre leading-tight", col === 0 ? "text-left" : col === 2 ? "text-right" : "text-center")}
             style={{
-              left: box.x + (cue.pos!.x * box.w),
-              top: box.y + (cue.pos!.y * box.h),
+              left: anchorX,
+              top: anchorY,
               transform: `translate(${tx}, ${ty})${cue.scaleX && cue.scaleX !== 1 ? ` scaleX(${cue.scaleX})` : ""}`,
               transformOrigin: origin,
               fontSize: Math.max(10, (cue.size ?? DEFAULT_SIGN_SIZE) * box.h),
               fontFamily: subtitleFontFamily(styles.fontFamily),
               fontWeight: styles.fontWeight === "normal" ? 400 : 700,
-              color: styles.color,
-              ...signOutline,
+              filter: blur,
+              ...look,
             }}
           >
             <CueLine cue={cue} />
