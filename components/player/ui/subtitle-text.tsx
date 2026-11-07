@@ -18,16 +18,19 @@ export function SubtitleText({
   styles,
   children,
   playerHeight,
+  scale = 1,
   className,
 }: {
   styles: SubtitleStyles;
   children: React.ReactNode;
   /** Scales the text with the player; omitted for the small preview in Ajustes */
   playerHeight?: number;
+  /** Size relative to the chosen one (signs grouped small) */
+  scale?: number;
   className?: string;
 }) {
   const size = SIZE[styles.fontSize] || SIZE.base;
-  const fontSize = playerHeight ? Math.max(size.min, Math.round(playerHeight * size.k)) : size.preview;
+  const fontSize = Math.round((playerHeight ? Math.max(size.min, playerHeight * size.k) : size.preview) * scale);
   const background = isBlur(styles.background)
     ? undefined
     : styles.background === "solid"

@@ -149,6 +149,20 @@ export async function GET(request: NextRequest) {
     });
 
     const rawContent: string = response.data || "";
+
+    // ?raw=1: the file as it is. The player reads ASS itself, keeping what the VTT conversion
+    // drops (the exact place and size of signs, styles)
+    if (searchParams.get("raw") === "1") {
+      return new NextResponse(rawContent, {
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        },
+      });
+    }
+
     let finalVtt = rawContent;
 
     if (rawContent.includes("[Script Info]") || rawContent.includes("Dialogue:")) {

@@ -38,8 +38,8 @@ import { PauseScreen } from "./ui/pause-screen";
 import { NextEpisodeScreen } from "./ui/next-episode-screen";
 import { profileKey } from "@/lib/library/profiles";
 import { RemoteHints } from "./ui/remote-hints";
-import { SubtitleText } from "./ui/subtitle-text";
-import { cleanCueText, vttSettingsOnTop } from "./player-core/subtitle-cues";
+import { SubtitleLayer } from "./ui/subtitle-layer";
+import { parseSubtitles, type SubtitleCue } from "./player-core/subtitle-cues";
 import { LoadingVeil } from "./ui/loading-veil";
 import { PlayerErrorScreen, type PlayerErrorKind, type TriedServer } from "./ui/error-screen";
 import { arrowStep, focusFirst, moveFocus, type NavAxis } from "./ui/focus-nav";
@@ -54,13 +54,7 @@ export interface SubtitleTrack {
   default?: boolean;
 }
 
-export interface SubtitleCue {
-  start: number;
-  end: number;
-  text: string;
-  /** Placed at the top of the screen by the file ({\an8}, "line:0") */
-  top?: boolean;
-}
+export type { SubtitleCue };
 
 export interface VideoSourceData {
   id: string;
@@ -276,9 +270,9 @@ export function EmbedPlayer({
   const [allAvailableSubtitles, setAllAvailableSubtitles] = useState<SubtitleTrack[]>([]);
   const [activeSubtitleTrack, setActiveSubtitleTrack] = useState<string | null>("en");
   const [cues, setCues] = useState<SubtitleCue[]>([]);
-  const [currentSubtitleText, setCurrentSubtitleText] = useState<string>("");
-  // Cues the subtitle file places at the top of the screen ({\an8}, "line:0")
-  const [topSubtitleText, setTopSubtitleText] = useState<string>("");
+  // The cues on screen now (indices into `cues` are the key, so equal moments don't re-render)
+  const [activeCues, setActiveCues] = useState<SubtitleCue[]>([]);
+  const activeKeyRef = useRef("");
   const [subtitleStyles, setSubtitleStyles] = useState<SubtitleStyles>({
     fontSize: "base",
     fontFamily: "sans",
@@ -1124,8 +1118,8 @@ export function EmbedPlayer({
   useEffect(() => {
     if (activeSubtitleTrack === null || activeSubtitleTrack === "") {
       setCues([]);
-      setCurrentSubtitleText("");
-      setTopSubtitleText("");
+      setActiveCues([]);
+      activeKeyRef.current = "";
       return;
     }
 
@@ -1136,80 +1130,24 @@ export function EmbedPlayer({
     const subUrl = currentSub?.url || (currentSub as any)?.subtitleUrl || (currentSub as any)?.direct_url || (currentSub as any)?.file;
     if (!currentSub || !subUrl) {
       setCues([]);
-      setCurrentSubtitleText("");
-      setTopSubtitleText("");
+      setActiveCues([]);
+      activeKeyRef.current = "";
       return;
     }
 
-    const parseTime = (timeStr: string) => {
-      const parts = timeStr.trim().split(":");
-      if (parts.length === 3) {
-        const [h, m, s] = parts;
-        return (parseFloat(h) || 0) * 3600 + (parseFloat(m) || 0) * 60 + (parseFloat(s.replace(",", ".")) || 0);
-      } else if (parts.length === 2) {
-        const [m, s] = parts;
-        return (parseFloat(m) || 0) * 60 + (parseFloat(s.replace(",", ".")) || 0);
-      }
-      return parseFloat(timeStr.replace(",", ".")) || 0;
-    };
-
     let isMounted = true;
+    // raw=1: the file as it is, so ASS keeps the place and size of its signs
     const fetchUrl = subUrl.startsWith("/api/proxy")
-      ? subUrl
-      : `/api/proxy/subtitles?url=${encodeURIComponent(subUrl)}`;
+      ? `${subUrl}${subUrl.includes("?") ? "&" : "?"}raw=1`
+      : `/api/proxy/subtitles?url=${encodeURIComponent(subUrl)}&raw=1`;
 
     fetch(fetchUrl)
       .then((res) => (res.ok ? res.text() : ""))
       .then((text) => {
         if (!isMounted || !text) return;
-        const parsedCues: SubtitleCue[] = [];
-        const lines = text.replace(/\r\n/g, "\n").split("\n");
-        const isAss = text.includes("[Script Info]") || text.includes("Dialogue:");
-
-        if (isAss) {
-          for (const rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line.startsWith("Dialogue:")) continue;
-            const colonIdx = line.indexOf(":");
-            if (colonIdx === -1) continue;
-            const parts = line.substring(colonIdx + 1).trim().split(",");
-            if (parts.length < 9) continue;
-            const start = parseTime(parts[1]);
-            const end = parseTime(parts[2]);
-            const { text: cleanText, top } = cleanCueText(parts.slice(9).join(","), { ass: true });
-            if (cleanText && end > start) {
-              parsedCues.push({ start, end, text: cleanText, top });
-            }
-          }
-        } else {
-          let i = 0;
-          while (i < lines.length) {
-            const line = lines[i].trim();
-            if (line.includes("-->")) {
-              const [startPart, endPart] = line.split("-->");
-              if (startPart && endPart) {
-                const startToken = startPart.trim().split(/\s+/)[0];
-                const [endToken, ...settings] = endPart.trim().split(/\s+/);
-                const start = parseTime(startToken);
-                const end = parseTime(endToken);
-                i++;
-                const textLines: string[] = [];
-                while (i < lines.length && lines[i].trim() !== "") {
-                  textLines.push(lines[i].trim());
-                  i++;
-                }
-                const { text: cueContent, top } = cleanCueText(textLines.join("\n"));
-                if (cueContent && end > start) {
-                  parsedCues.push({ start, end, text: cueContent, top: top || vttSettingsOnTop(settings) });
-                }
-              }
-            }
-            i++;
-          }
-        }
-        if (isMounted) {
-          setCues(parsedCues);
-        }
+        setCues(parseSubtitles(text));
+        // Indices into the old file mean nothing now: the next tick picks the cues again
+        activeKeyRef.current = "";
       })
       .catch(() => {});
 
@@ -1238,16 +1176,16 @@ export function EmbedPlayer({
       }
     }
 
-    // Sync subtitle cue
-    // Every cue on screen now, at the top or the bottom (a sign can share the moment with dialogue)
-    const showing = (top: boolean) =>
-      cues
-        .filter((c) => Boolean(c.top) === top && current >= c.start && current <= c.end)
-        .map((c) => c.text)
-        .filter((text, idx, all) => all.indexOf(text) === idx)
-        .join("\n");
-    setCurrentSubtitleText(showing(false));
-    setTopSubtitleText(showing(true));
+    // Every cue on screen now: dialogue, signs, at the top or the bottom
+    const onScreen: number[] = [];
+    for (let i = 0; i < cues.length; i++) {
+      if (current >= cues[i].start && current <= cues[i].end) onScreen.push(i);
+    }
+    const onScreenKey = onScreen.join(",");
+    if (onScreenKey !== activeKeyRef.current) {
+      activeKeyRef.current = onScreenKey;
+      setActiveCues(onScreen.map((i) => cues[i]));
+    }
 
     // Auto-skip Intro
     // In a room only the host's player auto-skips, and as a jump for everyone
@@ -2655,35 +2593,22 @@ export function EmbedPlayer({
         </div>
       )}
 
-      {/* Subtitles, lifted over the controls while they show */}
-      {currentSubtitleText && !nextUp && !showPauseScreen && (
-        <div
-          className={cn(
-            "absolute inset-x-4 z-20 flex justify-center text-center pointer-events-none transition-[bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+      {/* Subtitles: the bottom row lifts over the controls, the top one keeps clear of the header */}
+      {activeCues.length > 0 && !nextUp && !showPauseScreen && (
+        <SubtitleLayer
+          cues={activeCues}
+          styles={subtitleStyles}
+          playerHeight={playerHeight}
+          videoRef={videoRef}
+          bottomClass={
             showControls && !fatalError
               ? tv
                 ? "bottom-[22rem]"
                 : "bottom-24 mouse:bottom-36 mouse:sm:bottom-44"
               : "bottom-[6%]"
-          )}
-        >
-          <SubtitleText styles={subtitleStyles} playerHeight={playerHeight} className="max-w-[85%]">
-            {currentSubtitleText}
-          </SubtitleText>
-        </div>
-      )}
-      {/* The ones the file places at the top, kept clear of the header */}
-      {topSubtitleText && !nextUp && !showPauseScreen && (
-        <div
-          className={cn(
-            "absolute inset-x-4 z-20 flex justify-center text-center pointer-events-none transition-[top] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            showControls && !fatalError ? (tv ? "top-[11rem]" : "top-20 sm:top-28") : "top-[5%]"
-          )}
-        >
-          <SubtitleText styles={subtitleStyles} playerHeight={playerHeight} className="max-w-[85%]">
-            {topSubtitleText}
-          </SubtitleText>
-        </div>
+          }
+          topClass={showControls && !fatalError ? (tv ? "top-[11rem]" : "top-20 sm:top-28") : "top-[5%]"}
+        />
       )}
 
       <LoadingVeil

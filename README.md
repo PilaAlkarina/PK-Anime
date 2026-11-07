@@ -185,7 +185,7 @@ Some providers return the original Japanese audio when an English dub doesn't ex
 
 - **Interface:** blurred floating controls and a minimal layout. Controls hide during playback.
 - **Skip intro/outro:** OP and ED segments are marked on the timeline. Skipping can be automatic or triggered with a button. Flow and Kitty use native Re:ANIME timestamps; Yuri, Zuri and Buzz use AniSkip with duration compensation.
-- **Subtitles:** up to 16 languages (English, Spanish, French, German, Italian, Portuguese, Polish, Russian and more). The chosen track carries over when you change servers. Font (Sans, Anime, Serif, Mono), size, color, background opacity and outline are adjustable.
+- **Subtitles:** up to 16 languages (English, Spanish, French, German, Italian, Portuguese, Polish, Russian and more). The chosen track carries over when you change servers. Font (Sans, Anime, Serif, Mono), size, color, background opacity and outline are adjustable. The player reads ASS/SSA, WebVTT and SRT itself (`/api/proxy/subtitles?raw=1` hands it the file untouched) and keeps italics, bold and the nine screen positions; ASS signs with an exact spot (`\pos`) are drawn on that spot of the picture at the file's size, and bursts of signs a file couldn't place (many lines starting and ending together, as when a provider converts ASS to VTT) are grouped small at the top instead of stacked over the picture. Colors, fonts, rotation, karaoke and drawings are dropped.
 - **Audio and video:**
   - Volume boost up to 200% via the Web Audio API.
   - Playback speed from 0.25x to 2.0x.
