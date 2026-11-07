@@ -208,6 +208,17 @@ function skipWindow(segment: { start: number; end: number }) {
  */
 const ENDING_TAIL = 10;
 
+/** Whether the ending runs to the end of the video (only a short tail after it) */
+function endsTheVideo(outro: { end: number }, duration: number) {
+  return duration > 0 && outro.end >= duration - ENDING_TAIL;
+}
+
+/**
+ * Share of the video past which the episode counts as finished (as does reaching up next): its
+ * position is saved as the end, so it isn't resumed and watching it again starts from the start
+ */
+const FINISHED_FRACTION = 0.95;
+
 /** Time the next episode's player has to mount before full screen is given up */
 const FULLSCREEN_HANDOVER_MS = 1500;
 let mountedPlayers = 0;
@@ -429,6 +440,23 @@ export function EmbedPlayer({
   // Watch position is saved in this browser, per anime and episode
   // Per library profile, like the rest of what the library keeps on the device
   const progressKey = profileKey(`anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`);
+  // The episode finished in this viewing (by its progress key): it stays finished, even after
+  // going back over a scene
+  const finishedRef = useRef<string | null>(null);
+  const saveProgress = (current: number, dur: number) => {
+    if (dur > 0 && current >= dur * FINISHED_FRACTION) finishedRef.current = progressKey;
+    const finished = finishedRef.current === progressKey;
+    try {
+      localStorage.setItem(
+        progressKey,
+        JSON.stringify({
+          currentTime: Math.floor(finished && dur > 0 ? dur : current),
+          duration: Math.floor(dur),
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {}
+  };
 
   // Resume from the saved position unless the embed URL asks for a start time
   useEffect(() => {
@@ -442,7 +470,7 @@ export function EmbedPlayer({
     if (startAt) return;
     try {
       const saved = JSON.parse(localStorage.getItem(progressKey) || "null");
-      if (saved?.currentTime > 5 && (!saved.duration || saved.currentTime < saved.duration * 0.95)) {
+      if (saved?.currentTime > 5 && (!saved.duration || saved.currentTime < saved.duration * FINISHED_FRACTION)) {
         preserveTimeRef.current = saved.currentTime;
       }
     } catch {}
@@ -1226,8 +1254,15 @@ export function EmbedPlayer({
       }
     }
 
-    // Auto-skip Outro
-    if (autoSkipOutroState && mayAutoSkip && skipTimes.outro && !hasAutoSkippedOutroRef.current) {
+    // Auto-skip Outro. Not an ending that runs to the end of the video when the next episode is
+    // offered there: it keeps playing behind up next's countdown
+    if (
+      autoSkipOutroState &&
+      mayAutoSkip &&
+      skipTimes.outro &&
+      !hasAutoSkippedOutroRef.current &&
+      !(onNextEpisode && nextEpisode && endsTheVideo(skipTimes.outro, dur))
+    ) {
       const { from, to } = skipWindow(skipTimes.outro);
       if (current >= from && current < to - 1) {
         hasAutoSkippedOutroRef.current = true;
@@ -1263,12 +1298,7 @@ export function EmbedPlayer({
 
     if (!progressSaveTimer.current) {
       progressSaveTimer.current = setTimeout(() => {
-        try {
-          localStorage.setItem(
-            progressKey,
-            JSON.stringify({ currentTime: Math.floor(current), duration: Math.floor(dur), updatedAt: Date.now() })
-          );
-        } catch {}
+        saveProgress(current, dur);
         progressSaveTimer.current = null;
       }, 4000);
     }
@@ -1592,6 +1622,47 @@ export function EmbedPlayer({
 
 
   const canPlayNext = Boolean(onNextEpisode && nextEpisode);
+
+  // The opening or ending about to be skipped on its own: the skip button fills up over the
+  // seconds left before the jump. Same conditions as the auto-skip in handleTimeUpdate
+  const mayAutoSkip = !sync || sync.canSeek;
+  const pendingSkip = (() => {
+    if (!mayAutoSkip) return null;
+    if (isInsideIntro && autoSkipState && skipTimes.intro && !hasAutoSkippedIntroRef.current) {
+      return { start: skipTimes.intro.start, from: skipWindow(skipTimes.intro).from };
+    }
+    if (
+      isInsideOutro &&
+      autoSkipOutroState &&
+      skipTimes.outro &&
+      !hasAutoSkippedOutroRef.current &&
+      !(canPlayNext && endsTheVideo(skipTimes.outro, duration))
+    ) {
+      return { start: skipTimes.outro.start, from: skipWindow(skipTimes.outro).from };
+    }
+    return null;
+  })();
+  const skipFillRef = useRef<HTMLSpanElement | null>(null);
+  const fillStart = pendingSkip?.start;
+  const fillEnd = pendingSkip?.from;
+  // Follows the video frame by frame (timeupdate is too coarse for a smooth fill), and stops
+  // with it when paused
+  useEffect(() => {
+    if (fillStart === undefined || fillEnd === undefined) return;
+    let frame = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      const fill = skipFillRef.current;
+      if (video && fill) {
+        const progress = fillEnd > fillStart ? (video.currentTime - fillStart) / (fillEnd - fillStart) : 1;
+        fill.style.transform = `scaleX(${Math.min(1, Math.max(0, progress))})`;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(frame);
+  }, [fillStart, fillEnd]);
+
   const panelOpenerRef = useRef<HTMLElement | null>(null);
 
   const openPanel = (view: PanelView = "main") => {
@@ -1839,9 +1910,19 @@ export function EmbedPlayer({
   // After "Ver los créditos" it also waits for the end
   useEffect(() => {
     if (!canPlayNext || nextUp || nextUpDismissedRef.current || !skipTimes.outro || !duration) return;
-    if (skipTimes.outro.end < duration - ENDING_TAIL) return;
+    if (!endsTheVideo(skipTimes.outro, duration)) return;
     if (currentTime >= skipWindow(skipTimes.outro).from && currentTime < duration - 1) showNextUp(NEXT_COUNTDOWN);
   }, [canPlayNext, nextUp, skipTimes.outro, currentTime, duration, showNextUp]);
+
+  // Up next on screen: the episode is done, and saved that way at once (the next one may start
+  // before the periodic save comes round)
+  useEffect(() => {
+    if (!nextUp) return;
+    finishedRef.current = progressKey;
+    const video = videoRef.current;
+    if (video && video.duration > 0) saveProgress(video.currentTime, video.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextUp]);
 
   useEffect(() => {
     if (!nextUp || nextCountdown === null) return;
@@ -2608,6 +2689,7 @@ export function EmbedPlayer({
               paused: true,
             });
             syncMalProgress();
+            if (dur) saveProgress(dur, dur);
             if (canPlayNext) showNextUp(5);
           }}
           playsInline
@@ -2886,7 +2968,7 @@ export function EmbedPlayer({
             else handleSkipOutro();
           }}
           className={cn(
-            "absolute z-40 flex items-center rounded-full bg-white text-black font-bold outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
+            "absolute z-40 isolate overflow-hidden flex items-center rounded-full bg-white text-black font-bold outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
             tv
               ? cn(
                   "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl font-black shadow-[6px_6px_0_rgb(var(--c-accent))] focus:koma",
@@ -2899,6 +2981,15 @@ export function EmbedPlayer({
                 )
           )}
         >
+          {/* Fills up until the automatic skip */}
+          {pendingSkip && (
+            <span
+              ref={skipFillRef}
+              aria-hidden
+              className="absolute inset-0 -z-10 origin-left bg-[rgb(var(--c-accent))]"
+              style={{ transform: "scaleX(0)" }}
+            />
+          )}
           {isInsideIntro ? "Saltar intro" : "Saltar ending"}
           <SkipForward className={cn("fill-current", tv ? "w-7 h-7" : "w-[18px] h-[18px] touch:w-[15px] touch:h-[15px]")} />
         </button>
