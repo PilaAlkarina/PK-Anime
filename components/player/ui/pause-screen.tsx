@@ -10,6 +10,8 @@ import type { NextEpisodeInfo } from "./types";
 
 interface PauseScreenProps {
   tv: boolean;
+  /** Playback resumed: fading out before it unmounts */
+  leaving?: boolean;
   title: string;
   episode: number;
   episodeTitle?: string | null;
@@ -69,7 +71,12 @@ export function PauseScreen(props: PauseScreenProps) {
     [`Quedan ${formatSecondsToTime(left)}`, `terminas a las ${endsAt}`, audio, props.serverName].filter(Boolean).join(" · ");
 
   return (
-    <div className="absolute inset-0 z-30 animate-in fade-in duration-300 pointer-events-none">
+    <div
+      className={cn(
+        "absolute inset-0 z-30 pointer-events-none",
+        props.leaving ? "opacity-0 transition-opacity duration-300 ease-out [&_*]:!pointer-events-none" : "pk-pause-in"
+      )}
+    >
       <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/80 to-black/30" />
       <div
         aria-hidden="true"
@@ -78,10 +85,11 @@ export function PauseScreen(props: PauseScreenProps) {
 
       <section
         className={cn(
-          "absolute flex flex-col pointer-events-auto",
+          "absolute flex flex-col pointer-events-auto pk-pause-rise",
           tv
             ? "top-[9.375rem] left-[7.5rem] w-[56.25rem] gap-5"
-            : "top-16 left-8 right-5 gap-2 md:right-auto md:w-[min(52%,41rem)] tall:sm:top-[15%] tall:sm:left-[5.5%] tall:sm:gap-3.5"
+            : // Sits on the control bar (which stays while paused) and grows upwards
+              "bottom-[7.5rem] left-8 right-5 gap-2 sm:bottom-[8.75rem] md:right-auto md:w-[min(52%,41rem)] tall:sm:left-[5.5%] tall:sm:gap-3.5"
         )}
       >
         <Stamp japanese="一時停止" className={tv ? "text-lg" : "text-[11px] tall:sm:text-[13px]"}>
@@ -101,10 +109,10 @@ export function PauseScreen(props: PauseScreenProps) {
           <p className="text-2xl font-medium text-zinc-200 tabular-nums">{metaLine(props.audioLabel)}</p>
         ) : (
           <>
-            <p className="tall:sm:hidden text-[13px] font-medium text-zinc-400 tabular-nums">
+            <p className="[@media(min-height:680px)]:sm:hidden text-[13px] font-medium text-zinc-400 tabular-nums">
               {metaLine(props.audioShort ?? props.audioLabel)}
             </p>
-            <div className="hidden tall:sm:flex flex-wrap gap-2 mt-0.5">
+            <div className="hidden [@media(min-height:680px)]:sm:flex flex-wrap gap-2 mt-0.5">
               <span className={chip}>Quedan {formatSecondsToTime(left)}</span>
               <span className={chip}>Terminas a las {endsAt}</span>
               <span className={chip}>{props.audioLabel}</span>
@@ -118,7 +126,7 @@ export function PauseScreen(props: PauseScreenProps) {
 
         {props.synopsis && (
           // The wrapper hides it on small screens; line-clamp needs the paragraph's own display
-          <div className={tv ? "mt-1.5" : "hidden tall:sm:block mt-1.5"}>
+          <div className={tv ? "mt-1.5" : "hidden [@media(min-height:680px)]:sm:block mt-1.5"}>
             <p className={cn("line-clamp-3", tv ? "text-[1.4375rem] leading-[1.55] text-zinc-400" : "text-[15px] lg:text-base leading-[1.6] text-zinc-200")}>
               {props.synopsis}
             </p>
@@ -151,7 +159,7 @@ export function PauseScreen(props: PauseScreenProps) {
       {props.next && props.onNext && (
         <aside
           className={cn(
-            "absolute flex-col pointer-events-auto",
+            "absolute flex-col pointer-events-auto pk-pause-rise [animation-delay:260ms]",
             tv ? "flex top-[12.5rem] right-[7.5rem] w-[31rem] gap-4" : "hidden md:flex top-[4.5rem] right-6 w-[min(28%,15rem)] gap-2 tall:top-[18.5%] tall:right-[5.5%] tall:w-[min(26%,24rem)] tall:gap-3"
           )}
         >

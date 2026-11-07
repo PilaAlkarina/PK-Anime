@@ -186,7 +186,9 @@ const RECHECK_LATER_MS = 10 * 60 * 1000;
 /** Seconds of countdown before the next episode starts on its own */
 const NEXT_COUNTDOWN = 10;
 /** How long a pause lasts before the pause screen covers the frame */
-const PAUSE_SCREEN_DELAY = 2500;
+const PAUSE_SCREEN_DELAY = 6000;
+/** How long the pause screen takes to fade out once playback resumes */
+const PAUSE_SCREEN_FADE_OUT = 350;
 /** Time the next episode's player has to mount before full screen is given up */
 const FULLSCREEN_HANDOVER_MS = 1500;
 let mountedPlayers = 0;
@@ -1799,6 +1801,18 @@ export function EmbedPlayer({
     return () => clearTimeout(timer);
   }, [isPlaying, isLoading, fatalError, nextUp, ended, duration]);
 
+  // The pause screen stays mounted a moment after it's hidden, to fade out instead of vanishing
+  const pauseScreenShown = pauseScreen && panelView === null && !fatalError;
+  const [pauseScreenMounted, setPauseScreenMounted] = useState(false);
+  useEffect(() => {
+    if (pauseScreenShown) {
+      setPauseScreenMounted(true);
+      return;
+    }
+    const timer = setTimeout(() => setPauseScreenMounted(false), PAUSE_SCREEN_FADE_OUT);
+    return () => clearTimeout(timer);
+  }, [pauseScreenShown]);
+
   // Up next when the ending starts; after "Ver los créditos" it waits for the end of the video
   useEffect(() => {
     if (!canPlayNext || nextUp || nextUpDismissedRef.current || !skipTimes.outro || !duration) return;
@@ -2427,7 +2441,7 @@ export function EmbedPlayer({
   const activeId = activeSourceId || currentSource?.id;
 
   const framedNext = nextUp && !tv && wideScreen;
-  const showPauseScreen = pauseScreen && panelView === null && !fatalError;
+  const showPauseScreen = pauseScreenShown;
   // The loading screen has its own title: the bar and the header text wait for it to go
   const showBar = !fatalError && !nextUp && hasStarted;
   const controlsVisible = showControls || showPauseScreen;
@@ -2653,10 +2667,11 @@ export function EmbedPlayer({
         )}
       />
 
-      {/* Pause screen */}
-      {showPauseScreen && (
+      {/* Pause screen: fades in a while into a pause, and out when playback resumes */}
+      {(showPauseScreen || pauseScreenMounted) && (
         <PauseScreen
           tv={tv}
+          leaving={!showPauseScreen}
           title={animeTitle}
           episode={episodeNumber}
           episodeTitle={episodeTitle}
@@ -3001,7 +3016,7 @@ export function EmbedPlayer({
                 >
                   {isPlaying ? <Pause className="w-[26px] h-[26px] fill-current" /> : <Play className="w-[26px] h-[26px] fill-current ml-0.5" />}
                 </button>
-                {!showPauseScreen && !panelOpen && (
+                {!panelOpen && (
                   <>
                     <button
                       type="button"
@@ -3059,19 +3074,14 @@ export function EmbedPlayer({
                   title={showRemainingTime ? "Ver el tiempo transcurrido" : "Ver el tiempo que queda"}
                   className={cn(
                     "touch:hidden ml-1 px-1.5 py-1 rounded-md text-[13px] sm:text-[15px] font-bold tabular-nums hover:bg-white/10",
-                    showPauseScreen || panelOpen ? "mouse:sm:ml-1.5" : "mouse:sm:ml-[18px]"
+                    panelOpen ? "mouse:sm:ml-1.5" : "mouse:sm:ml-[18px]"
                   )}
                 >
                   {showRemainingTime ? `-${formatSecondsToTime(Math.max(0, duration - currentTime))}` : formatSecondsToTime(currentTime)}
                   <span className="text-zinc-400 font-medium"> / {formatSecondsToTime(duration)}</span>
                 </button>
                 <span className="flex-1" />
-                {showPauseScreen ? (
-                  <span className="hidden mouse:sm:flex items-center gap-2 pr-2 text-[13px] font-medium text-zinc-400">
-                    <span className="px-2 py-px rounded-md border-[1.5px] border-b-[3px] border-zinc-500 font-black text-zinc-200">Espacio</span>
-                    para continuar
-                  </span>
-                ) : panelOpen ? (
+                {panelOpen ? (
                   <button
                     type="button"
                     onClick={closePanel}
