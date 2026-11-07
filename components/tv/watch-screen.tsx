@@ -138,7 +138,15 @@ export function WatchScreen({
     if (name === "PLAYER_EVENT" && data?.type === "source_change" && (data.audio === "sub" || data.audio === "dub")) {
       audioRef.current = data.audio;
     }
-    if (name === "ended") finishThen(goBack, true);
+    // At the end of the video the player offers the next episode (with its countdown, or waiting
+    // when autoplay is off): leave only when there's none to offer
+    if (name === "ended") {
+      if (!savedLocallyRef.current) {
+        savedLocallyRef.current = true;
+        saveLocalProgress(anime, episode);
+      }
+      if (!(hasNext && !followsHost)) finishThen(goBack, true);
+    }
     // The episode marked as watched on the list: merged into the copy (and the finale's rating
     // prompt sees it) without downloading the whole list again
     if (name === "list_entry" && data?.entry) upsertRemoteEntry(data.entry, anime);
