@@ -189,6 +189,25 @@ const NEXT_COUNTDOWN = 10;
 const PAUSE_SCREEN_DELAY = 6000;
 /** How long the pause screen takes to fade out once playback resumes */
 const PAUSE_SCREEN_FADE_OUT = 350;
+/** Seconds of an opening or ending kept on each side of a skip */
+const SKIP_GRACE = 3;
+
+/**
+ * When a skip may fire and where it lands: the first and last seconds of the opening or ending
+ * still play, so a line said right before or after it isn't cut off. Short segments keep a
+ * quarter on each side instead.
+ */
+function skipWindow(segment: { start: number; end: number }) {
+  const grace = Math.min(SKIP_GRACE, (segment.end - segment.start) / 4);
+  return { from: segment.start + grace, to: segment.end - grace };
+}
+
+/**
+ * Video left after the ending up to which it still counts as the end of the episode (a sponsor
+ * card, a few black seconds). More than this is a scene or a preview worth watching.
+ */
+const ENDING_TAIL = 10;
+
 /** Time the next episode's player has to mount before full screen is given up */
 const FULLSCREEN_HANDOVER_MS = 1500;
 let mountedPlayers = 0;
@@ -1194,9 +1213,10 @@ export function EmbedPlayer({
     const roomSync = syncRef.current;
     const mayAutoSkip = !roomSync || roomSync.canSeek;
     if (autoSkipState && mayAutoSkip && skipTimes.intro && !hasAutoSkippedIntroRef.current) {
-      if (current >= skipTimes.intro.start && current < skipTimes.intro.end - 1) {
+      const { from, to } = skipWindow(skipTimes.intro);
+      if (current >= from && current < to - 1) {
         hasAutoSkippedIntroRef.current = true;
-        const target = Math.min(skipTimes.intro.end + 0.5, dur || skipTimes.intro.end + 1);
+        const target = Math.min(to, dur || to);
         if (roomSync) roomSync.onSeek(target);
         else video.currentTime = target;
         setCurrentTime(target);
@@ -1208,9 +1228,10 @@ export function EmbedPlayer({
 
     // Auto-skip Outro
     if (autoSkipOutroState && mayAutoSkip && skipTimes.outro && !hasAutoSkippedOutroRef.current) {
-      if (current >= skipTimes.outro.start && current < skipTimes.outro.end - 1) {
+      const { from, to } = skipWindow(skipTimes.outro);
+      if (current >= from && current < to - 1) {
         hasAutoSkippedOutroRef.current = true;
-        const target = Math.min(skipTimes.outro.end + 0.5, dur || skipTimes.outro.end + 1);
+        const target = Math.min(to, dur || to);
         if (roomSync) roomSync.onSeek(target);
         else video.currentTime = target;
         setCurrentTime(target);
@@ -1323,14 +1344,16 @@ export function EmbedPlayer({
   // Skip Intro / Outro actions
   const handleSkipIntro = () => {
     if (!videoRef.current || !skipTimes.intro) return;
-    const targetTime = Math.min(skipTimes.intro.end + 0.5, duration || skipTimes.intro.end + 1);
+    const { to } = skipWindow(skipTimes.intro);
+    const targetTime = Math.min(to, duration || to);
     handleSeek(targetTime);
     showToast("info", "Intro saltada");
   };
 
   const handleSkipOutro = () => {
     if (!videoRef.current || !skipTimes.outro) return;
-    const targetTime = Math.min(skipTimes.outro.end + 0.5, duration || skipTimes.outro.end + 1);
+    const { to } = skipWindow(skipTimes.outro);
+    const targetTime = Math.min(to, duration || to);
     handleSeek(targetTime);
     showToast("info", "Ending saltado");
   };
@@ -1559,15 +1582,12 @@ export function EmbedPlayer({
     }, 250);
   };
 
+  // The skip button shows until the point a skip lands on, so it never jumps back
   const isInsideIntro = Boolean(
-    skipTimes.intro &&
-      currentTime >= skipTimes.intro.start &&
-      currentTime <= skipTimes.intro.end
+    skipTimes.intro && currentTime >= skipTimes.intro.start && currentTime < skipWindow(skipTimes.intro).to
   );
   const isInsideOutro = Boolean(
-    skipTimes.outro &&
-      currentTime >= skipTimes.outro.start &&
-      currentTime <= skipTimes.outro.end
+    skipTimes.outro && currentTime >= skipTimes.outro.start && currentTime < skipWindow(skipTimes.outro).to
   );
 
 
@@ -1813,10 +1833,14 @@ export function EmbedPlayer({
     return () => clearTimeout(timer);
   }, [pauseScreenShown]);
 
-  // Up next when the ending starts; after "Ver los créditos" it waits for the end of the video
+  // Up next a few seconds into the ending (as its skip), so it doesn't cover the last line said
+  // before it, but only when the ending runs to the end of the video: with a scene or a preview
+  // after it, the ending is skipped like the opening and up next waits for the video to end.
+  // After "Ver los créditos" it also waits for the end
   useEffect(() => {
     if (!canPlayNext || nextUp || nextUpDismissedRef.current || !skipTimes.outro || !duration) return;
-    if (currentTime >= skipTimes.outro.start && currentTime < duration - 1) showNextUp(NEXT_COUNTDOWN);
+    if (skipTimes.outro.end < duration - ENDING_TAIL) return;
+    if (currentTime >= skipWindow(skipTimes.outro).from && currentTime < duration - 1) showNextUp(NEXT_COUNTDOWN);
   }, [canPlayNext, nextUp, skipTimes.outro, currentTime, duration, showNextUp]);
 
   useEffect(() => {
