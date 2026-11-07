@@ -49,6 +49,9 @@ function parseTime(value: string) {
   return parts.reduce((total, part) => total * 60 + (parseInt(part, 10) || 0), 0) * 60 + seconds;
 }
 
+/** A line of ASS drawing commands: "m x y", then l/b/s/p/c/n commands and coordinates only */
+const DRAWING_LINE = /^\s*m\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?(?:\s+(?:[mnlbspc]|-?\d+(?:\.\d+)?))*\s*$/i;
+
 interface InlineState {
   italic: boolean;
   bold: boolean;
@@ -122,6 +125,12 @@ function readInline(raw: string, base: InlineState, { ass, reset }: { ass: boole
         .replace(/&gt;/g, ">")
         .replace(/&nbsp;/g, " ")
     );
+  }
+
+  // Vector drawings that lost their {\p1} on the way (a provider's VTT conversion): sign backdrops
+  // like "m 0 0 l 140 0 140 33 0 33", which would show as text
+  for (const span of out.spans) {
+    if (/[mM]\s+-?\d/.test(span.text)) span.text = span.text.split("\n").filter((line) => !DRAWING_LINE.test(line)).join("\n");
   }
 
   // Trim the whole cue, line by line, without losing the spans' styling
@@ -280,6 +289,8 @@ function vttAlign(settings: string[]): CueAlign | null {
 function parseVttOrSrt(text: string): SubtitleCue[] {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const cues: SubtitleCue[] = [];
+  // Timings of sign backdrops (drawings that lost their {\p1}): what shows with them is a sign
+  const backdrops = new Set<string>();
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
@@ -296,6 +307,10 @@ function parseVttOrSrt(text: string): SubtitleCue[] {
       i++;
     }
     if (!(end > start)) continue;
+    if (body.length > 0 && body.every((l) => DRAWING_LINE.test(l.replace(/<[^>]*>|\{[^}]*\}/g, "")))) {
+      backdrops.add(`${start}|${end}`);
+      continue;
+    }
     const inline = readInline(body.join("\n"), { italic: false, bold: false }, { ass: false });
     if (inline.spans.length === 0) continue;
     cues.push({
@@ -306,7 +321,7 @@ function parseVttOrSrt(text: string): SubtitleCue[] {
       align: inline.align ?? vttAlign(settings) ?? 2,
     });
   }
-  markSignBursts(cues);
+  markSignBursts(cues, backdrops);
   return cues;
 }
 
@@ -315,10 +330,11 @@ const BURST = 3;
 
 /**
  * A file converted from ASS without the positions (a form, a wall of signs) turns its typesetting
- * into many lines that start and end together. Those, and fully bold lines shown during them, are
+ * into many lines that start and end together, sometimes with the drawings of their backdrops.
+ * Those lines, lines timed exactly like a backdrop, and fully bold lines shown during them are
  * marked `sign`, so the player can group them small instead of stacking them over the picture.
  */
-function markSignBursts(cues: SubtitleCue[]) {
+function markSignBursts(cues: SubtitleCue[], backdrops: Set<string> = new Set()) {
   const groups = new Map<string, SubtitleCue[]>();
   for (const cue of cues) {
     const key = `${cue.start}|${cue.end}`;
@@ -327,8 +343,8 @@ function markSignBursts(cues: SubtitleCue[]) {
     else groups.set(key, [cue]);
   }
   const bursts: { start: number; end: number }[] = [];
-  for (const group of groups.values()) {
-    if (group.length < BURST) continue;
+  for (const [key, group] of groups) {
+    if (group.length < BURST && !backdrops.has(key)) continue;
     for (const cue of group) cue.sign = true;
     bursts.push({ start: group[0].start, end: group[0].end });
   }
