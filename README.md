@@ -144,6 +144,36 @@ git pull && npm install && npm run deploy
 - `.next` is never touched, so `npm run dev` can run alongside. The build's change to `tsconfig.json` is undone, so the checkout stays clean for the next `git pull`.
 - Stop the server with Ctrl+C or by closing its terminal. Killing only the `serve` process (from a task manager) leaves the Next.js server it started running on the port.
 
+### Control panel
+
+With `PANEL_PASSWORD` set in `.env.local`, `npm run serve` also runs a control panel for updating the server from a phone or any browser. It is served by `serve.mjs` itself, not by the app, so it keeps working while the app restarts or after an update that breaks it.
+
+- **Server**: whether it's running, which build, since when; *Reiniciar servidor*.
+- **Code**: the branch and commit, the commits waiting on GitHub (*Buscar cambios* fetches), and the files changed on this machine.
+- **Actualizar**: `git pull --ff-only`, `npm install` when `package.json` or `package-lock.json` changed, then `npm run deploy`. It refuses when this checkout has uncommitted changes to tracked files or commits that aren't on the remote. When the dependencies change, the server is stopped during the install and build, since Windows can't replace files a running server holds open; a failed build restarts the previous one.
+- **Recompilar** runs `npm run deploy` and **Volver a la anterior** `npm run rollback`.
+- **Consola**: the server's output and every task's, live, the last 2000 lines.
+
+The panel runs only that fixed list of commands, one at a time, never anything typed in it. Git is run with prompts off, so expired GitHub credentials fail in the console instead of waiting. A change under `scripts/` (the panel itself included) takes effect only when `npm run serve` is restarted; *Actualizar* says so.
+
+| Variable | Default | |
+| --- | --- | --- |
+| `PANEL_PASSWORD` | (panel off) | Sign-in password, at least 8 characters. The session lasts 30 days; changing the password signs everyone out. Five wrong tries lock that address out, for a minute and then twice as long each time |
+| `PANEL_PORT` | `3001` | Port of the panel |
+| `PANEL_HOST` | `0.0.0.0` | Address it listens on |
+| `PANEL_PATH` | | Serve the panel under this path and pass the rest of `PANEL_PORT` on to the app |
+| `PANEL_HOSTNAME` | | The same, for requests to this host name |
+
+On its own port the panel is at `http://<server>:3001/`. To reach it through the site's usual address, give the app another port and let the panel's port be the front door. For example, with `PANEL_PORT=80` and `PANEL_PATH=/admin` in `.env.local`:
+
+```bash
+npm run serve -- -p 3000
+```
+
+`http://<server>/admin/` is then the panel and everything else on port 80 goes on to the app, with the original `Host` header and `X-Forwarded-For`. `PANEL_HOSTNAME=admin.example.lan` does the same for a host name, when your DNS resolves one for the server. Mesh VPNs such as NordVPN Meshnet name each device but resolve no subdomains under it, so use `PANEL_PATH` there.
+
+Anyone who can reach the panel's port can try the password, so keep it off the internet: on a LAN or behind a mesh VPN. Without HTTPS in front, the password and session cookie travel unencrypted, which a VPN's own encryption covers.
+
 ### List sync sign-in (optional)
 
 Visitors can sign in with MyAnimeList or AniList through [Better Auth](https://www.better-auth.com/). Their list then merges with the library, and episodes they watch past 90% are marked on it. No database is needed: the session and the service's tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`. Configure one service or both; the sign-in screens offer only the ones with credentials.

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0C0B10">
+<meta name="robots" content="noindex">
+<title>PK Anime · Panel</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --ink: #0C0B10; --ink2: #15131B; --ink3: #1F1C27; --line: #2C2836;
+    --paper: #F4F1EA; --paper2: #D9D4E0; --muted: #A8A2B4; --faint: #8A8496;
+    --accent: #FF4A2E; --second: #FFD23F; --ok: #5BD68A; --bad: #FF6B5E;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ink); color: var(--paper); }
+  body {
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  button, input { font: inherit; color: inherit; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 16px; }
+  [hidden] { display: none !important; }
+
+  header { display: flex; align-items: center; gap: 12px; padding: 4px 0 16px; }
+  header img { width: 34px; height: 25px; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+  @media (max-width: 420px) { header h1 span { display: none; } }
+  header h1 span { color: var(--muted); font-weight: 500; }
+  header .spacer { flex: 1; }
+
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 999px;
+    background: var(--ink3); border: 1px solid var(--line); font-size: 13px; color: var(--paper2); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(91,214,138,.18); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(255,107,94,.18); }
+  .dot.busy { background: var(--second); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .card { background: var(--ink2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; }
+  .card h2 .grow { flex: 1; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .big { font-size: 17px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13.5px; }
+  .faint { color: var(--faint); }
+  code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+  code { background: var(--ink3); padding: 1px 6px; border-radius: 6px; color: var(--paper2); }
+
+  .btn { appearance: none; border: 1px solid var(--line); background: var(--ink3); color: var(--paper);
+    padding: 10px 16px; border-radius: 11px; font-weight: 600; cursor: pointer; min-height: 44px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s, border-color .15s, opacity .15s; }
+  .btn:hover:not(:disabled) { border-color: var(--faint); }
+  .btn:focus-visible { outline: 2px solid var(--paper2); outline-offset: 2px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #1a0703; }
+  .btn.primary:hover:not(:disabled) { background: #ff6249; border-color: #ff6249; }
+  .btn.ghost { background: transparent; }
+  .btn.small { min-height: 34px; padding: 6px 12px; font-size: 13.5px; border-radius: 9px; }
+  .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin-top: 14px; }
+  .actions + .actions { margin-top: 10px; }
+  .count { background: rgba(0,0,0,.22); border-radius: 999px; padding: 0 8px; font-size: 13px; }
+
+  .commits { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line); }
+  .commits li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .commits li:last-child { border-bottom: 0; }
+  .commits .hash { color: var(--second); flex: none; }
+  .commits .msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .commits .when { color: var(--faint); font-size: 12.5px; flex: none; }
+
+  .notice { border-radius: 11px; padding: 10px 12px; margin-top: 12px; font-size: 13.5px; border: 1px solid; }
+  .notice.warn { background: rgba(255,210,63,.07); border-color: rgba(255,210,63,.35); color: #ffe8a0; }
+  .notice.bad { background: rgba(255,107,94,.08); border-color: rgba(255,107,94,.4); color: #ffc2bb; }
+  .notice ul { margin: 6px 0 0; padding-left: 18px; }
+
+  .steps { list-style: none; margin: 10px 0 0; padding: 0; }
+  .steps li { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .mark { width: 20px; text-align: center; flex: none; font-weight: 700; }
+  .mark.ok { color: var(--ok); } .mark.error { color: var(--bad); } .mark.running { color: var(--second); }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--second); border-right-color: transparent;
+    border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .seg { display: inline-flex; background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 7px; font-size: 13px; color: var(--muted); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .seg button[aria-pressed="true"] { background: var(--ink3); color: var(--paper); }
+  .console-wrap { position: relative; }
+  #console { background: #08070B; border: 1px solid var(--line); border-radius: 11px; height: min(58vh, 560px); overflow: auto;
+    padding: 10px 0; overscroll-behavior: contain; }
+  #console .ln { display: grid; grid-template-columns: auto auto 1fr; gap: 0 10px; padding: 1px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #console .ln:hover { background: rgba(255,255,255,.03); }
+  #console .t { color: var(--faint); }
+  #console .src { font-weight: 600; min-width: 62px; }
+  .src-servidor { color: #8FB4FF; } .src-serve { color: var(--muted); } .src-tarea { color: var(--second); } .src-panel { color: #C79BFF; }
+  #console .ln.error .msg { color: var(--bad); }
+  #console .empty { color: var(--faint); padding: 8px 12px; }
+  #toBottom { position: absolute; right: 12px; bottom: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  @media (max-width: 520px) {
+    #console .ln { grid-template-columns: auto 1fr; }
+    #console .t { display: none; }
+    #console .src { min-width: 0; }
+  }
+
+  .login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
+  .login img { width: 64px; height: 47px; margin-bottom: 14px; }
+  .login h1 { font-size: 22px; margin: 0 0 4px; }
+  .login form { margin-top: 22px; display: grid; gap: 10px; }
+  .login input { width: 100%; background: var(--ink2); border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; min-height: 48px; }
+  .login input:focus { outline: 2px solid var(--paper2); outline-offset: 1px; }
+  .error-text { color: var(--bad); min-height: 1.4em; font-size: 14px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink3); border: 1px solid var(--line);
+    padding: 10px 16px; border-radius: 11px; box-shadow: 0 10px 30px rgba(0,0,0,.5); max-width: calc(100% - 32px); z-index: 10; }
+</style>
+</head>
+<body>
+
+<section id="loginView" class="wrap login" hidden>
+  <img src="icon.svg" alt="">
+  <h1>Panel de PK Anime</h1>
+  <div class="sub">Actualizaciones y consola del servidor</div>
+  <form id="loginForm">
+    <input id="password" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña" required>
+    <button class="btn primary" type="submit">Entrar</button>
+    <div class="error-text" id="loginError" role="alert"></div>
+  </form>
+</section>
+
+<main id="mainView" class="wrap" hidden>
+  <header>
+    <img src="icon.svg" alt="">
+    <h1>PK Anime <span>· Panel</span></h1>
+    <div class="spacer"></div>
+    <span class="pill" id="serverPill"><span class="dot"></span><span>…</span></span>
+    <button class="btn ghost small" id="logout" title="Cerrar sesión">Salir</button>
+  </header>
+
+  <section class="card">
+    <h2>Servidor</h2>
+    <div class="row">
+      <div style="flex:1;min-width:200px">
+        <div class="big" id="serverTitle">…</div>
+        <div class="sub" id="serverSub"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="grow">Código</span><span class="faint" id="lastFetch" style="text-transform:none;letter-spacing:0;font-weight:500"></span></h2>
+    <div class="big" id="headLine">…</div>
+    <div class="sub" id="headSub"></div>
+    <div id="pendingBox"></div>
+    <div id="gitNotices"></div>
+    <div class="actions">
+      <button class="btn primary" data-action="update" id="updateBtn">Actualizar</button>
+      <button class="btn" data-action="fetch">Buscar cambios</button>
+    </div>
+    <div class="actions">
+      <button class="btn" data-action="deploy">Recompilar</button>
+      <button class="btn" data-action="rollback" data-confirm="¿Volver a la compilación anterior? El servidor se reinicia con ella.">Volver a la anterior</button>
+      <button class="btn" data-action="restart" data-confirm="¿Reiniciar el servidor? Quien esté viendo algo lo pierde unos segundos.">Reiniciar servidor</button>
+    </div>
+  </section>
+
+  <section class="card" id="jobCard" hidden>
+    <h2><span class="grow" id="jobHeading">Tarea</span><span class="faint" id="jobTime" style="text-transform:none;letter-spacing:0;font-weight:500"></span></h2>
+    <div class="big" id="jobTitle"></div>
+    <ul class="steps" id="jobSteps"></ul>
+    <div id="jobNotices"></div>
+  </section>
+
+  <section class="card">
+    <h2>
+      <span class="grow">Consola</span>
+      <span class="seg" role="group" aria-label="Filtrar la consola">
+        <button data-filter="all" aria-pressed="true">Todo</button>
+        <button data-filter="servidor" aria-pressed="false">Servidor</button>
+        <button data-filter="tarea" aria-pressed="false">Tareas</button>
+      </span>
+    </h2>
+    <div class="console-wrap">
+      <div id="console" class="mono" role="log" aria-live="off"><div class="empty">Conectando…</div></div>
+      <button class="btn small" id="toBottom" hidden>↓ Ir al final</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+  const $ = (selector) => document.querySelector(selector);
+  const MAX_LINES = 2000;
+  let state = null;
+  let events = null;
+  let lastLineId = 0;
+  let filter = "all";
+  let stick = true;
+  let toastTimer = null;
+  let refreshTimer = null;
+
+  // ---- helpers ----------------------------------------------------------------------------------
+
+  const escapeHtml = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+  function ago(ms) {
+    if (!ms) return "";
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 45) return "hace un momento";
+    const m = Math.round(s / 60);
+    if (m < 60) return `hace ${m} min`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `hace ${h} h`;
+    const d = Math.round(h / 24);
+    return `hace ${d} día${d === 1 ? "" : "s"}`;
+  }
+  const duration = (ms) => {
+    const s = Math.round(ms / 1000);
+    return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+  };
+  const clock = (ms) => new Date(ms).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  function toast(text) {
+    const el = $("#toast");
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (el.hidden = true), 4000);
+  }
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      credentials: "same-origin",
+    });
+    if (res.status === 401 && path !== "api/login") {
+      showLogin();
+      throw new Error("Inicia sesión");
+    }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+    return body;
+  }
+
+  // ---- sign-in ----------------------------------------------------------------------------------
+
+  function showLogin() {
+    events?.close();
+    events = null;
+    $("#mainView").hidden = true;
+    $("#loginView").hidden = false;
+    setTimeout(() => $("#password").focus(), 50);
+  }
+
+  function showMain() {
+    $("#loginView").hidden = true;
+    $("#mainView").hidden = false;
+  }
+
+  $("#loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    $("#loginError").textContent = "";
+    try {
+      await api("api/login", { method: "POST", body: JSON.stringify({ password: $("#password").value }) });
+      $("#password").value = "";
+      start();
+    } catch (error) {
+      $("#loginError").textContent = error.message;
+    }
+  });
+
+  $("#logout").addEventListener("click", async () => {
+    await api("api/logout", { method: "POST" }).catch(() => {});
+    showLogin();
+  });
+
+  // ---- state ------------------------------------------------------------------------------------
+
+  async function refresh() {
+    try {
+      state = await api("api/state");
+      render();
+    } catch {}
+  }
+  const refreshSoon = () => {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(refresh, 100);
+  };
+
+  function render() {
+    if (!state) return;
+    const { server, git, job, history } = state;
+    const busy = Boolean(job);
+
+    // Server
+    const pill = $("#serverPill");
+    let dotClass = "bad";
+    let pillText = "Parado";
+    if (server.running) { dotClass = "ok"; pillText = "En marcha"; }
+    if (server.held) { dotClass = "busy"; pillText = "En pausa"; }
+    if (busy) { dotClass = "busy"; pillText = job.title; }
+    pill.innerHTML = `<span class="dot ${dotClass}"></span><span>${escapeHtml(pillText)}</span>`;
+
+    if (server.running) {
+      $("#serverTitle").textContent = "En marcha";
+      const pending = server.live && server.live !== server.folder ? ` · ${server.live} pendiente de arrancar` : "";
+      $("#serverSub").innerHTML = `Compilación <code>${escapeHtml(server.folder)}</code> · arrancó ${ago(server.since)} · PID ${server.pid}${escapeHtml(pending)}`;
+    } else {
+      $("#serverTitle").textContent = server.held ? "Parado mientras dura la tarea" : "No está en marcha";
+      const exit = server.lastExit ? `Se cerró ${ago(server.lastExit.at)} (${escapeHtml(server.lastExit.signal || `código ${server.lastExit.code}`)}).` : "";
+      $("#serverSub").textContent = exit;
+    }
+
+    // Code
+    if (!git.available) {
+      $("#headLine").textContent = "Esta carpeta no es un repositorio de git";
+      $("#headSub").textContent = "";
+    } else {
+      $("#headLine").innerHTML = git.head ? `${escapeHtml(git.head.subject)}` : "Sin commits";
+      $("#headSub").innerHTML = git.head
+        ? `<code>${escapeHtml(git.branch)}</code> · <code>${escapeHtml(git.head.hash)}</code> · ${ago(Date.parse(git.head.date))}`
+        : "";
+    }
+    $("#lastFetch").textContent = git.lastFetch ? `Consultado ${ago(git.lastFetch)}` : "Sin consultar";
+
+    const pendingBox = $("#pendingBox");
+    if (git.behind) {
+      const more = git.behind > git.pending.length ? `<li class="faint">y ${git.behind - git.pending.length} más…</li>` : "";
+      pendingBox.innerHTML =
+        `<div class="notice warn" style="margin-top:14px">${plural(git.behind, "cambio nuevo", "cambios nuevos")} en <code>${escapeHtml(git.upstream)}</code></div>` +
+        `<ul class="commits">${git.pending.map((c) => `<li><span class="hash mono">${escapeHtml(c.hash)}</span><span class="msg">${escapeHtml(c.subject)}</span><span class="when">${ago(Date.parse(c.date))}</span></li>`).join("")}${more}</ul>`;
+    } else {
+      pendingBox.innerHTML = git.available && git.upstream ? `<div class="sub" style="margin-top:10px">Al día con <code>${escapeHtml(git.upstream)}</code>.</div>` : "";
+    }
+
+    const notices = [];
+    if (git.available && !git.upstream) notices.push(`<div class="notice bad">La rama no sigue a ninguna rama remota: no se puede actualizar desde aquí.</div>`);
+    if (git.ahead) notices.push(`<div class="notice bad">Este equipo tiene ${plural(git.ahead, "commit", "commits")} que no están en GitHub: hay que unirlos a mano antes de actualizar.</div>`);
+    if (git.dirty.length) {
+      const list = git.dirty.slice(0, 8).map((file) => `<li class="mono">${escapeHtml(file)}</li>`).join("");
+      const more = git.dirty.length > 8 ? `<li class="faint">y ${git.dirty.length - 8} más…</li>` : "";
+      notices.push(`<div class="notice bad">Hay cambios sin guardar en este equipo, y Actualizar no los pisa:<ul>${list}${more}</ul></div>`);
+    }
+    $("#gitNotices").innerHTML = notices.join("");
+
+    const updateBtn = $("#updateBtn");
+    updateBtn.innerHTML = git.behind ? `Actualizar <span class="count">${git.behind}</span>` : "Actualizar";
+    for (const button of document.querySelectorAll("[data-action]")) button.disabled = busy;
+
+    // Task: the running one, or the last one
+    const shown = job || history[0];
+    $("#jobCard").hidden = !shown;
+    if (shown) {
+      $("#jobHeading").textContent = job ? "Tarea en marcha" : "Última tarea";
+      $("#jobTitle").innerHTML =
+        shown.status === "running" ? `<span class="spin"></span> ${escapeHtml(shown.title)}` :
+        shown.status === "ok" ? `<span class="mark ok">✓</span> ${escapeHtml(shown.title)}` :
+        `<span class="mark error">✕</span> ${escapeHtml(shown.title)}`;
+      $("#jobTime").textContent = shown.endedAt
+        ? `${ago(shown.endedAt)} · ${duration(shown.endedAt - shown.startedAt)}`
+        : `desde ${clock(shown.startedAt)}`;
+      $("#jobSteps").innerHTML = shown.steps.map((s) => {
+        const mark = s.status === "running" ? `<span class="spin"></span>` : s.status === "ok" ? "✓" : "✕";
+        return `<li><span class="mark ${s.status}">${mark}</span><span>${escapeHtml(s.title)}</span></li>`;
+      }).join("");
+      const jobNotices = [];
+      if (shown.error) jobNotices.push(`<div class="notice bad">${escapeHtml(shown.error)}</div>`);
+      for (const warning of shown.warnings) jobNotices.push(`<div class="notice warn">${escapeHtml(warning)}</div>`);
+      $("#jobNotices").innerHTML = jobNotices.join("");
+    }
+  }
+
+  for (const button of document.querySelectorAll("[data-action]")) {
+    button.addEventListener("click", async () => {
+      const question = button.dataset.confirm;
+      if (question && !confirm(question)) return;
+      try {
+        await api(`api/action/${button.dataset.action}`, { method: "POST" });
+        refreshSoon();
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+  }
+
+  // ---- console ----------------------------------------------------------------------------------
+
+  const consoleEl = $("#console");
+
+  function lineNode(line) {
+    const row = document.createElement("div");
+    row.className = `ln${line.level === "error" ? " error" : ""}`;
+    row.dataset.source = line.source;
+    row.hidden = filter !== "all" && filter !== line.source && !(filter === "tarea" && line.source === "serve");
+    row.innerHTML = `<span class="t">${clock(line.t)}</span><span class="src src-${escapeHtml(line.source)}">${escapeHtml(line.source)}</span><span class="msg"></span>`;
+    row.lastChild.textContent = line.text;
+    return row;
+  }
+
+  function addLines(lines) {
+    if (!lines.length) return;
+    const empty = consoleEl.querySelector(".empty");
+    if (empty) empty.remove();
+    const fragment = document.createDocumentFragment();
+    for (const line of lines) {
+      if (line.id <= lastLineId) continue;
+      lastLineId = line.id;
+      fragment.appendChild(lineNode(line));
+    }
+    consoleEl.appendChild(fragment);
+    while (consoleEl.childElementCount > MAX_LINES) consoleEl.firstElementChild.remove();
+    if (stick) consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  consoleEl.addEventListener("scroll", () => {
+    stick = consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight < 40;
+    $("#toBottom").hidden = stick;
+  });
+  $("#toBottom").addEventListener("click", () => {
+    stick = true;
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+    $("#toBottom").hidden = true;
+  });
+
+  for (const button of document.querySelectorAll("[data-filter]")) {
+    button.addEventListener("click", () => {
+      filter = button.dataset.filter;
+      for (const other of document.querySelectorAll("[data-filter]")) other.setAttribute("aria-pressed", String(other === button));
+      for (const row of consoleEl.querySelectorAll(".ln")) {
+        const source = row.dataset.source;
+        row.hidden = filter !== "all" && filter !== source && !(filter === "tarea" && source === "serve");
+      }
+      if (stick) consoleEl.scrollTop = consoleEl.scrollHeight;
+    });
+  }
+
+  function connect() {
+    events?.close();
+    events = new EventSource(`api/events?after=${lastLineId}`);
+    events.addEventListener("lines", (event) => addLines(JSON.parse(event.data)));
+    events.addEventListener("line", (event) => addLines([JSON.parse(event.data)]));
+    events.addEventListener("state", refreshSoon);
+    events.addEventListener("open", refreshSoon);
+    events.addEventListener("error", () => {
+      // A closed session ends the stream with 401: EventSource can't tell, so ask
+      if (events?.readyState === EventSource.CLOSED) {
+        api("api/state").then(() => setTimeout(connect, 3000)).catch(() => {});
+      }
+    });
+  }
+
+  async function start() {
+    try {
+      state = await api("api/state");
+    } catch {
+      return;
+    }
+    showMain();
+    render();
+    connect();
+  }
+
+  // Relative times move on by themselves
+  setInterval(render, 30_000);
+  start();
+})();
+</script>
+</body>
+</html>

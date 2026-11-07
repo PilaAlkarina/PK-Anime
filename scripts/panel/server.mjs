@@ -1,0 +1,335 @@
+/**
+ * The control panel's web server, run by scripts/serve.mjs when PANEL_PASSWORD is set.
+ *
+ * Where it answers:
+ * - PANEL_PORT alone (3001 by default): the whole port is the panel, http://host:3001/
+ * - PANEL_PATH (e.g. /admin) or PANEL_HOSTNAME (e.g. admin.example.lan): the port is the front door
+ *   for the whole site. Requests under that path, or for that name, are the panel; everything else
+ *   goes on to the app on the next start port. With PANEL_PORT=80 and the app on another port
+ *   (npm run serve -- -p 3000), http://host/admin is the panel and http://host/ the library.
+ *
+ * Sign-in is the password in PANEL_PASSWORD, kept as a signed cookie for 30 days. Changing the
+ * password signs everyone out.
+ */
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createServer, request as httpRequest } from "node:http";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { ROOT } from "../build-slots.mjs";
+import { gitInfo, jobState, onJobChange, startAction, ACTIONS } from "./actions.mjs";
+import { linesSince, onLine, say } from "./log.mjs";
+
+const COOKIE = "pk_panel";
+const SESSION_DAYS = 30;
+const MAX_BODY = 4096;
+const PAGE_FILE = new URL("./page.html", import.meta.url);
+
+const log = (message, level) => say("panel", message, level);
+
+const sha256 = (text) => createHash("sha256").update(text).digest();
+const sameBytes = (a, b) => a.length === b.length && timingSafeEqual(a, b);
+
+/** "/admin/" → "/admin"; "" or "/" → "" */
+function normalizePath(path) {
+  if (!path) return "";
+  const clean = `/${path}`.replace(/\/+/g, "/").replace(/\/$/, "");
+  return clean === "/" ? "" : clean;
+}
+
+const hostOf = (req) => String(req.headers.host || "").toLowerCase().replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
+const isHttps = (req) => req.socket.encrypted || req.headers["x-forwarded-proto"] === "https";
+const clientIp = (req) => req.socket.remoteAddress || "?";
+
+export function startPanel(server) {
+  const password = process.env.PANEL_PASSWORD;
+  const port = Number(process.env.PANEL_PORT || 3001);
+  const bindHost = process.env.PANEL_HOST || "0.0.0.0";
+  const basePath = normalizePath(process.env.PANEL_PATH);
+  const hostname = (process.env.PANEL_HOSTNAME || "").toLowerCase();
+  const frontDoor = Boolean(basePath || hostname);
+
+  if (frontDoor && port === server.appPort) {
+    log(`PANEL_PORT (${port}) es el mismo puerto que la app: arranca la app en otro (npm run serve -- -p 3000).`, "error");
+    return null;
+  }
+  if (password.length < 8) log("PANEL_PASSWORD es muy corta: usa al menos 8 caracteres.", "error");
+
+  const secret = sha256(`pk-panel\0${password}`);
+  const passwordHash = sha256(password);
+  const cookiePath = basePath || "/";
+
+  // ---- sessions ---------------------------------------------------------------------------------
+
+  const sign = (value) => createHmac("sha256", secret).update(value).digest("base64url");
+
+  function newToken() {
+    const expires = String(Date.now() + SESSION_DAYS * 86400_000);
+    return `${expires}.${sign(expires)}`;
+  }
+
+  function signedIn(req) {
+    const cookie = String(req.headers.cookie || "")
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${COOKIE}=`));
+    if (!cookie) return false;
+    const [expires, signature] = cookie.slice(COOKIE.length + 1).split(".");
+    if (!expires || !signature || Number(expires) < Date.now()) return false;
+    return sameBytes(Buffer.from(signature), Buffer.from(sign(expires)));
+  }
+
+  function sessionCookie(req, token, maxAge) {
+    const secure = isHttps(req) ? "; Secure" : "";
+    return `${COOKIE}=${token}; Path=${cookiePath}; Max-Age=${maxAge}; HttpOnly; SameSite=Strict${secure}`;
+  }
+
+  // Wrong passwords, per address: five tries, then a pause that doubles each time (up to an hour)
+  const failures = new Map();
+  function lockedFor(ip) {
+    const entry = failures.get(ip);
+    return entry && entry.until > Date.now() ? Math.ceil((entry.until - Date.now()) / 1000) : 0;
+  }
+  function failed(ip) {
+    const entry = failures.get(ip) ?? { count: 0, until: 0 };
+    entry.count += 1;
+    if (entry.count >= 5) entry.until = Date.now() + Math.min(60_000 * 2 ** (entry.count - 5), 3600_000);
+    failures.set(ip, entry);
+  }
+
+  // ---- responses --------------------------------------------------------------------------------
+
+  const SECURITY_HEADERS = {
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+  };
+
+  function send(res, status, body, headers = {}) {
+    const isJson = typeof body !== "string" && !Buffer.isBuffer(body);
+    const payload = isJson ? JSON.stringify(body) : body;
+    res.writeHead(status, {
+      ...SECURITY_HEADERS,
+      "Content-Type": isJson ? "application/json; charset=utf-8" : "text/plain; charset=utf-8",
+      ...headers,
+    });
+    res.end(payload);
+  }
+
+  function readJson(req) {
+    return new Promise((resolve) => {
+      let size = 0;
+      const chunks = [];
+      req.on("data", (chunk) => {
+        size += chunk.length;
+        if (size > MAX_BODY) req.destroy();
+        else chunks.push(chunk);
+      });
+      req.on("end", () => {
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"));
+        } catch {
+          resolve({});
+        }
+      });
+      req.on("error", () => resolve({}));
+    });
+  }
+
+  /** A POST from another site carries its own Origin: refuse it (the cookie is SameSite already) */
+  function sameOrigin(req) {
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    try {
+      return new URL(origin).host.toLowerCase() === String(req.headers.host || "").toLowerCase();
+    } catch {
+      return false;
+    }
+  }
+
+  // ---- state ------------------------------------------------------------------------------------
+
+  async function state() {
+    return {
+      server: server.status(),
+      git: await gitInfo(),
+      ...jobState(),
+      actions: Object.fromEntries(Object.entries(ACTIONS).map(([name, action]) => [name, action.title])),
+    };
+  }
+
+  // Everyone watching the console: new lines, and a nudge to fetch the state again when it changes
+  const streams = new Set();
+  const broadcast = (chunk) => {
+    for (const res of streams) res.write(chunk);
+  };
+  onLine((line) => broadcast(`id: ${line.id}\nevent: line\ndata: ${JSON.stringify(line)}\n\n`));
+  let nudgeTimer = null;
+  const nudge = () => {
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => broadcast("event: state\ndata: {}\n\n"), 150);
+  };
+  onJobChange(nudge);
+  server.events.on("change", nudge);
+  const heartbeat = setInterval(() => broadcast(": ping\n\n"), 20_000);
+
+  function openStream(req, res, url) {
+    const after = Number(req.headers["last-event-id"] || url.searchParams.get("after") || 0);
+    res.writeHead(200, {
+      ...SECURITY_HEADERS,
+      "Content-Type": "text/event-stream; charset=utf-8",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.write("retry: 3000\n\n");
+    const backlog = linesSince(after);
+    if (backlog.length) {
+      res.write(`id: ${backlog[backlog.length - 1].id}\nevent: lines\ndata: ${JSON.stringify(backlog)}\n\n`);
+    }
+    streams.add(res);
+    req.on("close", () => streams.delete(res));
+  }
+
+  // ---- the panel's routes -----------------------------------------------------------------------
+
+  async function handlePanel(req, res, url, path) {
+    const method = req.method || "GET";
+
+    if (path === "/" && method === "GET") {
+      // Read on each request: the page is small and edits show up without a restart
+      return send(res, 200, readFileSync(PAGE_FILE), {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Security-Policy":
+          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      });
+    }
+    if (path === "/icon.svg" && method === "GET") {
+      try {
+        return send(res, 200, readFileSync(join(ROOT, "app", "icon.svg")), { "Content-Type": "image/svg+xml" });
+      } catch {
+        return send(res, 404, "");
+      }
+    }
+
+    if (path === "/api/login" && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      const ip = clientIp(req);
+      const wait = lockedFor(ip);
+      if (wait) return send(res, 429, { error: `Demasiados intentos. Espera ${wait} s.`, retryAfter: wait });
+      const body = await readJson(req);
+      const given = typeof body.password === "string" ? body.password : "";
+      if (!sameBytes(sha256(given), passwordHash)) {
+        failed(ip);
+        log(`Contraseña incorrecta desde ${ip}.`, "error");
+        return send(res, 401, { error: "Contraseña incorrecta" });
+      }
+      failures.delete(ip);
+      log(`Sesión iniciada desde ${ip}.`);
+      return send(res, 200, { ok: true }, { "Set-Cookie": sessionCookie(req, newToken(), SESSION_DAYS * 86400) });
+    }
+    if (path === "/api/logout" && method === "POST") {
+      return send(res, 200, { ok: true }, { "Set-Cookie": sessionCookie(req, "", 0) });
+    }
+
+    if (!path.startsWith("/api/")) return send(res, 404, "No encontrado");
+    if (!signedIn(req)) return send(res, 401, { error: "Inicia sesión" });
+
+    if (path === "/api/state" && method === "GET") return send(res, 200, await state());
+    if (path === "/api/events" && method === "GET") return openStream(req, res, url);
+
+    const action = path.match(/^\/api\/action\/([a-z]+)$/)?.[1];
+    if (action && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      if (!ACTIONS[action]) return send(res, 404, { error: "Acción desconocida" });
+      const result = startAction(action, server);
+      if (!result.ok) return send(res, 409, { error: result.error });
+      return send(res, 202, { job: result.job });
+    }
+
+    return send(res, 404, { error: "No encontrado" });
+  }
+
+  // ---- front door: everything that isn't the panel goes to the app ------------------------------
+
+  const target = !server.appHost || ["0.0.0.0", "::", "[::]"].includes(server.appHost) ? "127.0.0.1" : server.appHost;
+
+  function proxyToApp(req, res) {
+    const headers = { ...req.headers };
+    const forwardedFor = headers["x-forwarded-for"];
+    headers["x-forwarded-for"] = forwardedFor ? `${forwardedFor}, ${clientIp(req)}` : clientIp(req);
+    headers["x-forwarded-host"] ??= req.headers.host;
+    headers["x-forwarded-proto"] ??= isHttps(req) ? "https" : "http";
+
+    const upstream = httpRequest(
+      { host: target, port: server.appPort, method: req.method, path: req.url, headers },
+      (answer) => {
+        res.writeHead(answer.statusCode || 502, answer.rawHeaders);
+        answer.pipe(res);
+      },
+    );
+    upstream.on("error", () => {
+      if (res.headersSent) return res.destroy();
+      const panelLink = basePath ? ` El panel sigue en ${basePath}/.` : "";
+      send(res, 502, `PK Anime se está reiniciando o no está en marcha. Prueba en unos segundos.${panelLink}`, {
+        "Retry-After": "5",
+      });
+    });
+    // A visitor who leaves mid-video stops the request to the app too
+    res.on("close", () => upstream.destroy());
+    req.pipe(upstream);
+  }
+
+  // ---- the server -------------------------------------------------------------------------------
+
+  const httpServer = createServer((req, res) => {
+    let url;
+    try {
+      url = new URL(req.url || "/", "http://panel");
+    } catch {
+      return send(res, 400, "Petición no válida");
+    }
+
+    let path = url.pathname;
+    let isPanel = !frontDoor;
+    if (hostname && hostOf(req) === hostname) isPanel = true;
+    else if (basePath) {
+      if (path === basePath) {
+        // Relative links in the page need the trailing slash
+        res.writeHead(308, { Location: `${basePath}/${url.search}` });
+        return res.end();
+      }
+      if (path.startsWith(`${basePath}/`)) {
+        isPanel = true;
+        path = path.slice(basePath.length);
+      }
+    }
+
+    if (!isPanel) return proxyToApp(req, res);
+    handlePanel(req, res, url, path).catch((error) => {
+      log(`Error en el panel: ${error?.message ?? error}`, "error");
+      if (!res.headersSent) send(res, 500, { error: "Error interno" });
+    });
+  });
+  // Long downloads and streams through the front door must not be cut
+  httpServer.requestTimeout = 0;
+  httpServer.headersTimeout = 60_000;
+
+  httpServer.on("error", (error) => {
+    const reason = error.code === "EADDRINUSE" ? `el puerto ${port} ya está en uso` : error.message;
+    log(`No se ha podido abrir el panel: ${reason}.`, "error");
+  });
+  httpServer.listen(port, bindHost, () => {
+    const where = hostname
+      ? `http://${hostname}${port === 80 ? "" : `:${port}`}/`
+      : `http://<este equipo>${port === 80 ? "" : `:${port}`}${basePath}/`;
+    log(`Panel de control en ${where}${frontDoor ? ` (el resto del puerto ${port} va a la app en ${server.appPort})` : ""}`);
+  });
+
+  return {
+    close() {
+      clearInterval(heartbeat);
+      for (const res of streams) res.end();
+      httpServer.close();
+    },
+  };
+}
