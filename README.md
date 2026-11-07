@@ -174,6 +174,34 @@ npm run serve -- -p 3000
 
 Anyone who can reach the panel's port can try the password, so keep it off the internet: on a LAN or behind a mesh VPN. Without HTTPS in front, the password and session cookie travel unencrypted, which a VPN's own encryption covers.
 
+### Fire TV and Android TV app
+
+`android-tv/` is a small Android app that shows the library full screen in a WebView, for TVs whose browser is missing or poor (Fire TV). The site is loaded live from your server every time, so updating the server updates the app; the APK only needs reinstalling when `android-tv/` itself changes. What the app adds over a browser:
+
+- The TV interface, always: its User-Agent carries `PKAnimeTV` and it opens the server with `?ui=tv`.
+- The remote's Back and media keys (play/pause, rewind, fast forward), which Android doesn't pass to a page, are sent to it as `GoBack`, `MediaPlayPause` and so on. Back the page doesn't use goes back in the app's history, then leaves it. On the library's home screen Back closes the app (`window.PKAnimeTV.exit()`, see `lib/tv/app-shell.ts`).
+- Video starts without a key press first, so playback started from the phone remote just plays, and the player can go full screen.
+- The server address is asked on first launch (`http://pk.nord`, `http://192.168.1.50:3000`…) and can be changed later from the Menu key (≡), which also reloads and quits. The TV must reach that address: a mesh VPN name like `pk.nord` only resolves on a TV that is in the mesh too.
+- Remote debugging: `chrome://inspect` on a computer, with ADB debugging on in the TV's developer options.
+
+**Building.** GitHub Actions builds it (`.github/workflows/android-tv.yml`) when `android-tv/` changes, or by hand from the Actions tab (*APK de Fire TV* → *Run workflow*), and publishes it as a release. The latest APK is always at:
+
+```
+https://github.com/PilaAlkarina/PK-Anime/releases/latest/download/pk-anime-tv.apk
+```
+
+Every APK has to be signed with the same key to install over the last one. The key lives outside the repository, which is public: a PKCS12 file with the alias `pkanime`, given to the workflow as two repository secrets, `ANDROID_KEYSTORE_BASE64` (the file in base64) and `ANDROID_KEYSTORE_PASSWORD`. Without them the APK is still built, signed with a throwaway key, as an artifact of the run, and nothing is published. To make a key:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 10950 -subj "/CN=PK Anime TV"
+openssl pkcs12 -export -inkey key.pem -in cert.pem -name pkanime -out pk-anime-tv.p12 -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+base64 -w0 pk-anime-tv.p12 > keystore-base64.txt
+```
+
+**Installing on a Fire TV.** In *Settings → My Fire TV → Developer options*, allow apps from unknown sources (for the Downloader app). Install *Downloader* from the Amazon Appstore, open the address above in it and install. Or from a computer: `adb connect <TV IP>` and `adb install pk-anime-tv.apk`.
+
+To build it locally instead, with JDK 17, the Android SDK and Gradle 8.9: `gradle assembleRelease` in `android-tv/`.
+
 ### List sync sign-in (optional)
 
 Visitors can sign in with MyAnimeList or AniList through [Better Auth](https://www.better-auth.com/). Their list then merges with the library, and episodes they watch past 90% are marked on it. No database is needed: the session and the service's tokens are kept in encrypted cookies, and playback positions are kept in the browser's `localStorage`. Configure one service or both; the sign-in screens offer only the ones with credentials.

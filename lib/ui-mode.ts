@@ -10,9 +10,10 @@ export type UiMode = "tv" | "web";
 export const UI_MODE_COOKIE = "pk_ui";
 export const UI_MODE_PARAM = "ui";
 
-// Smart TV and set-top browsers. Phones and tablets never match these.
+// Smart TV and set-top browsers, and the Fire TV / Android TV app (android-tv/, "PKAnimeTV").
+// Phones and tablets never match these.
 const TV_USER_AGENT =
-  /SmartTV|SMART-TV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Android TV|GoogleTV|CrKey|AFT[A-Z]|Roku|VIDAA|PhilipsTV|Viera|AQUOS|Hisense|DTV|TV Safari/i;
+  /PKAnimeTV|SmartTV|SMART-TV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Android TV|GoogleTV|CrKey|AFT[A-Z]|Roku|VIDAA|PhilipsTV|Viera|AQUOS|Hisense|DTV|TV Safari/i;
 
 export function isUiMode(value: unknown): value is UiMode {
   return value === "tv" || value === "web";

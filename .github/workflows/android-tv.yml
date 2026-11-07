@@ -1,0 +1,82 @@
+# Builds the Fire TV / Android TV app (android-tv/) and publishes it as a GitHub release, with the
+# APK always at the same address:
+#   https://github.com/<owner>/<repo>/releases/latest/download/pk-anime-tv.apk
+#
+# Runs only when android-tv/ (or this file) changes, or by hand from the Actions tab
+# ("Run workflow"). Changes to the website don't need a new APK: the app loads the site live.
+#
+# The APK is signed with the key in two repository secrets, so each new one installs over the
+# last: ANDROID_KEYSTORE_BASE64 (the .p12 file in base64) and ANDROID_KEYSTORE_PASSWORD. Without
+# them it still builds, signed with a throwaway key, as a downloadable artifact of the run, and
+# nothing is published.
+name: APK de Fire TV
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android-tv/**"
+      - ".github/workflows/android-tv.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-tv
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Clave de firma
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "PK_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Faltan los secretos ANDROID_KEYSTORE_BASE64 y ANDROID_KEYSTORE_PASSWORD: la APK se firma con una clave de prueba y no se publica."
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar
+        working-directory: android-tv
+        env:
+          PK_VERSION_CODE: ${{ github.run_number }}
+          PK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          gradle assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/pk-anime-tv.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pk-anime-tv-1.0.${{ github.run_number }}
+          path: ${{ runner.temp }}/pk-anime-tv.apk
+
+      - name: Publicar
+        if: env.SIGNED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 1.0.${{ github.run_number }}
+        run: |
+          gh release create "tv-v$VERSION" "$RUNNER_TEMP/pk-anime-tv.apk" \
+            --target "$GITHUB_SHA" \
+            --title "PK Anime TV $VERSION" \
+            --notes "App de PK Anime para Fire TV y Android TV. Se instala una vez: la web se carga en directo desde tu servidor. Descarga directa de la última versión: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pk-anime-tv.apk" \
+            --latest

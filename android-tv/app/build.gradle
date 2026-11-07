@@ -1,0 +1,53 @@
+plugins {
+    id "com.android.application"
+}
+
+// Set by the GitHub Actions build (.github/workflows/android-tv.yml): the run number as the
+// version, and the release key from the repository's secrets
+def versionNumber = Integer.parseInt(System.getenv("PK_VERSION_CODE") ?: "1")
+def keystorePath = System.getenv("PK_KEYSTORE")
+
+android {
+    namespace "app.pkanime.tv"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "app.pkanime.tv"
+        // Fire OS 5 (Android 5.1), the oldest Fire TV software still around
+        minSdk 22
+        targetSdk 34
+        versionCode versionNumber
+        versionName "1.0.${versionNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storeType "pkcs12"
+                storePassword System.getenv("PK_KEYSTORE_PASSWORD")
+                keyAlias "pkanime"
+                keyPassword System.getenv("PK_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Without the release key the APK is signed with a throwaway debug key: it installs,
+            // but a later APK with the real key can't update it
+            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}

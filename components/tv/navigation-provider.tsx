@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { init, pause, resume } from "@noriginmedia/norigin-spatial-navigation";
+import { exitApp } from "@/lib/tv/app-shell";
 import { isBackKey } from "@/lib/tv/keys";
 
 let initialized = false;
@@ -78,6 +79,8 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     }
     const parent = parentPath(pathname);
     if (parent !== pathname) router.replace(parent);
+    // Back on the home screen: nothing left in the library, so the TV app closes (a TV browser stays)
+    else exitApp();
   }, [router, pathname]);
 
   const replace = useCallback(

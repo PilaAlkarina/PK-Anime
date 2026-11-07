@@ -12,3 +12,11 @@ out
 *.log
 *.tsbuildinfo
 .env
+# Fire TV / Android TV app: build output, and signing keys, which never go in the repository
+android-tv/.gradle
+android-tv/build
+android-tv/app/build
+android-tv/local.properties
+*.p12
+*.jks
+*.keystore
