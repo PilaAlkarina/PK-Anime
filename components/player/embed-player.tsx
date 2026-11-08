@@ -440,6 +440,49 @@ export function EmbedPlayer({
   // Watch position is saved in this browser, per anime and episode
   // Per library profile, like the rest of what the library keeps on the device
   const progressKey = profileKey(`anime_progress:${anilistId ? `ani:${anilistId}` : `mal:${malId}`}:${episodeNumber}`);
+  // What's playing, for the server's control panel: on every change, every 15 s while playing,
+  // and once more when the player goes away. A beacon, so it never holds anything up
+  const nowPlayingIdRef = useRef("");
+  const sendNowPlaying = (stopped = false) => {
+    nowPlayingIdRef.current ||= Math.random().toString(36).slice(2, 12);
+    const video = videoRef.current;
+    const report = stopped
+      ? { id: nowPlayingIdRef.current, stopped: true }
+      : {
+          id: nowPlayingIdRef.current,
+          anilistId: anilistId ? Number(anilistId) : null,
+          episode: episodeNumber,
+          title: initialTitle || null,
+          server,
+          audio: selectedType,
+          position: video ? Math.round(video.currentTime) : null,
+          duration: video && video.duration > 0 && Number.isFinite(video.duration) ? Math.round(video.duration) : null,
+          paused: video ? video.paused : true,
+          party: sync ? "sala" : null,
+        };
+    try {
+      const body = JSON.stringify(report);
+      if (navigator.sendBeacon) navigator.sendBeacon("/api/now-playing", new Blob([body], { type: "text/plain" }));
+      else fetch("/api/now-playing", { method: "POST", body, keepalive: true }).catch(() => {});
+    } catch {}
+  };
+  const sendNowPlayingRef = useRef(sendNowPlaying);
+  sendNowPlayingRef.current = sendNowPlaying;
+  useEffect(() => {
+    sendNowPlayingRef.current();
+    if (!isPlaying) return;
+    const timer = setInterval(() => sendNowPlayingRef.current(), 15_000);
+    return () => clearInterval(timer);
+  }, [isPlaying, server, selectedType, anilistId, episodeNumber]);
+  useEffect(() => {
+    const stop = () => sendNowPlayingRef.current(true);
+    window.addEventListener("pagehide", stop);
+    return () => {
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, []);
+
   // The episode finished in this viewing (by its progress key): it stays finished, even after
   // going back over a scene
   const finishedRef = useRef<string | null>(null);

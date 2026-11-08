@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import http from "http";
 import https from "https";
 import axios from "axios";
@@ -101,7 +102,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get("url");
   const referer = searchParams.get("referer") || "";
@@ -188,3 +189,6 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({ error: result.error }, { status: result.status, headers: CORS_HEADERS });
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("video", handleGet);

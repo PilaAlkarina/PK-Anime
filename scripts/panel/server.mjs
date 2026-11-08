@@ -18,6 +18,10 @@ import { join } from "node:path";
 import { ROOT } from "../build-slots.mjs";
 import { gitInfo, jobState, onJobChange, startAction, ACTIONS } from "./actions.mjs";
 import { linesSince, onLine, say } from "./log.mjs";
+import { activity, appMemory, startActivity } from "./activity.mjs";
+import { apkInfo, buildApk } from "./apk.mjs";
+import { AppUnavailable, appJson, appTarget } from "./app-api.mjs";
+import { machine } from "./machine.mjs";
 
 const COOKIE = "pk_panel";
 const SESSION_DAYS = 30;
@@ -172,6 +176,7 @@ export function startPanel(server) {
   onJobChange(nudge);
   server.events.on("change", nudge);
   const heartbeat = setInterval(() => broadcast(": ping\n\n"), 20_000);
+  const tracker = startActivity(server);
 
   function openStream(req, res, url) {
     const after = Number(req.headers["last-event-id"] || url.searchParams.get("after") || 0);
@@ -237,6 +242,50 @@ export function startPanel(server) {
     if (path === "/api/state" && method === "GET") return send(res, 200, await state());
     if (path === "/api/events" && method === "GET") return openStream(req, res, url);
 
+    if (path === "/api/activity" && method === "GET") return send(res, 200, activity());
+    if (path === "/api/machine" && method === "GET") {
+      return send(res, 200, machine({ appMemory: appMemory(), live: server.status().folder }));
+    }
+    if (path === "/api/log" && method === "GET") return sendLog(res, url);
+
+    // Stream servers: the app's own health check (/api/status), run again on demand
+    if (path === "/api/providers" && method === "GET") return proxyStatus(res, "/api/status?peek=1", 10_000);
+    if (path === "/api/providers/check" && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      log("Comprobando los servidores de vídeo…");
+      return proxyStatus(res, "/api/status?refresh=1", 120_000);
+    }
+
+    if (path === "/api/rooms/close" && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      const { code } = await readJson(req);
+      if (typeof code !== "string" || !/^[A-Z0-9]{4,8}$/.test(code)) return send(res, 400, { error: "Código no válido" });
+      try {
+        const { status } = await appJson(server, "/api/internal/rooms", { method: "POST", body: { close: code } });
+        if (status !== 200) return send(res, 404, { error: "Esa sala ya no existe" });
+        log(`Sala ${code} cerrada desde el panel.`);
+        return send(res, 200, { ok: true });
+      } catch (error) {
+        return send(res, 503, { error: error.message });
+      }
+    }
+
+    if (path === "/api/apk" && method === "GET") {
+      return send(res, 200, await apkInfo({ fresh: url.searchParams.get("fresh") === "1" }));
+    }
+    if (path === "/api/apk/build" && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      try {
+        const branch = (await gitInfo()).branch;
+        const ref = branch && branch !== "HEAD" ? branch : "main";
+        await buildApk(ref);
+        log(`Compilación de la app de TV lanzada en GitHub (${ref}).`);
+        return send(res, 202, { ok: true });
+      } catch (error) {
+        return send(res, 400, { error: error.message });
+      }
+    }
+
     const action = path.match(/^\/api\/action\/([a-z]+)$/)?.[1];
     if (action && method === "POST") {
       if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
@@ -249,9 +298,42 @@ export function startPanel(server) {
     return send(res, 404, { error: "No encontrado" });
   }
 
+  /** The app's health check, passed on as it is */
+  async function proxyStatus(res, path, timeout) {
+    try {
+      const { status, data } = await appJson(server, path, { timeout });
+      return send(res, status === 200 ? 200 : 502, data ?? { error: "Respuesta no válida del servidor" });
+    } catch (error) {
+      return send(res, error instanceof AppUnavailable ? 503 : 500, { error: error.message });
+    }
+  }
+
+  /** The console as a text file; ?source=, ?errors=1 and ?q= narrow it like the page's filters */
+  function sendLog(res, url) {
+    const source = url.searchParams.get("source");
+    const errorsOnly = url.searchParams.get("errors") === "1";
+    const query = (url.searchParams.get("q") || "").toLowerCase();
+    const pad = (n) => String(n).padStart(2, "0");
+    const stamp = (ms) => {
+      const d = new Date(ms);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+    const lines = linesSince(0)
+      .filter((line) => !source || source === "all" || line.source === source || (source === "tarea" && line.source === "serve"))
+      .filter((line) => !errorsOnly || line.level === "error")
+      .filter((line) => !query || line.text.toLowerCase().includes(query))
+      .map((line) => `${stamp(line.t)}  ${line.level === "error" ? "ERROR " : ""}[${line.source}] ${line.text}`);
+    const now = new Date();
+    const name = `pk-anime-consola-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.txt`;
+    return send(res, 200, `${lines.join("\n")}\n`, {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${name}"`,
+    });
+  }
+
   // ---- front door: everything that isn't the panel goes to the app ------------------------------
 
-  const target = !server.appHost || ["0.0.0.0", "::", "[::]"].includes(server.appHost) ? "127.0.0.1" : server.appHost;
+  const target = appTarget(server);
 
   function proxyToApp(req, res) {
     const headers = { ...req.headers };
@@ -304,6 +386,8 @@ export function startPanel(server) {
       }
     }
 
+    // The panel talks to /api/internal on the app's own port; from outside it doesn't exist
+    if (!isPanel && path.startsWith("/api/internal")) return send(res, 404, "No encontrado");
     if (!isPanel) return proxyToApp(req, res);
     handlePanel(req, res, url, path).catch((error) => {
       log(`Error en el panel: ${error?.message ?? error}`, "error");
@@ -328,6 +412,7 @@ export function startPanel(server) {
   return {
     close() {
       clearInterval(heartbeat);
+      tracker.stop();
       for (const res of streams) res.end();
       httpServer.close();
     },

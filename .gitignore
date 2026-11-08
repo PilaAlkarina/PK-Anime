@@ -5,6 +5,9 @@ node_modules
 .next-b
 .next-active
 .next-active.tmp
+# The control panel's daily traffic totals
+.panel-stats.json
+.panel-stats.json.tmp
 .env*.local
 dist
 out

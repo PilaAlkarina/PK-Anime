@@ -6,6 +6,7 @@ import { resolveBuzzStream } from "@/lib/buzz";
 import { getAniSkipTimes } from "@/lib/aniskip";
 
 import { ticketStore } from "@/lib/tickets";
+import { noteServerResult } from "@/lib/server-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") || searchParams.get("query") || searchParams.get("title");
@@ -1000,4 +1001,16 @@ export async function GET(request: NextRequest) {
       { status: 500, headers: CORS_HEADERS }
     );
   }
+}
+
+/** How each request went, per stream server, for the control panel's server list */
+export async function GET(request: NextRequest) {
+  const response = await handleGet(request);
+  const server = (request.nextUrl.searchParams.get("server") || "flow").toLowerCase();
+  if (response.status < 400) noteServerResult(request, server, true, response.status);
+  else {
+    const body = await response.clone().json().catch(() => null);
+    noteServerResult(request, server, false, response.status, String(body?.error || body?.message || ""));
+  }
+  return response;
 }

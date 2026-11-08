@@ -1,4 +1,5 @@
 import { httpFallbackHosts } from "@/lib/stream-proxy/https-fallback";
+import { INTERNAL_HEADER } from "@/lib/server-stats";
 
 /**
  * Live health of the services the player depends on. Each stream server is checked the way the
@@ -57,7 +58,8 @@ class StepError extends Error {
 async function get(url: string, step: string) {
   let res: Response;
   try {
-    res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(STEP_TIMEOUT_MS) });
+    // Marked as the server's own, so the control panel doesn't count it as someone watching
+    res = await fetch(url, { cache: "no-store", headers: { [INTERNAL_HEADER]: "status" }, signal: AbortSignal.timeout(STEP_TIMEOUT_MS) });
   } catch (err) {
     const e = err as { name?: string; cause?: { code?: string } };
     throw new StepError(step, e.name === "TimeoutError" ? "No responde (tiempo agotado)" : e.cause?.code || "Sin conexión");

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import { getOrRefreshDecryptionKey } from "@/lib/token-refresher";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get("url");
 
@@ -69,3 +70,6 @@ export async function GET(request: NextRequest) {
     { status: 410, headers: CORS_HEADERS }
   );
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("key", handleGet);

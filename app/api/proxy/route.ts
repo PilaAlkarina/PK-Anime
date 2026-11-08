@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import { requestOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ function rewriteHls(
     .join("\n");
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get("url");
 
@@ -183,3 +184,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("other", handleGet);

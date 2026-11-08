@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import axios from "axios";
 import { cleanCueText } from "@/components/player/player-core/subtitle-cues";
 
@@ -71,7 +72,7 @@ function convertSrtToVtt(srtText: string): string {
   return vtt;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rawTargetUrl = searchParams.get("url");
 
@@ -191,3 +192,6 @@ export async function GET(request: NextRequest) {
     });
   }
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("subtitles", handleGet);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import axios from "axios";
 import { withHttpsFallback } from "@/lib/stream-proxy/https-fallback";
 import http from "http";
@@ -43,7 +44,7 @@ export async function OPTIONS() {
   });
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   let targetUrl = searchParams.get("url");
   let pk = searchParams.get("pk") || "";
@@ -454,3 +455,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("playlist", handleGet);

@@ -11,6 +11,7 @@
  * here rather than in the app so it keeps working while the app restarts or after a bad update.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync, readFileSync, unwatchFile, watchFile } from "node:fs";
 import { join } from "node:path";
@@ -31,6 +32,8 @@ let held = false; // stopped on purpose (installing dependencies): nothing start
 let switching = false;
 let crashTimer = null;
 const events = new EventEmitter();
+// The panel reads the app's activity (/api/internal/*) with this; new on every start, never written down
+const internalToken = randomBytes(24).toString("base64url");
 
 const log = (message, level) => say("serve", message, level);
 
@@ -61,7 +64,12 @@ function start(folder) {
     stdio: ["ignore", "pipe", "pipe"],
     // A process group of its own on Linux and macOS, so the whole tree stops together
     detached: !isWindows,
-    env: { ...process.env, NODE_ENV: "production", ...(folder === ".next" ? {} : { NEXT_DIST_DIR: folder }) },
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      PK_INTERNAL_TOKEN: internalToken,
+      ...(folder === ".next" ? {} : { NEXT_DIST_DIR: folder }),
+    },
   });
   captureStream(child.stdout, "servidor", process.stdout);
   captureStream(child.stderr, "servidor", process.stderr, "error");
@@ -127,6 +135,7 @@ const server = {
   events,
   appPort,
   appHost,
+  internalToken,
   status: () => ({
     running: Boolean(child),
     held,

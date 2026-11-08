@@ -359,6 +359,22 @@ export function listen(party: Party, memberId: string, listener: (event: PartyEv
   };
 }
 
+/** Every open room, for the control panel */
+export function listParties() {
+  sweep();
+  return Array.from(parties.values()).map((party) => ({ ...snapshot(party), createdAt: party.createdAt }));
+}
+
+/** Closes a room from the control panel: everyone in it is told, as when the last one leaves */
+export function closeParty(code: unknown) {
+  const party = findParty(code);
+  if (!party) return false;
+  if (party.timer) clearTimeout(party.timer);
+  parties.delete(party.code);
+  party.members.forEach((m) => m.listeners.forEach((l) => l({ type: "closed" })));
+  return true;
+}
+
 /** Leaves the room; the host hands it to the next member, and the last one closes it */
 export function leaveParty(party: Party, memberId: string) {
   const member = party.members.get(memberId);

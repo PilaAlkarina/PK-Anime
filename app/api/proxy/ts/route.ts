@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { counted } from "@/lib/server-stats";
 import { getFreshStreamToken, fetchBufferWithBypass } from "@/lib/token-refresher";
 import { isStreamTokenExpired, replaceStreamToken } from "@/lib/token-utils";
 
@@ -115,7 +116,7 @@ function processTsBuffer(rawBuf: Buffer): Buffer {
   return buf;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   let targetUrl = searchParams.get("url");
 
@@ -244,3 +245,6 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+
+// What it sends is counted for the control panel
+export const GET = counted("video", handleGet);

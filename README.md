@@ -146,15 +146,31 @@ git pull && npm install && npm run deploy
 
 ### Control panel
 
-With `PANEL_PASSWORD` set in `.env.local`, `npm run serve` also runs a control panel for updating the server from a phone or any browser. It is served by `serve.mjs` itself, not by the app, so it keeps working while the app restarts or after an update that breaks it.
+With `PANEL_PASSWORD` set in `.env.local`, `npm run serve` also runs a control panel for updating and watching the server from a phone or any browser. It is served by `serve.mjs` itself, not by the app, so it keeps working while the app restarts or after an update that breaks it. On a wide screen the console fills the right half and the rest sits in three tabs on the left.
+
+**Control**
 
 - **Server**: whether it's running, which build, since when; *Reiniciar servidor*.
 - **Code**: the branch and commit, the commits waiting on GitHub (*Buscar cambios* fetches), and the files changed on this machine.
 - **Actualizar**: `git pull --ff-only`, `npm install` when `package.json` or `package-lock.json` changed, then `npm run deploy`. It refuses when this checkout has uncommitted changes to tracked files or commits that aren't on the remote. When the dependencies change, the server is stopped during the install and build, since Windows can't replace files a running server holds open; a failed build restarts the previous one.
 - **Recompilar** runs `npm run deploy` and **Volver a la anterior** `npm run rollback`.
-- **Consola**: the server's output and every task's, live, the last 2000 lines.
 
-The panel runs only that fixed list of commands, one at a time, never anything typed in it. Git is run with prompts off, so expired GitHub credentials fail in the console instead of waiting. A change under `scripts/` (the panel itself included) takes effect only when `npm run serve` is restarted; *Actualizar* says so.
+**Actividad** (its tab shows how many are watching)
+
+- **Ancho de banda**: what the proxies are sending right now, today and on each of the last seven days. All video goes through this server, so this is its upload. The app counts what each route under `/api/proxy` sends; the panel keeps the daily totals in `.panel-stats.json`, so they survive restarts.
+- **Reproducciones en curso**: every open player with the anime, episode, stream server, Sub/Dub, position, whether it's paused or in a room, and the device: its name in the hosts file (Meshnet writes its devices there, like `pc.nord`) and its browser or the TV app. Players report this to `/api/now-playing` every 15 s while playing; a device pulling video without reporting (an older version, another program) is listed by its address.
+- **Salas de «Ver juntos»**: every open room with its code, what it's watching, its state and who's in it; *Cerrar* closes one for everyone.
+- **Servidores de vídeo**: the result of the app's health check (`/api/status`: a reference episode, its playlist and its first segment from each server, plus AniList and AniSkip), *Comprobar ahora* to run it, and how real playback requests to each server went since the app started, with the last error.
+
+**Sistema**
+
+- **Máquina**: processor, memory and disk use, the system, how long it's been on, and how much memory the app and the panel take.
+- **Compilaciones**: the size of each build folder and which one is live.
+- **App de TV**: the latest APK release (version, date, size, downloads) with the link that always gives the latest, the last runs of its GitHub workflow, and *Compilar nueva versión*, which starts the workflow when `PANEL_GITHUB_TOKEN` is set.
+
+**Consola**: the server's output and every task's, live, the last 2000 lines, filtered by source, by errors only and by text, and *Descargar* saves what the filters show as a text file.
+
+The app's activity comes from `/api/internal/stats`, which answers only with a token `npm run serve` makes on each start and hands to the app it runs (`PK_INTERNAL_TOKEN`); under `npm run dev` it doesn't exist, and the front door refuses `/api/internal` from outside. The panel runs only a fixed list of commands, one at a time, never anything typed in it. Git is run with prompts off, so expired GitHub credentials fail in the console instead of waiting. A change under `scripts/` (the panel itself included) takes effect only when `npm run serve` is restarted; *Actualizar* says so.
 
 | Variable | Default | |
 | --- | --- | --- |
@@ -163,6 +179,7 @@ The panel runs only that fixed list of commands, one at a time, never anything t
 | `PANEL_HOST` | `0.0.0.0` | Address it listens on |
 | `PANEL_PATH` | | Serve the panel under this path and pass the rest of `PANEL_PORT` on to the app |
 | `PANEL_HOSTNAME` | | The same, for requests to this host name |
+| `PANEL_GITHUB_TOKEN` | | A GitHub token with *Actions: read and write* on the repository (a fine-grained token limited to it is enough), for *Compilar nueva versión*. Without it the TV app section still shows the release and the builds, within GitHub's 60 anonymous requests an hour |
 
 On its own port the panel is at `http://<server>:3001/`. To reach it through the site's usual address, give the app another port and let the panel's port be the front door. For example, with `PANEL_PORT=80` and `PANEL_PATH=/admin` in `.env.local`:
 
