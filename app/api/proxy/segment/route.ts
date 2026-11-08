@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { counted } from "@/lib/server-stats";
+import { CACHE_HIT_HEADER, counted } from "@/lib/server-stats";
 import http from "http";
 import https from "https";
 import axios from "axios";
@@ -48,7 +48,7 @@ function setCachedSegment(url: string, buf: Uint8Array) {
   segmentCache.set(url, { buf, time: Date.now() });
 }
 
-function segmentResponse(buf: Uint8Array) {
+function segmentResponse(buf: Uint8Array, fromCache = false) {
   return new NextResponse(buf as unknown as BodyInit, {
     status: 200,
     headers: {
@@ -56,6 +56,8 @@ function segmentResponse(buf: Uint8Array) {
       "Content-Type": "video/mp2t",
       "Content-Length": buf.length.toString(),
       "Cache-Control": "public, max-age=86400, immutable",
+      // Not a download from the provider: left out of its speed (lib/server-stats.ts)
+      ...(fromCache ? { [CACHE_HIT_HEADER]: "hit" } : {}),
     },
   });
 }
@@ -128,7 +130,7 @@ async function handleGet(request: NextRequest) {
     targetUrl.includes("ibyteimg") ||
     targetUrl.includes("vibevibe")
   ) {
-    return NextResponse.json({ error: "Blocked segment" }, { status: 403, headers: CORS_HEADERS });
+    return NextResponse.json({ error: "Blocked segment" }, { status: 403, headers: { ...CORS_HEADERS, [CACHE_HIT_HEADER]: "blocked" } });
   }
 
   if (request.signal.aborted) {
@@ -137,7 +139,7 @@ async function handleGet(request: NextRequest) {
 
   const cached = getCachedSegment(targetUrl);
   if (cached) {
-    return segmentResponse(cached);
+    return segmentResponse(cached, true);
   }
 
   let effectiveReferer = referer;

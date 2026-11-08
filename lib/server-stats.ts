@@ -17,6 +17,27 @@ const MAX_PLAYERS = 100;
 
 /** Requests the server makes to itself (the health check) carry this header and aren't counted */
 export const INTERNAL_HEADER = "x-pk-internal";
+/**
+ * Set by the segment proxies on an answer that didn't come from the provider: one from their own
+ * cache ("hit"), or an ad segment refused ("blocked"). Neither counts for the provider's speed.
+ */
+export const CACHE_HIT_HEADER = "x-pk-cache";
+/**
+ * Which stream server a proxied URL belongs to ("flow", "kitty"…). The server choice puts it on the
+ * playlist it hands out, and `counted` copies it onto every URL inside each playlist, so the
+ * segments carry it and their downloads are measured per server.
+ */
+export const SERVER_TAG = "pks";
+/** Provider downloads kept per server, and how far back they count for its speed */
+const UPSTREAM_SAMPLES = 120;
+const UPSTREAM_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+interface UpstreamSample {
+  at: number;
+  ms: number;
+  bytes: number;
+  ok: boolean;
+}
 
 interface Device {
   ip: string;
@@ -43,6 +64,8 @@ export interface NowPlaying {
   paused: boolean;
   /** In a "Ver juntos" room */
   party: string | null;
+  /** Why the server choice picked this server ("español de España · 1,2 s") */
+  choice: string | null;
   startedAt: number;
   updatedAt: number;
 }
@@ -64,6 +87,7 @@ interface Stats {
   devices: Map<string, Device>;
   players: Map<string, NowPlaying>;
   servers: Map<string, ServerUse>;
+  upstream: Map<string, UpstreamSample[]>;
 }
 
 // One copy for the whole server process, whatever module instance a route got
@@ -78,7 +102,10 @@ const stats: Stats = (g.__pkServerStats ??= {
   devices: new Map(),
   players: new Map(),
   servers: new Map(),
+  upstream: new Map(),
 });
+// A server started before the upstream map existed (hot reload in development)
+stats.upstream ??= new Map();
 
 /** The visitor's address: the first X-Forwarded-For hop (the panel's front door sets it), else the socket's */
 export function clientIp(request: NextRequest | Request) {
@@ -137,14 +164,78 @@ export function noteTransfer(request: NextRequest | Request, bytes: number, kind
   addToSlots(device.slots, bytes);
 }
 
+/** A download from a provider: how long it took and how much came, or that it failed */
+export function noteUpstream(server: string, ms: number, bytes: number, ok: boolean) {
+  const id = server.toLowerCase();
+  const samples = stats.upstream.get(id) ?? [];
+  samples.push({ at: Date.now(), ms, bytes, ok });
+  if (samples.length > UPSTREAM_SAMPLES) samples.splice(0, samples.length - UPSTREAM_SAMPLES);
+  stats.upstream.set(id, samples);
+}
+
+export interface UpstreamMetrics {
+  /** Downloads measured in the window */
+  samples: number;
+  /** Bytes per second while downloading from the provider */
+  throughput: number | null;
+  /** Median time of one segment download, ms */
+  segmentMs: number | null;
+  /** Share of failed downloads, 0–1 */
+  errorRate: number;
+  lastAt: number;
+}
+
+/** How a server's provider has been answering lately, from real playback; null without data */
+export function upstreamMetrics(server: string, windowMs = UPSTREAM_WINDOW_MS): UpstreamMetrics | null {
+  const since = Date.now() - windowMs;
+  const samples = (stats.upstream.get(server.toLowerCase()) ?? []).filter((s) => s.at >= since);
+  if (samples.length === 0) return null;
+  const ok = samples.filter((s) => s.ok && s.ms > 0);
+  const bytes = ok.reduce((sum, s) => sum + s.bytes, 0);
+  const ms = ok.reduce((sum, s) => sum + s.ms, 0);
+  const times = ok.map((s) => s.ms).sort((a, b) => a - b);
+  return {
+    samples: samples.length,
+    throughput: ms > 0 ? Math.round((bytes / ms) * 1000) : null,
+    segmentMs: times.length ? times[Math.floor(times.length / 2)] : null,
+    errorRate: 1 - ok.length / samples.length,
+    lastAt: samples[samples.length - 1].at,
+  };
+}
+
+/** Adds the server tag to every proxy URL in a playlist (lines and URI="…" attributes) */
+function tagPlaylist(text: string, server: string) {
+  return text.replace(/\/api\/proxy\/[a-z0-9]+\?[^"\s]*/g, (url) =>
+    url.includes(`${SERVER_TAG}=`) ? url : `${url}&${SERVER_TAG}=${encodeURIComponent(server)}`
+  );
+}
+
 /**
  * Wraps a proxy route's GET so what it sends is counted. The size comes from Content-Length, or
- * by counting the body as it streams out when there is none.
+ * by counting the body as it streams out when there is none. With the server tag, a playlist
+ * passes the tag on to its URLs, and a segment's download from the provider is timed.
  */
 export function counted<C>(kind: string, handler: (request: NextRequest, context: C) => Promise<Response>) {
   return async (request: NextRequest, context: C): Promise<Response> => {
-    const response = await handler(request, context);
+    const started = Date.now();
+    let response = await handler(request, context);
     try {
+      const tag = request.nextUrl.searchParams.get(SERVER_TAG)?.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
+      // Answers from the proxy's cache and ad segments it refuses say nothing of the provider
+      if (tag && kind === "video" && !response.headers.get(CACHE_HIT_HEADER)) {
+        if (response.status >= 400) noteUpstream(tag, Date.now() - started, 0, false);
+        else noteUpstream(tag, Date.now() - started, Number(response.headers.get("content-length")) || 0, true);
+      }
+      if (tag && kind === "playlist" && response.status < 400 && response.body) {
+        const headers = new Headers(response.headers);
+        headers.delete("content-length");
+        response = new Response(tagPlaylist(await response.text(), tag), {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+
       if (response.status >= 400 || !response.body || request.headers.get(INTERNAL_HEADER)) return response;
       const length = Number(response.headers.get("content-length"));
       if (length > 0) {
@@ -217,6 +308,7 @@ export function notePlaying(request: NextRequest | Request, report: Record<strin
     duration: number(report.duration),
     paused: report.paused === true,
     party: text(report.party, 12),
+    choice: text(report.choice, 80),
     startedAt: same ? previous.startedAt : now,
     updatedAt: now,
   });
@@ -235,7 +327,12 @@ export function statsSnapshot() {
     rate: rateOf(stats.slots),
     devices: Array.from(stats.devices.values()).map(({ slots, ...device }) => ({ ...device, rate: rateOf(slots) })),
     players: Array.from(stats.players.values()),
-    servers: Object.fromEntries(stats.servers),
+    servers: Object.fromEntries(
+      ["flow", "kitty", "yuri", "zuri", "buzz"].map((id) => [
+        id,
+        { ...(stats.servers.get(id) ?? { ok: 0, failed: 0, lastOkAt: null, lastError: null }), upstream: upstreamMetrics(id) },
+      ])
+    ),
     memory: process.memoryUsage().rss,
   };
 }

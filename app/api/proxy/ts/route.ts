@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { counted } from "@/lib/server-stats";
+import { CACHE_HIT_HEADER, counted } from "@/lib/server-stats";
 import { getFreshStreamToken, fetchBufferWithBypass } from "@/lib/token-refresher";
 import { isStreamTokenExpired, replaceStreamToken } from "@/lib/token-utils";
 
@@ -148,6 +148,8 @@ async function handleGet(request: NextRequest) {
         "Content-Type": "video/mp2t",
         "Content-Length": cached.length.toString(),
         "Cache-Control": "public, max-age=86400, immutable",
+        // Not a download from the provider: left out of its speed (lib/server-stats.ts)
+        [CACHE_HIT_HEADER]: "hit",
       },
     });
   }

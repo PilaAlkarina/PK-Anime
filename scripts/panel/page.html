@@ -147,6 +147,12 @@
   .kv dt { color: var(--muted); }
   .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
   .gauge + .gauge { margin-top: 12px; }
+  .order { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .order li { display: flex; align-items: center; gap: 10px; background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 4px 6px 4px 12px; }
+  .order li b { width: 18px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .order li span { flex: 1; font-weight: 600; }
+  .order button { min-height: 32px; min-width: 36px; padding: 4px 8px; }
+  .choice { color: var(--paper2); }
   .gauge .line1 { font-size: 14px; }
   .empty-note { color: var(--faint); font-size: 14px; }
   .copy-row { display: flex; gap: 8px; margin-top: 10px; }
@@ -287,6 +293,9 @@
     <h2><span class="grow">Servidores de vídeo</span><span class="aside" id="providersWhen"></span></h2>
     <ul class="list" id="providers"></ul>
     <div class="actions"><button class="btn" id="checkProviders">Comprobar ahora</button></div>
+    <h2 style="margin:20px 0 6px">Orden de preferencia</h2>
+    <div class="meta" style="margin:0 0 10px">Decide cuando el idioma, el HTTPS y la conexión empatan. El servidor que cada uno elige en Ajustes va antes.</div>
+    <ol class="order" id="serverOrder"></ol>
   </section>
   </div>
 
@@ -477,6 +486,7 @@
       $(`#pane-${button.dataset.tab}`).hidden = !selected;
     }
     try { localStorage.setItem("pk-panel-tab", name); } catch {}
+    if (name === "activity") loadOrder();
     startPolling();
   }
   const tabNames = ["control", "activity", "system"];
@@ -686,7 +696,8 @@
       const what = p.title ? `${escapeHtml(p.title)}${p.episode ? ` · Ep ${p.episode}` : ""}` : p.anilistId ? `Anime ${p.anilistId} · Ep ${p.episode ?? "?"}` : "Reproductor";
       return `<li>
         <div class="line1"><span class="title">${what}</span>${tags}<span class="num">${p.rate ? rate(p.rate) : ""}</span></div>
-        <div class="meta">${escapeHtml(deviceName(p))} · ${escapeHtml(serverName(p.server))}${p.audio ? ` ${escapeHtml(String(p.audio).toUpperCase())}` : ""} · ${mmss(p.position)} / ${mmss(p.duration)} · ${bytes(p.bytes)} enviados · desde ${ago(p.startedAt).replace("hace ", "hace ")}</div>
+        <div class="meta">${escapeHtml(deviceName(p))} · ${escapeHtml(serverName(p.server))}${p.audio ? ` ${escapeHtml(String(p.audio).toUpperCase())}` : ""} · ${mmss(p.position)} / ${mmss(p.duration)} · ${bytes(p.bytes)} enviados · desde ${ago(p.startedAt)}</div>
+        ${p.choice ? `<div class="meta choice">Elegido por el servidor: ${escapeHtml(p.choice)}</div>` : ""}
         ${percentBar(fraction, p.paused ? "calm" : "")}
       </li>`;
     });
@@ -778,9 +789,15 @@
         ? `<div class="meta bad-text">${escapeHtml(check.detail || "")}${check.step && STEP_TEXT[check.step] ? ` (${STEP_TEXT[check.step]})` : ""}</div>`
         : "";
       let real = "";
-      if (use) {
+      const up = use?.upstream;
+      if (up && up.samples) {
+        const speed = up.throughput != null ? `${rate(up.throughput)}` : "—";
+        const errors = up.errorRate ? ` · ${Math.round(up.errorRate * 100)} % fallidas` : "";
+        real += `<div class="meta">Velocidad real: ${speed} por descarga${up.segmentMs != null ? ` · ${(up.segmentMs / 1000).toFixed(1)} s por trozo` : ""}${errors} (${plural(up.samples, "descarga", "descargas")}, última ${ago(up.lastAt)})</div>`;
+      }
+      if (use && use.ok + use.failed > 0) {
         const parts = [`${plural(use.ok, "petición bien", "peticiones bien")}`, `${use.failed} con error`];
-        real = `<div class="meta">Uso real desde que arrancó: ${parts.join(" · ")}</div>`;
+        real += `<div class="meta">Peticiones desde que arrancó: ${parts.join(" · ")}</div>`;
         if (use.lastError) {
           const fresh = !use.lastOkAt || use.lastError.at > use.lastOkAt;
           real += `<div class="meta ${fresh ? "bad-text" : ""}">Último error ${ago(use.lastError.at)}: HTTP ${use.lastError.status}${use.lastError.message ? ` · ${escapeHtml(use.lastError.message)}` : ""}</div>`;
@@ -810,6 +827,47 @@
     } finally {
       checking = false;
       renderProviders();
+    }
+  });
+
+  // Order the server choice falls back to; each move is saved at once
+  let serverOrder = null;
+
+  async function loadOrder() {
+    try {
+      serverOrder = (await api("api/server-order")).order;
+    } catch {}
+    renderOrder();
+  }
+
+  function renderOrder() {
+    if (!serverOrder) return;
+    const last = serverOrder.length - 1;
+    $("#serverOrder").innerHTML = serverOrder
+      .map((id, i) => `<li><b>${i + 1}</b><span>${escapeHtml(serverName(id))}</span>
+        <button class="btn small" data-move="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Subir ${escapeHtml(serverName(id))}">↑</button>
+        <button class="btn small" data-move="${i}" data-dir="1" ${i === last ? "disabled" : ""} aria-label="Bajar ${escapeHtml(serverName(id))}">↓</button></li>`)
+      .join("");
+  }
+
+  $("#serverOrder").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-move]");
+    if (!button || !serverOrder) return;
+    const from = Number(button.dataset.move);
+    const dir = Number(button.dataset.dir);
+    const to = from + dir;
+    const next = [...serverOrder];
+    [next[from], next[to]] = [next[to], next[from]];
+    serverOrder = next;
+    renderOrder();
+    // Keep the keyboard on the server that moved
+    ($(`[data-move="${to}"][data-dir="${dir}"]:not([disabled])`) || $(`[data-move="${to}"]:not([disabled])`))?.focus();
+    try {
+      serverOrder = (await api("api/server-order", { method: "POST", body: JSON.stringify({ order: next }) })).order;
+      toast(`Orden guardado: ${serverOrder.map(serverName).join(" → ")}`);
+    } catch (error) {
+      toast(error.message);
+      loadOrder();
     }
   });
 

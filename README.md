@@ -62,13 +62,21 @@ Add `?ui=tv` or `?ui=web` to any library URL to force one on that browser (store
 
 **Advanced search.** On computers this is the *Biblioteca* section of the top bar (on phones, the *Buscar* tab); with nothing chosen it lists the whole catalog, most popular first. `/search` combines the title text with filters: format (series, movie, special, OVA, ONA…), status, season, a range of years, genres and community tags (each one included or excluded; several of either must all match), source material, number of episodes, minimum score and country of origin, plus the sort order. The state lives in the URL (`/search?q=…&genre=Action&no-genre=Romance&tag=Isekai&format=TV&from=2018&to=2024&sort=SCORE_DESC`), so searches can be shared and survive going back from an anime. Genres and tags on an anime's page, and the genre tiles, open it with that filter applied. On TV every filter is a chip reachable with the remote; tags there are a list of the most common ones, while the web screens search all of them by name.
 
-**Playback preferences.** *Ajustes* stores the preferred audio, an ordered list of subtitle languages, what to show over a dub (full, signs and songs only, or nothing), a preferred server and the subtitle format. When an episode starts, the player:
+**Playback preferences.** *Ajustes* stores the preferred audio, an ordered list of subtitle languages, what to show over a dub (full, signs and songs only, or nothing), a preferred server and the subtitle format.
 
-1. Plays the dub if one exists, otherwise the original audio.
-2. Walks the subtitle languages in order and plays from the first server that has the current one: the preferred server first, then the current server, then Flow, Kitty, Buzz, Yuri and Zuri. Yuri and Zuri only list subtitles when asked directly, so they are checked only if no other server has the language.
-3. Uses the provider's default track (or English) when no listed language exists anywhere.
+**Server choice.** Before an episode starts, the player asks the server which stream server to play from (`/api/play/choose`, in `lib/server-choice.ts`). The server asks all five for the episode at once and ranks them in layers, each deciding only when the ones above tie (`lib/server-ranking.ts`):
 
-If the chosen server fails, the usual failover moves to the next server and picks its best match from the same list. Embeds that set `?server=` keep that server and only choose the track. Toggle *Buscar el idioma en otros servidores* off to never change server for subtitles.
+1. **Available**: it has the episode and isn't down.
+2. **Audio**: a real dub, when the dub was asked for, over a fallback to Japanese.
+3. **Language**: the first subtitle language in *Ajustes*, then the next… The language always decides.
+4. **HTTPS**: within the same language, a provider reached over HTTPS before one only reachable over HTTP (those that refuse HTTPS). An HTTP server with the language still wins over HTTPS servers without it.
+5. **Connection**, only when one is clearly better: the other is down or slow by the checks, too slow for the video (under about 1.1 MB/s), or takes twice as long and at least 1.5 s more to start. This also overrides the variant of the language, never the language.
+6. **Variant**: Spanish from Spain, then without a region, then Latin American.
+7. **Order**: the preferred server in *Ajustes*, then the order set in the control panel (Flow, Kitty, Buzz, Yuri, Zuri by default, kept in `.pk-settings.json`).
+
+The connection comes from real playback (the proxy times each segment it fetches from each provider, over the last half hour, for servers with at least three), the health check of `/api/status`, which now also runs on its own every 15 minutes while people are watching, and, for a server with neither, from fetching its first segment at that moment. That one-off figure gives the time to start only: one segment says little about speed. The answer comes as soon as no server still answering can beat the best one, or after 3 s; the rest keep resolving in the background and update the result, which is kept for 10 minutes. At 80% of an episode the player asks for the next one, so *Siguiente episodio* starts right away. The answer carries the chosen server's playback data, so the player starts on it without asking `/api/play` again and never switches server after starting; if it fails, the failover tries the others in the server's order. A server chosen by hand is kept for that episode. With *Buscar el idioma en otros servidores* off, the language doesn't take part. Embeds that set `?server=` keep that server. `node scripts/check-server-ranking.mjs` checks the layers against example cases.
+
+When there is no listed language anywhere, the player uses the provider's default track (or English).
 
 **Remote control.** Arrows move the focus, Enter selects, and Back goes to the previous screen without ever leaving the site. In the player, arrows seek (left/right) and change the volume (up/down), Enter and the remote's play/pause keys toggle playback, and fast-forward/rewind seek 10 s. Back keys recognised: Escape, Backspace, Tizen `10009` and webOS `461`. A pointer (LG Magic Remote, mouse) focuses whatever it moves over.
 
@@ -158,9 +166,9 @@ With `PANEL_PASSWORD` set in `.env.local`, `npm run serve` also runs a control p
 **Actividad** (its tab shows how many are watching)
 
 - **Ancho de banda**: what the proxies are sending right now, today and on each of the last seven days. All video goes through this server, so this is its upload. The app counts what each route under `/api/proxy` sends; the panel keeps the daily totals in `.panel-stats.json`, so they survive restarts.
-- **Reproducciones en curso**: every open player with the anime, episode, stream server, Sub/Dub, position, whether it's paused or in a room, and the device: its name in the hosts file (Meshnet writes its devices there, like `pc.nord`) and its browser or the TV app. Players report this to `/api/now-playing` every 15 s while playing; a device pulling video without reporting (an older version, another program) is listed by its address.
+- **Reproducciones en curso**: every open player with the anime, episode, stream server, Sub/Dub, position, whether it's paused or in a room, and the device: its name in the hosts file (Meshnet writes its devices there, like `pc.nord`) and its browser or the TV app, and why the server chose that stream server (*español de España · 2,1 MB/s*). Players report this to `/api/now-playing` every 15 s while playing; a device pulling video without reporting (an older version, another program) is listed by its address.
 - **Salas de «Ver juntos»**: every open room with its code, what it's watching, its state and who's in it; *Cerrar* closes one for everyone.
-- **Servidores de vídeo**: the result of the app's health check (`/api/status`: a reference episode, its playlist and its first segment from each server, plus AniList and AniSkip), *Comprobar ahora* to run it, and how real playback requests to each server went since the app started, with the last error.
+- **Servidores de vídeo**: the result of the app's health check (`/api/status`: a reference episode, its playlist and its first segment from each server, plus AniList and AniSkip), *Comprobar ahora* to run it, each server's real speed from the segments the proxy fetched from it, how real playback requests to it went since the app started with the last error, and *Orden de preferencia*: the order the server choice falls back to when everything else ties, saved as soon as a server is moved.
 
 **Sistema**
 

@@ -178,6 +178,14 @@ async function runChecks(origin: string): Promise<StatusReport> {
   return { checkedAt: new Date().toISOString(), services, httpFallbackHosts: httpFallbackHosts() };
 }
 
+/** The last report however old, with when it was made; null before the first check */
+export function lastStatus(): { report: StatusReport; at: number } | null {
+  return cached;
+}
+
+/** True while a check is running */
+export const statusChecking = () => inFlight !== null;
+
 /** The last report without running a check, or null: for indicators shown on every page */
 export function peekStatus(): (StatusReport & { cached: true }) | null {
   if (!cached || Date.now() - cached.at > CACHE_MS) return null;

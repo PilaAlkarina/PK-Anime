@@ -22,6 +22,7 @@ import { activity, appMemory, startActivity } from "./activity.mjs";
 import { apkInfo, buildApk } from "./apk.mjs";
 import { AppUnavailable, appJson, appTarget } from "./app-api.mjs";
 import { machine } from "./machine.mjs";
+import { serverOrder, setServerOrder } from "./settings.mjs";
 
 const COOKIE = "pk_panel";
 const SESSION_DAYS = 30;
@@ -254,6 +255,19 @@ export function startPanel(server) {
       if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
       log("Comprobando los servidores de vídeo…");
       return proxyStatus(res, "/api/status?refresh=1", 120_000);
+    }
+
+    // Order the server choice falls back to when language, security and connection tie
+    if (path === "/api/server-order" && method === "GET") return send(res, 200, { order: serverOrder() });
+    if (path === "/api/server-order" && method === "POST") {
+      if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
+      try {
+        const order = setServerOrder((await readJson(req)).order);
+        log(`Orden de servidores: ${order.join(" → ")}.`);
+        return send(res, 200, { order });
+      } catch (error) {
+        return send(res, 400, { error: error.message });
+      }
     }
 
     if (path === "/api/rooms/close" && method === "POST") {

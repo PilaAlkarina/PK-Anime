@@ -8,6 +8,9 @@ node_modules
 # The control panel's daily traffic totals
 .panel-stats.json
 .panel-stats.json.tmp
+# Settings of this server edited in the panel (stream server order)
+.pk-settings.json
+.pk-settings.json.tmp
 .env*.local
 dist
 out

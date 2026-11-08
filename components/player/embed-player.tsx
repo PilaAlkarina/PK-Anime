@@ -27,7 +27,17 @@ import { getMediaAction } from "@/lib/tv/keys";
 import type { SubtitleStyles } from "./subtitle-settings-dialog";
 import { attachAvSyncGuard } from "./player-core/av-sync-guard";
 import { collectScopedSubtitles } from "./player-core/subtitle-scope";
-import { choosePreferredServer, pickSubtitleTrack } from "./player-core/preferred-source";
+import { pickSubtitleTrack, serverCodeOf } from "./player-core/preferred-source";
+
+/** What /api/play/choose answers (lib/server-choice.ts), as far as the player reads it */
+interface ServerChoiceResponse {
+  success: boolean;
+  server?: string;
+  audio?: "sub" | "dub";
+  summary?: string;
+  ranking?: { server: string; state: string }[];
+  play?: any;
+}
 import { adaptSkipTimes } from "@/lib/skip-times-adapter";
 import { getPlaybackPreferences, updatePlaybackPreferences } from "@/lib/playback-preferences";
 import { isBackKey } from "@/lib/tv/keys";
@@ -436,6 +446,36 @@ export function EmbedPlayer({
   const malSyncedRef = useRef<boolean>(false);
   // Episode whose server the preferences already picked, so manual switches are left alone
   const autoServerDoneRef = useRef<string | null>(null);
+  // The server's choice for this episode: why, and the others in order for failing over
+  const serverChoiceRef = useRef<(ServerChoiceResponse & { key: string }) | null>(null);
+  // The chosen server's /api/play data, used once instead of asking again
+  const choicePlayRef = useRef<{ key: string; data: any } | null>(null);
+
+  /** Asks the server which stream server to play an episode from (lib/server-choice.ts) */
+  const fetchServerChoice = useCallback(
+    async (episode: number, audio: "sub" | "dub", { prefetch = false } = {}): Promise<ServerChoiceResponse | null> => {
+      const prefs = getPlaybackPreferences();
+      const q = new URLSearchParams({
+        episode: String(episode),
+        audio,
+        // Without "change server for subtitles" the language doesn't decide the server
+        langs: prefs.switchServerForSubtitles ? prefs.subtitleLanguages.join(",") : "",
+        subs: prefs.subtitlesEnabled ? "1" : "0",
+        dubSubs: prefs.dubSubtitles,
+        server: prefs.preferredServer,
+      });
+      if (anilistId) q.set("anilistId", String(anilistId));
+      if (malId) q.set("malId", String(malId));
+      if (prefetch) q.set("prefetch", "1");
+      try {
+        const res = await fetch(`/api/play/choose?${q}`);
+        return (await res.json()) as ServerChoiceResponse;
+      } catch {
+        return null;
+      }
+    },
+    [anilistId, malId]
+  );
 
   // Watch position is saved in this browser, per anime and episode
   // Per library profile, like the rest of what the library keeps on the device
@@ -459,6 +499,11 @@ export function EmbedPlayer({
           duration: video && video.duration > 0 && Number.isFinite(video.duration) ? Math.round(video.duration) : null,
           paused: video ? video.paused : true,
           party: sync ? "sala" : null,
+          // Why the server picked this server, while it's still the one playing
+          choice:
+            serverChoiceRef.current?.key === `${anilistId}:${malId}:${episodeNumber}` && serverChoiceRef.current.server === server
+              ? serverChoiceRef.current.summary || null
+              : null,
         };
     try {
       const body = JSON.stringify(report);
@@ -801,11 +846,36 @@ export function EmbedPlayer({
         params.set("audio", selectedType);
         params.set("server", server);
 
-        const res = await fetch(`/api/play?${params.toString()}`);
-        if (!res.ok) {
-          throw new Error(`El servidor no devolvió el vídeo (error ${res.status})`);
+        // Once per episode the server picks where to play from (lib/server-choice.ts) and sends
+        // that server's data along, so playback starts on it without a second request
+        const episodeKey = `${anilistId}:${malId}:${episodeNumber}`;
+        if (autoSelectServer && autoServerDoneRef.current !== episodeKey) {
+          autoServerDoneRef.current = episodeKey;
+          const choice = await fetchServerChoice(episodeNumber, selectedType);
+          if (cancelled) return;
+          if (choice?.success && choice.server) {
+            serverChoiceRef.current = { key: episodeKey, ...choice };
+            choicePlayRef.current = choice.play ? { key: `${episodeKey}:${choice.server}:${selectedType}`, data: choice.play } : null;
+            if (choice.server !== server) {
+              // The effect runs again on the new server and takes the data from choicePlayRef
+              setServer(choice.server);
+              return;
+            }
+          }
         }
-        const data = await res.json();
+
+        const playKey = `${episodeKey}:${server}:${selectedType}`;
+        let data: any;
+        if (choicePlayRef.current?.key === playKey) {
+          data = choicePlayRef.current.data;
+          choicePlayRef.current = null;
+        } else {
+          const res = await fetch(`/api/play?${params.toString()}`);
+          if (!res.ok) {
+            throw new Error(`El servidor no devolvió el vídeo (error ${res.status})`);
+          }
+          data = await res.json();
+        }
         if (cancelled) return;
 
         const initialStream = data.streamUrl || data.m3u8 || data.url || data.fullM3u8;
@@ -922,42 +992,6 @@ export function EmbedPlayer({
         }
         if (!selectedSource) {
           selectedSource = allAvailableSources.find(typeMatch) || allAvailableSources[0];
-        }
-
-        // Once per episode, let the preferences move playback to the preferred server or to
-        // the one that has the wanted subtitle language; the effect then reloads that server
-        const episodeKey = `${anilistId}:${malId}:${episodeNumber}`;
-        if (autoSelectServer && autoServerDoneRef.current !== episodeKey) {
-          autoServerDoneRef.current = episodeKey;
-          const audio = isDub ? "dub" : "sub";
-          const choice = await choosePreferredServer({
-            sources: cleanedIncoming,
-            audio,
-            currentServer: server,
-            prefs: getPlaybackPreferences(),
-            probeSubtitles: async (code) => {
-              const probe = new URLSearchParams(params);
-              probe.set("audio", audio);
-              probe.set("server", code);
-              const probeData = await fetch(`/api/play?${probe}`).then((r) => r.json());
-              // The API answers from another server when this one has nothing
-              return String(probeData?.server || "").toLowerCase().includes(code) && Array.isArray(probeData.subtitles)
-                ? probeData.subtitles
-                : [];
-            },
-          });
-          if (cancelled) return;
-          if (choice) {
-            const serverLabel = choice.server.charAt(0).toUpperCase() + choice.server.slice(1);
-            showToast(
-              "info",
-              choice.language
-                ? `Cambiado a ${serverLabel} para tener subtítulos en ${subtitleLanguageName(choice.language).toLowerCase()}`
-                : `Cambiado a ${serverLabel}`
-            );
-            setServer(choice.server);
-            return;
-          }
         }
 
         if (selectedSource) {
@@ -1967,6 +2001,17 @@ export function EmbedPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextUp]);
 
+  // Most of the way through, the server already chooses where the next episode plays from, so
+  // "Siguiente episodio" starts without waiting for it
+  const prefetchedNextRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!nextEpisode || !autoSelectServer || !duration || currentTime < duration * 0.8) return;
+    const key = `${anilistId}:${malId}:${nextEpisode.number}:${selectedType}`;
+    if (prefetchedNextRef.current === key) return;
+    prefetchedNextRef.current = key;
+    fetchServerChoice(nextEpisode.number, selectedType, { prefetch: true });
+  }, [nextEpisode, autoSelectServer, duration, currentTime, anilistId, malId, selectedType, fetchServerChoice]);
+
   useEffect(() => {
     if (!nextUp || nextCountdown === null) return;
     if (nextCountdown <= 0) {
@@ -2340,7 +2385,14 @@ export function EmbedPlayer({
         failPlayback("offline", "No hay conexión a internet");
         return;
       }
-      const available = selectedType === "dub" ? nativeDubSources : nativeSubSources;
+      const listed = selectedType === "dub" ? nativeDubSources : nativeSubSources;
+      // In the order the server ranked them for this episode, when it did
+      const ranking = serverChoiceRef.current?.key === `${anilistId}:${malId}:${episodeNumber}` ? serverChoiceRef.current.ranking : null;
+      const rankOf = (s: VideoSourceData) => {
+        const index = ranking ? ranking.findIndex((r) => r.server === serverCodeOf(s)) : -1;
+        return index === -1 ? Infinity : index;
+      };
+      const available = ranking ? [...listed].sort((a, b) => rankOf(a) - rankOf(b)) : listed;
       const current = available.find((s) => s.id === activeSourceId || s.videoUrl === streamUrl);
       if (current) triedRef.current.set(current.id, { name: getSourceProvider(current), reason, detail });
 
@@ -2359,7 +2411,7 @@ export function EmbedPlayer({
         noneHasIt ? "Ningún servidor tiene este episodio ahora mismo" : "No se ha podido reproducir en ningún servidor"
       );
     },
-    [selectedType, nativeDubSources, nativeSubSources, activeSourceId, streamUrl, getSourceProvider, formatServerRouteName, showToast, handleSelectSource, failPlayback]
+    [selectedType, nativeDubSources, nativeSubSources, activeSourceId, streamUrl, anilistId, malId, episodeNumber, getSourceProvider, formatServerRouteName, showToast, handleSelectSource, failPlayback]
   );
 
   useEffect(() => {
