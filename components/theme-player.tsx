@@ -232,7 +232,8 @@ export function ThemePlayer({
     <div
       ref={rootRef}
       className={cn(
-        "fixed top-0 left-0 z-[70] w-screen h-screen bg-black text-white overflow-hidden select-none font-product-sans",
+        // Pure black beside the video, not the theme's ink that `bg-black` maps to
+        "fixed top-0 left-0 z-[70] w-screen h-screen bg-[#000] text-white overflow-hidden select-none font-product-sans",
         !visible && "cursor-none"
       )}
       onMouseMove={isTv ? undefined : reveal}

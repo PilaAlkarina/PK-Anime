@@ -1678,14 +1678,9 @@ export function EmbedPlayer({
       singleTapTimerRef.current = null;
       lastTapInfoRef.current = null;
 
-      const wasControlsVisible = showControlsRef.current;
-      // Always show/keep controls visible and wait 3s before auto-hiding - just like on PC!
+      // A first tap only brings up the controls; with them showing, a tap plays or pauses
       handleUserActivity();
-
-      // If controls were already visible, tapping the screen toggles play/pause (just like on PC!)
-      if (wasControlsVisible) {
-        togglePlay();
-      }
+      if (wasControlsVisible) togglePlay();
     }, 250);
   };
 
@@ -1697,6 +1692,9 @@ export function EmbedPlayer({
     skipTimes.outro && currentTime >= skipTimes.outro.start && currentTime < skipWindow(skipTimes.outro).to
   );
 
+    // Whether the bar showed when the finger lifted: read now, before the browser's emulated
+    // mouse events (and anything else in the next 250 ms) bring it up
+    const wasControlsVisible = showControlsRef.current;
 
   const canPlayNext = Boolean(onNextEpisode && nextEpisode);
 
@@ -2691,10 +2689,12 @@ export function EmbedPlayer({
         isFullscreen && "fixed inset-0 z-[99999] w-screen h-screen"
       )}
     >
-      {/* Video: shrinks into a frame on the left while "up next" shows on wide screens */}
+      {/* Video: shrinks into a frame on the left while "up next" shows on wide screens. The bars
+          beside a picture narrower than the screen (phones are longer than 16:9) are pure black,
+          not the theme's ink that `bg-black` maps to */}
       <div
         className={cn(
-          "absolute inset-0 origin-top-left transition-[transform,border-radius] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden",
+          "absolute inset-0 bg-[#000] origin-top-left transition-[transform,border-radius] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden",
           framedNext && "rounded-[36px]"
         )}
         style={framedNext ? { transform: "translate(5.5%, 18.5%) scale(0.486)" } : undefined}
@@ -2798,7 +2798,7 @@ export function EmbedPlayer({
         <div
           className={cn(
             "absolute inset-y-0 w-1/3 z-20 flex items-center justify-center pointer-events-none animate-in fade-in duration-150",
-            seekFeedback.side === "left" ? "left-0 bg-gradient-to-r from-black/35 to-transparent" : "right-0 bg-gradient-to-l from-black/35 to-transparent"
+            seekFeedback.side === "left" ? "left-0 bg-gradient-to-r from-[#000]/35 to-transparent" : "right-0 bg-gradient-to-l from-[#000]/35 to-transparent"
           )}
         >
           <div className={cn("flex items-center gap-2 rounded-full bg-black/75 border-[1.5px] border-line font-bold", tv ? "px-7 py-4 text-3xl" : "px-4 py-2.5 text-sm")}>
@@ -2846,7 +2846,7 @@ export function EmbedPlayer({
       {!tv && (
         <div
           className={cn(
-            "absolute inset-0 z-[25] hidden touch:block bg-black/45 pointer-events-none transition-opacity duration-300",
+            "absolute inset-0 z-[25] hidden touch:block bg-[#000]/45 pointer-events-none transition-opacity duration-300",
             showControls && showBar && !showPauseScreen ? "opacity-100" : "opacity-0"
           )}
         />
@@ -2855,14 +2855,14 @@ export function EmbedPlayer({
       {/* Gradients behind the header and the controls */}
       <div
         className={cn(
-          "absolute inset-x-0 top-0 z-[25] bg-gradient-to-b from-black/85 to-transparent pointer-events-none transition-opacity duration-300",
+          "absolute inset-x-0 top-0 z-[25] bg-gradient-to-b from-[#000]/85 to-transparent pointer-events-none transition-opacity duration-300",
           tv ? "h-56" : "h-32 sm:h-44",
           controlsVisible && !nextUp && !showPauseScreen ? "opacity-100" : "opacity-0"
         )}
       />
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 z-[25] bg-gradient-to-t from-black/90 to-transparent pointer-events-none transition-opacity duration-300",
+          "absolute inset-x-0 bottom-0 z-[25] bg-gradient-to-t from-[#000]/90 to-transparent pointer-events-none transition-opacity duration-300",
           tv ? "h-[26rem]" : "h-40 mouse:h-36 mouse:sm:h-[280px]",
           controlsVisible && showBar ? "opacity-100" : "opacity-0"
         )}

@@ -65,7 +65,8 @@ export function TrailerOverlay({ src, title, onClose }: { src: string; title: st
   }, [src]);
 
   return (
-    <div className="fixed top-0 left-0 z-[70] w-screen h-screen bg-black">
+    // Pure black beside the video, not the theme's ink that `bg-black` maps to
+    <div className="fixed top-0 left-0 z-[70] w-screen h-screen bg-[#000]">
       <iframe
         ref={iframeRef}
         src={src}

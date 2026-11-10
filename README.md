@@ -291,7 +291,7 @@ Some providers return the original Japanese audio when an English dub doesn't ex
   - Volume boost up to 200% via the Web Audio API.
   - Playback speed from 0.25x to 2.0x.
   - Adaptive bitrate, or a fixed resolution (1080p, 720p, 480p, 360p).
-- **Mobile:** tap to toggle controls, double-tap left or right to seek ±10 s, and automatic landscape lock in fullscreen.
+- **Mobile:** a tap brings up the controls and, while they show, a tap plays or pauses; double-tap left or right to seek ±10 s, and automatic landscape lock in fullscreen.
 
 ### API Reference
 
