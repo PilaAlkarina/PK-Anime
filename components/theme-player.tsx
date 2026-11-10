@@ -11,6 +11,7 @@ import { useBackHandler } from "@/components/tv/navigation-provider";
 import { useIsTv } from "@/components/ui-mode";
 import { Timeline } from "@/components/player/ui/timeline";
 import { RemoteHints } from "@/components/player/ui/remote-hints";
+import { BLANK_POSTER } from "@/components/player/player-core/blank-poster";
 import { cn, formatSecondsToTime } from "@/lib/utils";
 
 export interface ThemeTrack {
@@ -244,6 +245,7 @@ export function ThemePlayer({
         key={theme.video}
         ref={videoRef}
         src={theme.video}
+        poster={BLANK_POSTER}
         autoPlay
         playsInline
         preload="auto"
@@ -260,7 +262,10 @@ export function ThemePlayer({
           if (ranges.length) setBuffered(ranges.end(ranges.length - 1));
         }}
         onEnded={() => go(1)}
-        onError={() => setFailed(true)}
+        // Only a real media failure: Android's web view also fires "error" for its default poster
+        onError={(e) => {
+          if (e.currentTarget.error) setFailed(true);
+        }}
         onClick={isTv ? undefined : toggle}
         onDoubleClick={isTv ? undefined : toggleFullscreen}
       />

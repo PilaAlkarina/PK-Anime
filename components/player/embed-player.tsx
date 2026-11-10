@@ -44,6 +44,7 @@ import { isBackKey } from "@/lib/tv/keys";
 import { useBackHandler } from "@/components/tv/navigation-provider";
 import { Timeline } from "./ui/timeline";
 import { useFramePreview } from "./player-core/frame-preview";
+import { BLANK_POSTER } from "./player-core/blank-poster";
 import { SettingsPanel, type PanelView } from "./ui/settings-panel";
 import { PauseScreen } from "./ui/pause-screen";
 import { NextEpisodeScreen } from "./ui/next-episode-screen";
@@ -2705,8 +2706,17 @@ export function EmbedPlayer({
       >
         <video
           ref={videoRef}
+          poster={BLANK_POSTER}
           onError={(e) => {
-            console.warn("HTML5 video error:", e);
+            // Only a real media failure counts: Android's web view fires "error" on the video when
+            // its own default poster fails to load (blocked by CORS on a crossOrigin video), while
+            // the video plays fine
+            const mediaError = e.currentTarget.error;
+            if (!mediaError) {
+              console.warn("Video error event without a media error: ignored");
+              return;
+            }
+            console.warn("HTML5 video error:", mediaError.code, mediaError.message);
             setIsLoading(false);
             fallbackRef.current?.();
           }}
