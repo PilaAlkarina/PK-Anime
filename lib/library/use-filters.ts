@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { CatalogRow, Tag } from "@/lib/anilist/types";
 import { filtersKey, filtersToParams, hasAnyFilter, parseFilters, type CatalogFilters } from "@/lib/anilist/filters";
+import { isLeaving } from "@/lib/tv/leaving";
 
 const SEARCH_DELAY_MS = 350;
 
@@ -23,6 +24,8 @@ export function useUrlFilters(): [CatalogFilters, (next: CatalogFilters) => void
   // the state passed isn't its own (it carries `__NA` and is then left alone): hence null.
   const setFilters = useCallback(
     (next: CatalogFilters) => {
+      // Leaving for a page the phone remote opened: rewriting the URL would cancel that
+      if (isLeaving()) return;
       const qs = filtersToParams(next).toString();
       window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },

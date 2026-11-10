@@ -6,6 +6,7 @@ import type { RemoteCommand, RemoteKey } from "@/lib/pairing/store";
 import { authClient } from "@/lib/auth-client";
 import { refreshAccount } from "@/lib/library/account";
 import { REMOTE_TEXT_EVENT, setPendingRemoteText } from "@/lib/tv/remote-text";
+import { clearLeaving, markLeaving } from "@/lib/tv/leaving";
 import { useIsTv } from "@/components/ui-mode";
 import type { UiMode } from "@/lib/ui-mode";
 import { ProfileOfferDialog, type ProfileOffer } from "@/components/profile-offer";
@@ -130,6 +131,8 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   const reconnectRef = useRef<ReturnType<typeof setTimeout>>();
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
+  // A page the phone opened has shown: the one left behind may write its URL again
+  useEffect(() => clearLeaving(), [pathname]);
 
   // A profile the phone sent, waiting for the TV to say what to do with it
   const [profileOffer, setProfileOffer] = useState<ProfileOffer | null>(null);
@@ -165,7 +168,11 @@ export function TvLinkProvider({ children }: { children: React.ReactNode }) {
   const runCommand = useCallback(
     (command: RemoteCommand) => {
       if (command.kind === "key") pressKey(command.key);
-      else if (command.kind === "navigate") router.push(command.href);
+      else if (command.kind === "navigate") {
+        // The search that just opened could otherwise write its query into the URL and cancel this
+        if (command.href !== pathnameRef.current) markLeaving();
+        router.push(command.href);
+      }
       else if (command.kind === "signout") authClient.signOut().finally(() => refreshAccount());
       else if (command.kind === "party") {
         window.dispatchEvent(new CustomEvent(PARTY_COMMAND_EVENT, { detail: { action: command.action, code: command.code } }));
