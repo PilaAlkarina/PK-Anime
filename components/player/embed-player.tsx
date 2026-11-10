@@ -43,6 +43,7 @@ import { getPlaybackPreferences, updatePlaybackPreferences } from "@/lib/playbac
 import { isBackKey } from "@/lib/tv/keys";
 import { useBackHandler } from "@/components/tv/navigation-provider";
 import { Timeline } from "./ui/timeline";
+import { useFramePreview } from "./player-core/frame-preview";
 import { SettingsPanel, type PanelView } from "./ui/settings-panel";
 import { PauseScreen } from "./ui/pause-screen";
 import { NextEpisodeScreen } from "./ui/next-episode-screen";
@@ -301,6 +302,8 @@ export function EmbedPlayer({
   const [autoSkipState, setAutoSkipState] = useState<boolean>(autoskipIntro ?? true);
   const [autoSkipOutroState, setAutoSkipOutroState] = useState<boolean>(autoskipOutro ?? true);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  // Frames over the seek bar from what's loaded or watched (not on TV: a second decoder is too much there)
+  const framePreview = useFramePreview({ videoRef, hlsRef, streamUrl, enabled: !tv });
   const [animeTitle, setAnimeTitle] = useState<string>(initialTitle || "Anime");
   const [reloadCounter, setReloadCounter] = useState<number>(0);
 
@@ -2672,6 +2675,8 @@ export function EmbedPlayer({
       showKnob={tv ? !showPauseScreen : showPauseScreen}
       showLabels={!tv && !showPauseScreen}
       thin={showPauseScreen}
+      onPreview={framePreview.request}
+      preview={framePreview.frame}
     />
   );
 

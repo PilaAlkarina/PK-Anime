@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn, formatSecondsToTime } from "@/lib/utils";
 import type { SkipRange } from "./types";
 
@@ -22,6 +22,10 @@ interface TimelineProps {
   thin?: boolean;
   /** What the slider moves through, for screen readers */
   label?: string;
+  /** The time under the pointer (hover or drag), or null when it leaves: for the frame preview */
+  onPreview?: (seconds: number | null) => void;
+  /** Frame shown over the time while hovering or dragging, when one is ready */
+  preview?: { time: number; src: string } | null;
 }
 
 const pct = (value: number, duration: number) => `${Math.min(100, Math.max(0, (value / duration) * 100))}%`;
@@ -75,10 +79,19 @@ export function Timeline({
   showKnob = false,
   thin = false,
   label = "Progreso del episodio",
+  onPreview,
+  preview = null,
 }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
+
+  const pointed = drag ?? hover;
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+  useEffect(() => {
+    onPreviewRef.current?.(pointed);
+  }, [pointed]);
 
   const timeAt = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -87,7 +100,7 @@ export function Timeline({
   };
 
   const shown = drag ?? currentTime;
-  const tip = drag ?? hover;
+  const tip = pointed;
   const tipSegment =
     tip === null
       ? null
@@ -198,11 +211,20 @@ export function Timeline({
 
         {tip !== null && duration > 0 && !tv && (
           <div
-            className="absolute bottom-full mb-2 px-2.5 py-1 rounded-md bg-white text-black text-[13px] font-bold tabular-nums whitespace-nowrap pointer-events-none -translate-x-1/2"
-            style={{ left: `clamp(2.5rem, ${pct(tip, duration)}, calc(100% - 2.5rem))` }}
+            className="absolute bottom-full mb-2 flex flex-col items-center pointer-events-none -translate-x-1/2"
+            style={{ left: preview ? `clamp(5rem, ${pct(tip, duration)}, calc(100% - 5rem))` : `clamp(2.5rem, ${pct(tip, duration)}, calc(100% - 2.5rem))` }}
           >
-            {tipSegment && <span className="mr-1.5 text-red-600">{tipSegment}</span>}
-            {formatSecondsToTime(tip)}
+            {preview && (
+              <img
+                src={preview.src}
+                alt=""
+                className="block w-40 aspect-video mb-1.5 object-cover rounded-lg border-[1.5px] border-white/80 bg-[#000] shadow-[0_6px_18px_rgba(0,0,0,0.55)]"
+              />
+            )}
+            <span className="px-2.5 py-1 rounded-md bg-white text-black text-[13px] font-bold tabular-nums whitespace-nowrap">
+              {tipSegment && <span className="mr-1.5 text-red-600">{tipSegment}</span>}
+              {formatSecondsToTime(tip)}
+            </span>
           </div>
         )}
       </div>
