@@ -16,10 +16,20 @@ export function isFmp4Buffer(buf: Uint8Array): boolean {
   return FMP4_BOX_TYPES.has(box);
 }
 
+/** Packets that must start with the sync byte before an offset counts as plain MPEG-TS */
+const TS_SYNC_RUN = 16;
+
+/**
+ * Whether plain MPEG-TS starts at `offset`: the sync byte on every packet, up to TS_SYNC_RUN of
+ * them (all of them in a short buffer). Three in a row is not enough: AES ciphertext has them by
+ * chance often enough to trim a valid segment now and then (seen on Flow's audio track).
+ */
 export function isPlainTsAt(buf: Uint8Array, offset: number): boolean {
   if (buf[offset] !== 0x47) return false;
-  if (offset + TS_PACKET_SIZE < buf.length && buf[offset + TS_PACKET_SIZE] !== 0x47) return false;
-  if (offset + TS_PACKET_SIZE * 2 < buf.length && buf[offset + TS_PACKET_SIZE * 2] !== 0x47) return false;
+  const packets = Math.min(TS_SYNC_RUN, Math.ceil((buf.length - offset) / TS_PACKET_SIZE));
+  for (let k = 1; k < packets; k++) {
+    if (buf[offset + k * TS_PACKET_SIZE] !== 0x47) return false;
+  }
   return true;
 }
 
@@ -54,13 +64,7 @@ export function findTsStartOffset(buf: Uint8Array, encrypted = false, maxScan = 
 
   const limit = Math.min(buf.length - TS_PACKET_SIZE * 2, maxScan);
   for (let i = 1; i < limit; i++) {
-    if (
-      buf[i] === 0x47 &&
-      buf[i + TS_PACKET_SIZE] === 0x47 &&
-      (i + TS_PACKET_SIZE * 2 >= buf.length || buf[i + TS_PACKET_SIZE * 2] === 0x47)
-    ) {
-      return i;
-    }
+    if (isPlainTsAt(buf, i)) return i;
   }
   return -1;
 }

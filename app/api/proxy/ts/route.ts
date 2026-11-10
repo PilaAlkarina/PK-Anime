@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CACHE_HIT_HEADER, counted } from "@/lib/server-stats";
 import { getFreshStreamToken, fetchBufferWithBypass } from "@/lib/token-refresher";
 import { isStreamTokenExpired, replaceStreamToken } from "@/lib/token-utils";
+import { isPlainTsAt } from "@/lib/stream-proxy/media-buffer";
 
 export const dynamic = "force-dynamic";
 
@@ -50,22 +51,21 @@ function setCachedSegment(url: string, buf: Buffer) {
 // In-flight request deduplication map to avoid parallel duplicate network round-trips
 const inFlightSegments = new Map<string, Promise<Buffer | null>>();
 
+const TS_PACKET = 188;
+
 function processTsBuffer(rawBuf: Buffer): Buffer {
   let buf = rawBuf;
 
   // 1. If already clean MPEG-TS or has a dummy image header with plain TS packets:
   let foundPlainOffset = -1;
-  if (buf.length >= 188) {
-    if (buf[0] === 0x47 && (buf.length < 376 || buf[188] === 0x47)) {
+  if (buf.length >= TS_PACKET) {
+    // Ciphertext can show sync bytes 188 apart by chance: isPlainTsAt wants a long run of them
+    if (isPlainTsAt(buf, 0)) {
       foundPlainOffset = 0;
     } else {
-      const searchLimit = Math.min(buf.length - 376, 2048);
-      for (let i = 0; i < searchLimit; i++) {
-        if (
-          buf[i] === 0x47 &&
-          buf[i + 188] === 0x47 &&
-          (i + 376 >= buf.length || buf[i + 376] === 0x47)
-        ) {
+      const searchLimit = Math.min(buf.length - TS_PACKET, 2048);
+      for (let i = 1; i < searchLimit; i++) {
+        if (isPlainTsAt(buf, i)) {
           foundPlainOffset = i;
           break;
         }
