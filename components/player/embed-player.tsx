@@ -1673,6 +1673,9 @@ export function EmbedPlayer({
     // Record potential first tap
     lastTapInfoRef.current = { time: now, x: touch.clientX, y: touch.clientY };
 
+    // Whether the bar showed when the finger lifted: read now, before the browser's emulated
+    // mouse events (and anything else in the next 250 ms) bring it up
+    const wasControlsVisible = showControlsRef.current;
     if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
     singleTapTimerRef.current = setTimeout(() => {
       singleTapTimerRef.current = null;
@@ -1691,10 +1694,6 @@ export function EmbedPlayer({
   const isInsideOutro = Boolean(
     skipTimes.outro && currentTime >= skipTimes.outro.start && currentTime < skipWindow(skipTimes.outro).to
   );
-
-    // Whether the bar showed when the finger lifted: read now, before the browser's emulated
-    // mouse events (and anything else in the next 250 ms) bring it up
-    const wasControlsVisible = showControlsRef.current;
 
   const canPlayNext = Boolean(onNextEpisode && nextEpisode);
 
