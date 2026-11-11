@@ -1,6 +1,7 @@
 "use client";
 
 import { Hanko } from "@/components/brand";
+import { ICON_STROKE, ICON_STROKE_BOLD } from "@/components/icons";
 import { useOriginsFromClicks } from "@/lib/shared-element";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -199,7 +200,7 @@ function TabBar() {
               active ? "text-red-500" : "text-zinc-400"
             )}
           >
-            <Icon className="w-6 h-6" strokeWidth={active ? 2.4 : 2} aria-hidden />
+            <Icon className="w-6 h-6" strokeWidth={active ? ICON_STROKE_BOLD : ICON_STROKE} aria-hidden />
             <span className={active ? "font-black text-white" : "font-bold"}>{label}</span>
           </Link>
         );

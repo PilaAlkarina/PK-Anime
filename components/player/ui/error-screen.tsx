@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, RotateCcw, WifiOff } from "lucide-react";
 import { Keycap } from "@/components/brand";
+import { RemoteKeys } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 export type PlayerErrorKind =
@@ -195,7 +196,7 @@ export function PlayerErrorScreen({
       {onBack &&
         (tv ? (
           <p className="absolute top-[3.6rem] left-[10rem] flex items-center gap-3 text-[1.15rem] font-medium text-zinc-200">
-            <Keycap>⟵</Keycap> Volver a la ficha
+            <Keycap><RemoteKeys keys={["back"]} /></Keycap> Volver a la ficha
           </p>
         ) : (
           <button

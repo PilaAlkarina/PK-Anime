@@ -291,7 +291,7 @@ export function startPanel(server) {
       if (!sameOrigin(req)) return send(res, 403, { error: "Origen no permitido" });
       try {
         const order = setServerOrder((await readJson(req)).order);
-        log(`Orden de servidores: ${order.join(" → ")}.`);
+        log(`Orden de servidores: ${order.join(", ")}.`);
         return send(res, 200, { order });
       } catch (error) {
         return send(res, 400, { error: error.message });

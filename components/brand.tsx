@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import { scoreOutOfTen } from "@/lib/library/format";
+import { ScoreStarIcon } from "@/components/icons";
 
 /**
  * Brand pieces of the «Tinta y sello» identity. Colors come from the active theme, so they
@@ -155,18 +156,18 @@ export function Keycap({ children, className }: { children: React.ReactNode; cla
   );
 }
 
-/** "★ 8,6" in the second accent; AniList's 0–100 average shown out of ten */
+/** Star and "8,6" in the second accent; AniList's 0–100 average shown out of ten */
 export function ScoreStar({ score, className }: { score: number; className?: string }) {
   return (
     <span className={cn("whitespace-nowrap text-accent2", className)}>
       <span className="sr-only">Puntuación </span>
-      <span aria-hidden="true">★ </span>
+      <ScoreStarIcon className="mr-[0.25em]" />
       {scoreOutOfTen(score)}
     </span>
   );
 }
 
-/** A meta line with the score as a ScoreStar: "Serie · 2023 · 28 episodios · ★ 9,1 · Aventura" */
+/** A meta line with the score as a ScoreStar: "Serie · 2023 · 28 episodios · (star) 9,1 · Aventura" */
 export function MetaWithScore({
   before,
   score,

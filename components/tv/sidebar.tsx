@@ -1,6 +1,7 @@
 "use client";
 
 import { Hanko } from "@/components/brand";
+import { ICON_STROKE, ICON_STROKE_BOLD } from "@/components/icons";
 import { usePathname, useRouter } from "next/navigation";
 import { Bookmark, CalendarDays, Home, LayoutGrid, Search, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { FocusContext, navigateByDirection, useFocusable } from "@noriginmedia/norigin-spatial-navigation";
@@ -52,7 +53,7 @@ function SidebarItem({
         focused ? "bg-white text-black" : active ? "bg-ink-3 text-red-500" : "text-zinc-400"
       )}
     >
-      <Icon className="w-7 h-7 flex-shrink-0" strokeWidth={active || focused ? 2.5 : 2} />
+      <Icon className="w-7 h-7 flex-shrink-0" strokeWidth={active || focused ? ICON_STROKE_BOLD : ICON_STROKE} />
       <span
         className={cn(
           "mt-1.5 text-[0.95rem] leading-tight whitespace-nowrap",

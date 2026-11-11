@@ -11,6 +11,7 @@ import { useBackHandler } from "@/components/tv/navigation-provider";
 import { useIsTv } from "@/components/ui-mode";
 import { Timeline } from "@/components/player/ui/timeline";
 import { RemoteHints } from "@/components/player/ui/remote-hints";
+import { RemoteKeys } from "@/components/icons";
 import { BLANK_POSTER } from "@/components/player/player-core/blank-poster";
 import { cn, formatSecondsToTime } from "@/lib/utils";
 
@@ -306,7 +307,7 @@ export function ThemePlayer({
             title="Cerrar (Esc)"
             className={iconButton("mr-3 sm:mr-4 border-[1.5px] border-line bg-black/60 hover:bg-black/80")}
           >
-            <ChevronLeft className="w-[22px] h-[22px]" strokeWidth={2.4} />
+            <ChevronLeft className="w-[22px] h-[22px]" />
           </button>
         )}
         <div className="flex flex-col min-w-0 flex-1">
@@ -386,8 +387,8 @@ export function ThemePlayer({
                 compact
                 hints={[
                   ["OK", paused ? "Reproducir" : "Pausa"],
-                  ...(tracks.length > 1 ? ([["◀ ▶", "Canción"]] as [string, string][]) : []),
-                  ["⟵", "Salir"],
+                  ...(tracks.length > 1 ? ([[<RemoteKeys keys={["left", "right"]} />, "Canción"]] as [React.ReactNode, string][]) : []),
+                  [<RemoteKeys keys={["back"]} />, "Salir"],
                 ]}
               />
             </div>

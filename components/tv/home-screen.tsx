@@ -13,6 +13,7 @@ import { rowShowsAiring } from "@/components/airing-tag";
 import { FocusButton, Screen } from "./focusable";
 import { Hero } from "./hero";
 import { Keycap } from "@/components/brand";
+import { RemoteKeys } from "@/components/icons";
 import { useMounted } from "./page-frame";
 import { LibraryFooter } from "@/components/library-footer";
 import { scrollToPosition } from "@/lib/tv/scroll";
@@ -52,7 +53,7 @@ function PagedRow({
   );
 }
 
-function KeyHint({ keyLabel, children }: { keyLabel: string; children: React.ReactNode }) {
+function KeyHint({ keyLabel, children }: { keyLabel: React.ReactNode; children: React.ReactNode }) {
   return (
     <span className="flex items-center ml-6 first:ml-0">
       <Keycap className="mr-2">{keyLabel}</Keycap>
@@ -65,7 +66,7 @@ function KeyHint({ keyLabel, children }: { keyLabel: string; children: React.Rea
 function RemoteHints() {
   return (
     <div className="fixed top-[4vh] right-[3rem] z-30 flex items-center px-5 py-2 rounded-full bg-zinc-900/90 border border-line text-lg text-zinc-200">
-      <KeyHint keyLabel="◀ ▶ ▲ ▼">Moverse</KeyHint>
+      <KeyHint keyLabel={<RemoteKeys keys={["left", "right", "up", "down"]} />}>Moverse</KeyHint>
       <KeyHint keyLabel="OK">Abrir</KeyHint>
     </div>
   );

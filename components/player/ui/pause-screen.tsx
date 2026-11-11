@@ -1,6 +1,7 @@
 "use client";
 
 import { Stamp } from "@/components/brand";
+import { RemoteKeys } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import { ListVideo, Play, RotateCcw } from "lucide-react";
 import { cn, formatSecondsToTime } from "@/lib/utils";
@@ -223,8 +224,8 @@ export function PauseScreen(props: PauseScreenProps) {
           className="absolute right-[7.5rem] bottom-14"
           hints={[
             ["OK", "Continuar"],
-            ["◀ ▶", "Opciones"],
-            ["⟵", "Volver a la ficha"],
+            [<RemoteKeys keys={["left", "right"]} />, "Opciones"],
+            [<RemoteKeys keys={["back"]} />, "Volver a la ficha"],
           ]}
         />
       )}

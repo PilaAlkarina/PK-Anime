@@ -107,7 +107,11 @@
 
   .steps { list-style: none; margin: 10px 0 0; padding: 0; }
   .steps li { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
-  .mark { width: 20px; text-align: center; flex: none; font-weight: 700; }
+  /* Icons: Lucide's paths and stroke, the same set as the app (components/icons.tsx) */
+  .icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; fill: none; stroke: currentColor;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .icon.filled { fill: currentColor; }
+  .mark { width: 20px; display: inline-flex; justify-content: center; flex: none; }
   .mark.ok { color: var(--ok); } .mark.error { color: var(--bad); } .mark.running { color: var(--second); }
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--second); border-right-color: transparent;
     border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; flex: none; }
@@ -344,7 +348,7 @@
     </div>
     <div class="console-wrap">
       <div id="console" class="mono" role="log" aria-live="off"><div class="empty">Conectando…</div></div>
-      <button class="btn small" id="toBottom" hidden>↓ Ir al final</button>
+      <button class="btn small" id="toBottom" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>Ir al final</button>
     </div>
   </section>
   </div>
@@ -369,6 +373,16 @@
 
   // ---- helpers ----------------------------------------------------------------------------------
 
+  // Lucide icons (lucide.dev), as SVG markup: the same set as the app
+  const ICONS = {
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    arrowDown: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  };
+  const icon = (name, className = "") =>
+    `<svg class="icon ${className}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
   const escapeHtml = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   function ago(ms) {
@@ -608,13 +622,13 @@
       $("#jobHeading").textContent = job ? "Tarea en marcha" : "Última tarea";
       $("#jobTitle").innerHTML =
         shown.status === "running" ? `<span class="spin"></span> ${escapeHtml(shown.title)}` :
-        shown.status === "ok" ? `<span class="mark ok">✓</span> ${escapeHtml(shown.title)}` :
-        `<span class="mark error">✕</span> ${escapeHtml(shown.title)}`;
+        shown.status === "ok" ? `<span class="mark ok">${icon("check")}</span> ${escapeHtml(shown.title)}` :
+        `<span class="mark error">${icon("x")}</span> ${escapeHtml(shown.title)}`;
       $("#jobTime").textContent = shown.endedAt
         ? `${ago(shown.endedAt)} · ${duration(shown.endedAt - shown.startedAt)}`
         : `desde ${clock(shown.startedAt)}`;
       $("#jobSteps").innerHTML = shown.steps.map((s) => {
-        const mark = s.status === "running" ? `<span class="spin"></span>` : s.status === "ok" ? "✓" : "✕";
+        const mark = s.status === "running" ? `<span class="spin"></span>` : s.status === "ok" ? icon("check") : icon("x");
         return `<li><span class="mark ${s.status}">${mark}</span><span>${escapeHtml(s.title)}</span></li>`;
       }).join("");
       const jobNotices = [];
@@ -720,7 +734,7 @@
             : "Eligiendo qué ver";
           const status = s.phase === "watching" ? (s.barrier ? "Sincronizando" : s.playing ? "Reproduciendo" : "En pausa") : "En espera";
           const members = room.members
-            .map((m) => `<span><span class="dot ${m.connected ? "ok" : ""}"></span>${escapeHtml(m.name)}${m.host ? " ★" : ""}${m.away ? ` <small class="faint">fuera</small>` : ""}</span>`)
+            .map((m) => `<span><span class="dot ${m.connected ? "ok" : ""}"></span>${escapeHtml(m.name)}${m.host ? ` <span role="img" aria-label="anfitrión" title="Anfitrión">${icon("star", "filled")}</span>` : ""}${m.away ? ` <small class="faint">fuera</small>` : ""}</span>`)
             .join("");
           return `<li>
             <div class="line1"><span class="title">${what}</span><code>${escapeHtml(room.code)}</code>
@@ -845,8 +859,8 @@
     const last = serverOrder.length - 1;
     $("#serverOrder").innerHTML = serverOrder
       .map((id, i) => `<li><b>${i + 1}</b><span>${escapeHtml(serverName(id))}</span>
-        <button class="btn small" data-move="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Subir ${escapeHtml(serverName(id))}">↑</button>
-        <button class="btn small" data-move="${i}" data-dir="1" ${i === last ? "disabled" : ""} aria-label="Bajar ${escapeHtml(serverName(id))}">↓</button></li>`)
+        <button class="btn small" data-move="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} aria-label="Subir ${escapeHtml(serverName(id))}">${icon("arrowUp")}</button>
+        <button class="btn small" data-move="${i}" data-dir="1" ${i === last ? "disabled" : ""} aria-label="Bajar ${escapeHtml(serverName(id))}">${icon("arrowDown")}</button></li>`)
       .join("");
   }
 
@@ -864,7 +878,7 @@
     ($(`[data-move="${to}"][data-dir="${dir}"]:not([disabled])`) || $(`[data-move="${to}"]:not([disabled])`))?.focus();
     try {
       serverOrder = (await api("api/server-order", { method: "POST", body: JSON.stringify({ order: next }) })).order;
-      toast(`Orden guardado: ${serverOrder.map(serverName).join(" → ")}`);
+      toast(`Orden guardado: ${serverOrder.map(serverName).join(", ")}`);
     } catch (error) {
       toast(error.message);
       loadOrder();

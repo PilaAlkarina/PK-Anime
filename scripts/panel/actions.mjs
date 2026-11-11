@@ -105,7 +105,7 @@ function npmCommand(args) {
 }
 
 function run(label, command, args, { shell = false } = {}) {
-  note(`▶ ${label}`);
+  note(`Ejecutando: ${label}`);
   // The command's last words usually say why it failed: they go in the task's error
   let lastLine = "";
   const stopListening = onLine((line) => {
@@ -273,12 +273,12 @@ export function startAction(name, server) {
     .run({ step, warn, server })
     .then(() => {
       job.status = "ok";
-      note(`✔ ${job.title}: terminado en ${Math.round((Date.now() - job.startedAt) / 1000)} s.`);
+      note(`${job.title}: terminado en ${Math.round((Date.now() - job.startedAt) / 1000)} s.`);
     })
     .catch((error) => {
       job.status = "error";
       job.error = error instanceof StepError ? error.message : `Error inesperado: ${error?.message ?? error}`;
-      note(`✖ ${job.title}: ${job.error}`, "error");
+      note(`${job.title}: ${job.error}`, "error");
     })
     .finally(() => {
       job.endedAt = Date.now();

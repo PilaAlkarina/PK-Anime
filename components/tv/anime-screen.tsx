@@ -2,6 +2,7 @@
 
 import { markOrigin, useFlyIn } from "@/lib/shared-element";
 import { EpisodeNumeral, JapaneseLabel, Keycap, MetaWithScore } from "@/components/brand";
+import { RemoteKeys } from "@/components/icons";
 import { GenrePills } from "./hero";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -336,7 +337,7 @@ export function AnimeScreen({ anime }: { anime: AnimeDetail }) {
           <div className="relative pl-[10rem] pt-[10vh] w-[62%]">
             {/* What the remote's Back key does here */}
             <p className="flex items-center text-lg font-medium text-zinc-200">
-              <Keycap className="mr-2.5">⟵</Keycap>
+              <Keycap className="mr-2.5"><RemoteKeys keys={["back"]} /></Keycap>
               Volver
             </p>
             <h1 className="mt-4 text-[4.5rem] leading-[1.1] line-clamp-2">{anime.title}</h1>

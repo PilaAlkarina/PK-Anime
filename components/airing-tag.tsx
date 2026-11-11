@@ -69,14 +69,14 @@ export function AiringTag({
       )}
     >
       {state.kind === "airing" ? (
-        <RadioTower aria-hidden strokeWidth={2.5} className={tv ? "w-6 h-6" : "w-4 h-4 md:w-[1.15rem] md:h-[1.15rem]"} />
+        <RadioTower aria-hidden className={tv ? "w-6 h-6" : "w-4 h-4 md:w-[1.15rem] md:h-[1.15rem]"} />
       ) : day ? (
         <>
           <span aria-hidden className={tv ? "text-[1.05rem]" : "text-[0.75rem] md:text-[0.8125rem]"}>{day}</span>
           <span aria-hidden className={cn("mt-[0.1em]", tv ? "text-[0.6rem]" : "text-[0.5rem] md:text-[0.5625rem]")}>{month}</span>
         </>
       ) : (
-        <CalendarClock aria-hidden strokeWidth={2.5} className={tv ? "w-6 h-6" : "w-4 h-4 md:w-[1.15rem] md:h-[1.15rem]"} />
+        <CalendarClock aria-hidden className={tv ? "w-6 h-6" : "w-4 h-4 md:w-[1.15rem] md:h-[1.15rem]"} />
       )}
     </span>
   );

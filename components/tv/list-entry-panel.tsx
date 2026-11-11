@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
+import { Minus, Plus } from "lucide-react";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
 import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
@@ -111,8 +112,9 @@ export function ListEntryPanel({
           focusKey="entry:progress:less"
           className="mr-3 mb-3 min-w-[3.5rem]"
           onSelect={() => entry.progress > 0 && setProgress(entry.progress - 1)}
+          aria-label="Un episodio visto menos"
         >
-          −
+          <Minus aria-hidden className="w-6 h-6" />
         </FocusButton>
         <span className="mr-3 mb-3 min-w-[7rem] text-center text-xl font-bold">
           {entry.progress}
@@ -123,8 +125,9 @@ export function ListEntryPanel({
           focusKey="entry:progress:more"
           className="mr-3 mb-3 min-w-[3.5rem]"
           onSelect={() => (!total || entry.progress < total) && setProgress(entry.progress + 1)}
+          aria-label="Un episodio visto más"
         >
-          +
+          <Plus aria-hidden className="w-6 h-6" />
         </FocusButton>
         {!!total && entry.progress < total && (
           <FocusButton variant="chip" className="mr-3 mb-3" onSelect={() => setProgress(total)}>

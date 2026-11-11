@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
-/** Remote-control legend for the TV layout: [key, what it does] */
+/** Remote-control legend for the TV layout: [key, what it does]; arrow and Back keys as <RemoteKeys> */
 export function RemoteHints({
   hints,
   compact = false,
   className,
 }: {
-  hints: [string, string][];
+  hints: [React.ReactNode, string][];
   /** Slightly smaller, for the bar under the video while it plays */
   compact?: boolean;
   className?: string;

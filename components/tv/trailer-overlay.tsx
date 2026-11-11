@@ -5,6 +5,7 @@ import { pause, resume } from "@noriginmedia/norigin-spatial-navigation";
 import { getMediaAction } from "@/lib/tv/keys";
 import { useBackHandler } from "./navigation-provider";
 import { cn } from "@/lib/utils";
+import { RemoteKeys } from "@/components/icons";
 
 const HINT_MS = 4000;
 
@@ -90,7 +91,7 @@ export function TrailerOverlay({ src, title, onClose }: { src: string; title: st
         <div className="flex items-center text-xl text-zinc-200">
           <span className="mr-2 px-2.5 rounded-lg border-2 border-zinc-500 font-bold leading-relaxed">OK</span>
           {paused ? "Reanudar" : "Pausar"}
-          <span className="ml-8 mr-2 px-2.5 rounded-lg border-2 border-zinc-500 font-bold leading-relaxed">⟵</span>
+          <span className="ml-8 mr-2 px-2.5 rounded-lg border-2 border-zinc-500 font-bold leading-relaxed"><RemoteKeys keys={["back"]} /></span>
           Volver a la ficha
         </div>
       </div>

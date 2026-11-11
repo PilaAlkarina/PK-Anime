@@ -1,6 +1,7 @@
 "use client";
 
 import { Stamp } from "@/components/brand";
+import { RemoteKeys } from "@/components/icons";
 import { useEffect, useRef } from "react";
 import { Check, Maximize, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -194,7 +195,7 @@ export function NextEpisodeScreen(props: NextEpisodeScreenProps) {
             className="absolute right-[7.5rem] bottom-14"
             hints={[
               ["OK", "Ver ahora"],
-              ["⟵", "Cancelar"],
+              [<RemoteKeys keys={["back"]} />, "Cancelar"],
             ]}
           />
         </>

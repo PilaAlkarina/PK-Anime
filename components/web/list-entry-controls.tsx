@@ -6,6 +6,8 @@ import { ScorePill, StatusDot } from "@/components/tv/list-styles";
 import { REMOTE_STATUS_LABELS } from "@/lib/library/remote";
 import { progressChanges, useEntryEditor, type EditTarget } from "@/lib/library/use-entry-editor";
 import type { ListStatus, TrackerEntry } from "@/lib/trackers/types";
+import { Minus, Plus } from "lucide-react";
+import { ScoreStarIcon } from "@/components/icons";
 import { Select, type SelectOption } from "./select";
 
 const STATUSES = Object.keys(REMOTE_STATUS_LABELS) as ListStatus[];
@@ -24,7 +26,16 @@ const STATUS_OPTIONS: SelectOption<ListStatus>[] = STATUSES.map((status) => ({
 
 const SCORE_OPTIONS: SelectOption<number>[] = [
   { value: 0, label: "Sin nota" },
-  ...SCORES.map((score) => ({ value: score, text: String(score), label: `★ ${score}` })),
+  ...SCORES.map((score) => ({
+    value: score,
+    text: String(score),
+    label: (
+      <span className="inline-flex items-center gap-1.5">
+        <ScoreStarIcon className="text-accent2" />
+        {score}
+      </span>
+    ),
+  })),
 ];
 
 /** Status and score of one anime on the list (the service's or this device's), saved as soon as they change */
@@ -78,7 +89,7 @@ export function ListEntryControls({
           onClick={() => setProgress(entry.progress - 1)}
           aria-label="Un episodio visto menos"
         >
-          −
+          <Minus aria-hidden className="w-4 h-4" />
         </button>
         <span className="px-2 min-w-[4.5rem] text-center text-white tabular-nums">
           {entry.progress}
@@ -91,7 +102,7 @@ export function ListEntryControls({
           onClick={() => setProgress(entry.progress + 1)}
           aria-label="Un episodio visto más"
         >
-          +
+          <Plus aria-hidden className="w-4 h-4" />
         </button>
       </span>
       {!!total && entry.progress < total && (

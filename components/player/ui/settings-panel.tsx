@@ -240,7 +240,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 aria-label="Cerrar ajustes"
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-ink-3 border-[1.5px] border-line hover:bg-zinc-800"
               >
-                <X className="w-[18px] h-[18px]" strokeWidth={2.4} />
+                <X className="w-[18px] h-[18px]" />
               </button>
             )}
           </div>
@@ -280,7 +280,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <button key={target} type="button" onClick={() => onViewChange(target)} className={cn(rowClass, "group")}>
                 <span className="flex-1 font-medium">{label}</span>
                 <span className="text-zinc-400 group-focus:text-zinc-600 truncate max-w-[45%]">{value}</span>
-                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
               </button>
             ))}
             {toggle("Saltar intro automáticamente", props.autoSkipIntro, props.onAutoSkipIntroChange)}
@@ -297,7 +297,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 <span className="text-zinc-400 group-focus:text-zinc-600">
                   {remoteLink.state.status === "linked" ? "Vinculado" : "Sin vincular"}
                 </span>
-                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
               </button>
             </div>
           )}
@@ -380,7 +380,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <button type="button" onClick={() => onViewChange("style")} className={cn(rowClass, "rounded-xl bg-ink-3 border-[1.5px] last:border-b-[1.5px] border-line group")}>
                 <span className="flex-1 font-medium">Estilo de subtítulos</span>
                 <span className="text-zinc-400 group-focus:text-zinc-600">{styleLabel(props.subtitleStyles)}</span>
-                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} strokeWidth={2.4} />
+                <ChevronRight className={cn("shrink-0 text-zinc-500", tv ? "w-6 h-6" : "w-4 h-4")} />
               </button>
             </>
           )}

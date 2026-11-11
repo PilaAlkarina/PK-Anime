@@ -23,6 +23,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatSecondsToTime, cn } from "@/lib/utils";
+import { ArrowKey, RemoteKeys } from "@/components/icons";
 import { getMediaAction } from "@/lib/tv/keys";
 import type { SubtitleStyles } from "./subtitle-settings-dialog";
 import { attachAvSyncGuard } from "./player-core/av-sync-guard";
@@ -2976,7 +2977,7 @@ export function EmbedPlayer({
                 )
               )}
             >
-              <ChevronLeft className="w-[22px] h-[22px]" strokeWidth={2.4} />
+              <ChevronLeft className="w-[22px] h-[22px]" />
             </button>
           )}
           {!showPauseScreen && (
@@ -3113,14 +3114,14 @@ export function EmbedPlayer({
             }}
             className="flex items-center h-10 sm:h-[46px] px-3.5 sm:px-4 mr-2.5 rounded-full bg-black/70 border-[1.5px] border-line text-white text-sm sm:text-[15px] font-bold outline-none hover:bg-black/85 focus-visible:ring-4 focus-visible:ring-white/40"
           >
-            <kbd className="hidden mouse:inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 mr-2 rounded-md bg-white/15 font-sans text-xs font-bold" title="Flecha izquierda">←</kbd>
+            <kbd className="hidden mouse:inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 mr-2 rounded-md bg-white/15 font-sans text-xs font-bold"><ArrowKey direction="left" className="w-3.5 h-3.5" /></kbd>
             No saltar
           </button>
         )}
         {/* TV: the remote's Back is the way out of it */}
         {pendingSkip && tv && (
           <span className="flex items-center mr-6 h-14 px-5 rounded-full bg-black/70 border-[1.5px] border-line text-[1.3125rem] font-bold text-zinc-100">
-            <kbd className="flex items-center justify-center h-9 min-w-[2.25rem] px-2 mr-3 rounded-lg bg-white/15 font-sans text-xl">⟵</kbd>
+            <kbd className="flex items-center justify-center h-9 min-w-[2.25rem] px-2 mr-3 rounded-lg bg-white/15 font-sans text-xl"><RemoteKeys keys={["back"]} /></kbd>
             No saltar
           </span>
         )}
@@ -3268,8 +3269,8 @@ export function EmbedPlayer({
                     compact
                     hints={[
                       ["OK", showSkip ? (isInsideIntro ? "Saltar intro" : "Saltar ending") : isPlaying ? "Pausa" : "Reproducir"],
-                      ["◀ ▶", "10 s"],
-                      ["⟵", pendingSkip ? "No saltar" : "Salir"],
+                      [<RemoteKeys keys={["left", "right"]} />, "10 s"],
+                      [<RemoteKeys keys={["back"]} />, pendingSkip ? "No saltar" : "Salir"],
                     ]}
                   />
                 </div>
@@ -3299,7 +3300,7 @@ export function EmbedPlayer({
                       type="button"
                       onClick={() => handleSeekRelative(-10)}
                       aria-label="Retroceder 10 segundos"
-                      title="Retroceder 10 s (←)"
+                      title="Retroceder 10 s (flecha izquierda)"
                       className={iconButton("hidden mouse:sm:inline-flex")}
                     >
                       <RotateCcw className="w-[22px] h-[22px]" />
@@ -3308,7 +3309,7 @@ export function EmbedPlayer({
                       type="button"
                       onClick={() => handleSeekRelative(10)}
                       aria-label="Avanzar 10 segundos"
-                      title="Avanzar 10 s (→)"
+                      title="Avanzar 10 s (flecha derecha)"
                       className={iconButton("hidden mouse:sm:inline-flex")}
                     >
                       <RotateCw className="w-[22px] h-[22px]" />
