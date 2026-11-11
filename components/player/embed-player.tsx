@@ -1707,7 +1707,7 @@ export function EmbedPlayer({
   const pendingSkip = (() => {
     if (!mayAutoSkip) return null;
     if (isInsideIntro && autoSkipState && skipTimes.intro && !hasAutoSkippedIntroRef.current) {
-      return { start: skipTimes.intro.start, from: skipWindow(skipTimes.intro).from };
+      return { kind: "intro" as const, start: skipTimes.intro.start, from: skipWindow(skipTimes.intro).from };
     }
     if (
       isInsideOutro &&
@@ -1716,10 +1716,24 @@ export function EmbedPlayer({
       !hasAutoSkippedOutroRef.current &&
       !(canPlayNext && endsTheVideo(skipTimes.outro, duration))
     ) {
-      return { start: skipTimes.outro.start, from: skipWindow(skipTimes.outro).from };
+      return { kind: "outro" as const, start: skipTimes.outro.start, from: skipWindow(skipTimes.outro).from };
     }
     return null;
   })();
+
+  /**
+   * "No saltar": the opening or ending about to be skipped on its own plays on instead, for when
+   * its times are wrong. It counts as skipped, so it isn't tried again until the video goes back
+   * before it; the button still skips by hand.
+   */
+  const cancelAutoSkip = () => {
+    if (!pendingSkip) return false;
+    if (pendingSkip.kind === "intro") hasAutoSkippedIntroRef.current = true;
+    else hasAutoSkippedOutroRef.current = true;
+    setAutoSkipToast(pendingSkip.kind === "intro" ? "No se saltará la intro" : "No se saltará el ending");
+    setTimeout(() => setAutoSkipToast(null), 3000);
+    return true;
+  };
   const skipFillRef = useRef<HTMLSpanElement | null>(null);
   const fillStart = pendingSkip?.start;
   const fillEnd = pendingSkip?.from;
@@ -1779,6 +1793,8 @@ export function EmbedPlayer({
   // Back on the remote or Escape: steps out of whatever is open. False when nothing was,
   // so the library leaves the player
   const handleBack = (): boolean => {
+    // While the skip button fills up, Back means "don't skip" rather than leaving
+    if (cancelAutoSkip()) return true;
     if (panelView !== null) {
       if (panelView === "style") setPanelView("subtitles");
       else if (panelView !== "main") setPanelView("main");
@@ -1844,6 +1860,14 @@ export function EmbedPlayer({
       }
       // TV remotes have no pointer to wake the controls, so any key does
       handleUserActivity();
+
+      // An automatic skip on its way: Back (Escape, Backspace) or X cancels it. X too because full
+      // screen keeps Escape for itself. On TV Back already did it through handleBack
+      if (pendingSkip && !e.defaultPrevented && (isBackKey(e) || e.key.toLowerCase() === "x")) {
+        e.preventDefault();
+        cancelAutoSkip();
+        return;
+      }
 
       // On TV the library resolves Back first (capture phase) and marks it handled
       if (isBackKey(e)) {
@@ -3069,6 +3093,35 @@ export function EmbedPlayer({
 
       {/* Skip intro / ending */}
       {showSkip && !fatalError && (
+        <div
+          className={cn(
+            "absolute z-40 flex items-center transition-[bottom] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+            tv
+              ? cn("right-24", showControls ? "bottom-[18.75rem]" : "bottom-24")
+              : cn("right-4 sm:right-10", showControls ? "bottom-24 mouse:bottom-28 mouse:sm:bottom-[8.5rem]" : "bottom-6 sm:bottom-10")
+          )}
+        >
+        {/* While the automatic skip is on its way: don't skip (Back / Esc / X, or a click) */}
+        {pendingSkip && !tv && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              cancelAutoSkip();
+            }}
+            className="flex items-center h-10 sm:h-[46px] px-3.5 sm:px-4 mr-2.5 rounded-full bg-black/70 border-[1.5px] border-line text-white text-sm sm:text-[15px] font-bold outline-none hover:bg-black/85 focus-visible:ring-4 focus-visible:ring-white/40"
+          >
+            <kbd className="hidden mouse:inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 mr-2 rounded-md bg-white/15 font-sans text-xs font-bold">X</kbd>
+            No saltar
+          </button>
+        )}
+        {/* TV: the remote's Back is the way out of it */}
+        {pendingSkip && tv && (
+          <span className="flex items-center mr-6 h-14 px-5 rounded-full bg-black/70 border-[1.5px] border-line text-[1.3125rem] font-bold text-zinc-100">
+            <kbd className="flex items-center justify-center h-9 min-w-[2.25rem] px-2 mr-3 rounded-lg bg-white/15 font-sans text-xl">⟵</kbd>
+            No saltar
+          </span>
+        )}
         <button
           ref={skipButtonRef}
           type="button"
@@ -3078,16 +3131,12 @@ export function EmbedPlayer({
             else handleSkipOutro();
           }}
           className={cn(
-            "absolute z-40 isolate overflow-hidden flex items-center rounded-full bg-white text-black font-bold outline-none transition-[bottom,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] animate-in zoom-in-90",
+            "relative isolate overflow-hidden flex items-center rounded-full bg-white text-black font-bold outline-none transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
             tv
-              ? cn(
-                  "right-24 h-[4.5rem] px-8 gap-3.5 text-2xl font-black shadow-[6px_6px_0_rgb(var(--c-accent))] focus:koma",
-                  showControls ? "bottom-[18.75rem]" : "bottom-24"
-                )
+              ? "h-[4.5rem] px-8 gap-3.5 text-2xl font-black shadow-[6px_6px_0_rgb(var(--c-accent))] focus:koma"
               : cn(
-                  "right-4 sm:right-10 h-10 sm:h-[46px] px-4 sm:px-5 gap-2.5 touch:gap-2 text-sm sm:text-[15px] hover:bg-zinc-200 focus-visible:ring-4 focus-visible:ring-white/40",
-                  "shadow-[4px_4px_0_rgb(var(--c-accent))] touch:shadow-[3px_3px_0_rgb(var(--c-accent))]",
-                  showControls ? "bottom-24 mouse:bottom-28 mouse:sm:bottom-[8.5rem]" : "bottom-6 sm:bottom-10"
+                  "h-10 sm:h-[46px] px-4 sm:px-5 gap-2.5 touch:gap-2 text-sm sm:text-[15px] hover:bg-zinc-200 focus-visible:ring-4 focus-visible:ring-white/40",
+                  "shadow-[4px_4px_0_rgb(var(--c-accent))] touch:shadow-[3px_3px_0_rgb(var(--c-accent))]"
                 )
           )}
         >
@@ -3103,6 +3152,7 @@ export function EmbedPlayer({
           {isInsideIntro ? "Saltar intro" : "Saltar ending"}
           <SkipForward className={cn("fill-current", tv ? "w-7 h-7" : "w-[18px] h-[18px] touch:w-[15px] touch:h-[15px]")} />
         </button>
+        </div>
       )}
 
       {/* Touch: big play / pause and ±10 s in the middle */}
@@ -3217,7 +3267,7 @@ export function EmbedPlayer({
                     hints={[
                       ["OK", showSkip ? (isInsideIntro ? "Saltar intro" : "Saltar ending") : isPlaying ? "Pausa" : "Reproducir"],
                       ["◀ ▶", "10 s"],
-                      ["⟵", "Salir"],
+                      ["⟵", pendingSkip ? "No saltar" : "Salir"],
                     ]}
                   />
                 </div>
