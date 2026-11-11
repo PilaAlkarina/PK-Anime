@@ -1861,9 +1861,11 @@ export function EmbedPlayer({
       // TV remotes have no pointer to wake the controls, so any key does
       handleUserActivity();
 
-      // An automatic skip on its way: Back (Escape, Backspace) or X cancels it. X too because full
-      // screen keeps Escape for itself. On TV Back already did it through handleBack
-      if (pendingSkip && !e.defaultPrevented && (isBackKey(e) || e.key.toLowerCase() === "x")) {
+      // An automatic skip on its way: ← cancels it instead of going back 10 s (the key shown), and
+      // so do Back (Escape, Backspace) and X. On TV Back already did it through handleBack, and ←
+      // keeps moving focus inside the control row
+      const leftCancels = e.key === "ArrowLeft" && !active?.closest("[data-nav]");
+      if (pendingSkip && !e.defaultPrevented && (leftCancels || isBackKey(e) || e.key.toLowerCase() === "x")) {
         e.preventDefault();
         cancelAutoSkip();
         return;
@@ -3101,7 +3103,7 @@ export function EmbedPlayer({
               : cn("right-4 sm:right-10", showControls ? "bottom-24 mouse:bottom-28 mouse:sm:bottom-[8.5rem]" : "bottom-6 sm:bottom-10")
           )}
         >
-        {/* While the automatic skip is on its way: don't skip (Back / Esc / X, or a click) */}
+        {/* While the automatic skip is on its way: don't skip (← / Esc / Back, or a click) */}
         {pendingSkip && !tv && (
           <button
             type="button"
@@ -3111,7 +3113,7 @@ export function EmbedPlayer({
             }}
             className="flex items-center h-10 sm:h-[46px] px-3.5 sm:px-4 mr-2.5 rounded-full bg-black/70 border-[1.5px] border-line text-white text-sm sm:text-[15px] font-bold outline-none hover:bg-black/85 focus-visible:ring-4 focus-visible:ring-white/40"
           >
-            <kbd className="hidden mouse:inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 mr-2 rounded-md bg-white/15 font-sans text-xs font-bold">X</kbd>
+            <kbd className="hidden mouse:inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 mr-2 rounded-md bg-white/15 font-sans text-xs font-bold" title="Flecha izquierda">←</kbd>
             No saltar
           </button>
         )}
