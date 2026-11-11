@@ -2826,6 +2826,7 @@ export function EmbedPlayer({
       {activeCues.length > 0 && !nextUp && !showPauseScreen && (
         <SubtitleLayer
           cues={activeCues}
+          allCues={cues}
           styles={subtitleStyles}
           playerHeight={playerHeight}
           videoRef={videoRef}

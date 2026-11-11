@@ -14,6 +14,17 @@ const SIZE: Record<SubtitleStyles["fontSize"], { k: number; min: number; preview
 
 const isBlur = (bg: string) => bg.includes("0.4") || bg === "blur";
 
+/** Font size in px for the chosen size: a share of the player's height, with a floor */
+export function subtitleFontPx(styles: SubtitleStyles, playerHeight?: number, scale = 1) {
+  const size = SIZE[styles.fontSize] || SIZE.base;
+  return Math.round((playerHeight ? Math.max(size.min, playerHeight * size.k) : size.preview) * scale);
+}
+
+/** Line height of subtitle text (leading-snug) and its box's vertical padding, both in em */
+export const SUBTITLE_LINE_EM = 1.375;
+export const SUBTITLE_PAD_Y_EM = 0.1;
+export const SUBTITLE_PAD_X_EM = 0.4;
+
 export function SubtitleText({
   styles,
   children,
@@ -32,8 +43,7 @@ export function SubtitleText({
   color?: string;
   className?: string;
 }) {
-  const size = SIZE[styles.fontSize] || SIZE.base;
-  const fontSize = Math.round((playerHeight ? Math.max(size.min, playerHeight * size.k) : size.preview) * scale);
+  const fontSize = subtitleFontPx(styles, playerHeight, scale);
   const background = isBlur(styles.background)
     ? undefined
     : styles.background === "solid"

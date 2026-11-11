@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { cn } from "@/lib/utils";
 import type { SubtitleStyles } from "../subtitle-settings-dialog";
 import type { CueAlign, SubtitleCue } from "../player-core/subtitle-cues";
 import { subtitleFontFamily, subtitleOutlineStyles } from "../player-core/subtitle-style";
-import { SubtitleText } from "./subtitle-text";
+import { stackRegion, type StackItem } from "../player-core/subtitle-stack";
+import { SUBTITLE_LINE_EM, SUBTITLE_PAD_X_EM, SUBTITLE_PAD_Y_EM, SubtitleText, subtitleFontPx } from "./subtitle-text";
 
 /** Signs grouped small: their size next to the chosen one */
 const SIGN_SCALE = 0.62;
@@ -15,6 +16,34 @@ const DEFAULT_SIGN_SIZE = 0.045;
 
 /** On-screen text next to the dialogue: the chosen color this much darker */
 const SCREEN_SHADE = 0.72;
+/** Room left between the dialogue and on-screen text above it, in em */
+const SCREEN_GAP_EM = 0.5;
+/** Widest a line of dialogue gets, as a share of the row */
+const MAX_LINE_WIDTH = 0.85;
+
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** Lines a text takes once wrapped at `maxWidth`, measured in the font it's drawn with */
+function wrappedLines(text: string, font: string, maxWidth: number) {
+  if (measureCtx === undefined) measureCtx = document.createElement("canvas").getContext("2d");
+  const ctx = measureCtx;
+  if (!ctx || maxWidth <= 0) return text.split("\n").length;
+  ctx.font = font;
+  let lines = 0;
+  for (const line of text.split("\n")) {
+    let width = 0;
+    let count = 1;
+    for (const word of line.split(/(\s+)/)) {
+      const w = ctx.measureText(word).width;
+      if (width + w > maxWidth && width > 0 && word.trim()) {
+        count++;
+        width = w;
+      } else width += w;
+    }
+    lines += count;
+  }
+  return lines;
+}
 
 /** "#rrggbb" mixed towards black; other color formats stay as they are */
 function shade(color: string, amount: number) {
@@ -42,7 +71,7 @@ function CueLine({ cue }: { cue: SubtitleCue }) {
 
 /** The picture's box inside the player, where the video's own pixels are (object-contain) */
 function useVideoBox(rootRef: React.RefObject<HTMLDivElement>, videoRef: React.RefObject<HTMLVideoElement>) {
-  const [box, setBox] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  const [box, setBox] = useState({ x: 0, y: 0, w: 0, h: 0, rootW: 0 });
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -53,7 +82,7 @@ function useVideoBox(rootRef: React.RefObject<HTMLDivElement>, videoRef: React.R
       const aspect = video && video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16 / 9;
       const fitW = Math.min(w, h * aspect);
       const fitH = fitW / aspect;
-      setBox({ x: (w - fitW) / 2, y: (h - fitH) / 2, w: fitW, h: fitH });
+      setBox({ x: (w - fitW) / 2, y: (h - fitH) / 2, w: fitW, h: fitH, rootW: w });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -74,16 +103,23 @@ function useVideoBox(rootRef: React.RefObject<HTMLDivElement>, videoRef: React.R
  *   classes the player passes for the bottom and top rows;
  * - ASS signs with an exact spot (\pos) on that spot of the picture, at the file's size;
  * - bursts of signs a file couldn't place (`sign`), grouped small at the top instead of stacked.
+ * Lines of dialogue in the bottom and top rows keep one height while they show (see
+ * subtitle-stack.ts): laid out for the whole file, so a line joined by a later one appears
+ * already raised instead of being pushed up when the other arrives.
  */
 export function SubtitleLayer({
   cues,
+  allCues,
   styles,
   playerHeight,
   videoRef,
   bottomClass,
   topClass,
 }: {
+  /** What shows now */
   cues: SubtitleCue[];
+  /** The whole file, to lay out each line's height in advance */
+  allCues: SubtitleCue[];
   styles: SubtitleStyles;
   playerHeight: number;
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -102,9 +138,45 @@ export function SubtitleLayer({
     .sort((a, b) => (a.cue.layer ?? 0) - (b.cue.layer ?? 0) || a.i - b.i)
     .map(({ cue }) => cue);
   const signs = cues.filter((c) => !c.pos && c.sign);
+
+  // Each line's height in the bottom and top rows, for the whole file, measured as it'll be drawn
+  const fontPx = subtitleFontPx(styles, playerHeight);
+  const fontFamily = subtitleFontFamily(styles.fontFamily);
+  const weight = styles.fontWeight === "normal" ? 400 : 700;
+  const rowWidth = Math.max(0, box.rootW - 32);
+  const stacks = useMemo(() => {
+    const byCue = new Map<SubtitleCue, StackItem>();
+    if (!rowWidth) return byCue;
+    // The left and right columns lose 3% to their padding
+    const maxWidth = rowWidth * 0.97 * MAX_LINE_WIDTH - 2 * SUBTITLE_PAD_X_EM * fontPx;
+    const heightOf = (cue: SubtitleCue) => {
+      const font = `${cue.spans.some((s) => s.bold) ? 800 : weight} ${fontPx}px ${fontFamily}`;
+      return (wrappedLines(cue.text, font, maxWidth) * SUBTITLE_LINE_EM + 2 * SUBTITLE_PAD_Y_EM) * fontPx;
+    };
+    const byAlign = new Map<CueAlign, SubtitleCue[]>();
+    for (const cue of allCues) {
+      if (cue.pos || cue.sign || rowOf(cue.align) === 1) continue;
+      byAlign.set(cue.align, [...(byAlign.get(cue.align) ?? []), cue]);
+    }
+    for (const [align, list] of byAlign) {
+      const items = stackRegion(list, heightOf, { gap: SCREEN_GAP_EM * fontPx, fromTop: rowOf(align) === 2 });
+      for (const item of items) for (const cue of item.cues) byCue.set(cue, item);
+    }
+    return byCue;
+  }, [allCues, rowWidth, fontPx, fontFamily, weight]);
+
+  // Lines on show in the bottom and top rows, each once, at its height
+  const stacked = new Map<CueAlign, StackItem[]>();
   const regions = new Map<CueAlign, SubtitleCue[]>();
   for (const cue of cues) {
     if (cue.pos || cue.sign) continue;
+    const item = stacks.get(cue);
+    if (item) {
+      const list = stacked.get(cue.align) ?? [];
+      if (!list.includes(item)) list.push(item);
+      stacked.set(cue.align, list);
+      continue;
+    }
     const list = regions.get(cue.align) ?? [];
     // The same line twice at once (two layers of one subtitle) shows once
     if (!list.some((c) => c.text === cue.text)) list.push(cue);
@@ -202,6 +274,40 @@ export function SubtitleLayer({
           </div>
         </div>
       )}
+
+      {Array.from(stacked.entries()).map(([align, items]) => {
+        const row = rowOf(align);
+        const col = colOf(align);
+        return (
+          <div
+            key={`stack-${align}`}
+            className={cn(
+              "absolute left-4 right-4 h-0 ease-[cubic-bezier(0.16,1,0.3,1)] duration-300",
+              row === 0 ? cn("transition-[bottom]", bottomClass) : cn("transition-[top]", topClass)
+            )}
+          >
+            {items.map((item) => (
+              <div
+                key={`${item.start}-${item.lead.text}`}
+                className={cn(
+                  "absolute inset-x-0 flex",
+                  col === 0 ? "justify-start pl-[3%] text-left" : col === 2 ? "justify-end pr-[3%] text-right" : "justify-center text-center"
+                )}
+                style={row === 0 ? { bottom: item.offset } : { top: item.offset }}
+              >
+                <SubtitleText
+                  styles={styles}
+                  playerHeight={playerHeight}
+                  color={item.screen ? shade(styles.color, SCREEN_SHADE) : undefined}
+                  className="max-w-[85%]"
+                >
+                  <CueLine cue={item.lead} />
+                </SubtitleText>
+              </div>
+            ))}
+          </div>
+        );
+      })}
 
       {Array.from(regions.entries()).map(([align, list]) => {
         const row = rowOf(align);
