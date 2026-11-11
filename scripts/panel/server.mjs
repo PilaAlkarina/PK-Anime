@@ -10,6 +10,10 @@
  *
  * Sign-in is the password in PANEL_PASSWORD, kept as a signed cookie for 30 days. Changing the
  * password signs everyone out.
+ *
+ * Scripts (npm run remote on another computer) use PANEL_API_TOKEN instead: the header
+ * `Authorization: Bearer <token>` opens the same API without a cookie. It's a separate secret, so
+ * the password never sits in a file, and wrong tokens count towards the same lockout.
  */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, request as httpRequest } from "node:http";
@@ -62,6 +66,17 @@ export function startPanel(server) {
   const secret = sha256(`pk-panel\0${password}`);
   const passwordHash = sha256(password);
   const cookiePath = basePath || "/";
+
+  // The scripts' token: long and random (npm run remote -- --setup makes one), or not accepted
+  const apiToken = process.env.PANEL_API_TOKEN || "";
+  if (apiToken && apiToken.length < 32) log("PANEL_API_TOKEN es muy corto (mínimo 32 caracteres): el acceso por token queda desactivado.", "error");
+  const apiTokenHash = apiToken.length >= 32 ? sha256(apiToken) : null;
+
+  /** The token in `Authorization: Bearer …`, or null without that header */
+  function bearerOf(req) {
+    const header = String(req.headers.authorization || "");
+    return header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : null;
+  }
 
   // ---- sessions ---------------------------------------------------------------------------------
 
@@ -238,7 +253,20 @@ export function startPanel(server) {
     }
 
     if (!path.startsWith("/api/")) return send(res, 404, "No encontrado");
-    if (!signedIn(req)) return send(res, 401, { error: "Inicia sesión" });
+    const token = bearerOf(req);
+    if (token !== null) {
+      const ip = clientIp(req);
+      if (!apiTokenHash) return send(res, 401, { error: "Este panel no acepta tokens: falta PANEL_API_TOKEN en el servidor" });
+      const wait = lockedFor(ip);
+      if (wait) return send(res, 429, { error: `Demasiados intentos. Espera ${wait} s.`, retryAfter: wait });
+      if (!sameBytes(sha256(token), apiTokenHash)) {
+        failed(ip);
+        log(`Token de API incorrecto desde ${ip}.`, "error");
+        return send(res, 401, { error: "Token incorrecto" });
+      }
+      failures.delete(ip);
+      if (method === "POST") log(`${path} pedido con el token de API desde ${ip}.`);
+    } else if (!signedIn(req)) return send(res, 401, { error: "Inicia sesión" });
 
     if (path === "/api/state" && method === "GET") return send(res, 200, await state());
     if (path === "/api/events" && method === "GET") return openStream(req, res, url);

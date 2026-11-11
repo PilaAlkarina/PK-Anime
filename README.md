@@ -188,6 +188,7 @@ The app's activity comes from `/api/internal/stats`, which answers only with a t
 | `PANEL_PATH` | | Serve the panel under this path and pass the rest of `PANEL_PORT` on to the app |
 | `PANEL_HOSTNAME` | | The same, for requests to this host name |
 | `PANEL_GITHUB_TOKEN` | | A GitHub token with *Actions: read and write* on the repository (a fine-grained token limited to it is enough), for *Compilar nueva versión*. Without it the TV app section still shows the release and the builds, within GitHub's 60 anonymous requests an hour |
+| `PANEL_API_TOKEN` | (token access off) | A random secret of at least 32 characters for scripts: `Authorization: Bearer <token>` opens the panel's API without the password. `npm run remote -- --setup` makes one. Wrong tokens count towards the same lockout as wrong passwords |
 
 On its own port the panel is at `http://<server>:3001/`. To reach it through the site's usual address, give the app another port and let the panel's port be the front door. For example, with `PANEL_PORT=80` and `PANEL_PATH=/admin` in `.env.local`:
 
@@ -198,6 +199,18 @@ npm run serve -- -p 3000
 `http://<server>/admin/` is then the panel and everything else on port 80 goes on to the app, with the original `Host` header and `X-Forwarded-For`. `PANEL_HOSTNAME=admin.example.lan` does the same for a host name, when your DNS resolves one for the server. Mesh VPNs such as NordVPN Meshnet name each device but resolve no subdomains under it, so use `PANEL_PATH` there.
 
 Anyone who can reach the panel's port can try the password, so keep it off the internet: on a LAN or behind a mesh VPN. Without HTTPS in front, the password and session cookie travel unencrypted, which a VPN's own encryption covers.
+
+**From another computer.** `npm run remote` runs the panel's tasks on the server from a computer with this checkout, and follows them to the end in its terminal, with the steps, the warnings and, when one fails, the last lines of the server's console:
+
+| Command | Task on the server |
+| --- | --- |
+| `npm run remote` | *Actualizar*: `git pull`, `npm install` when the dependencies changed, and `npm run deploy` |
+| `npm run remote -- rebuild` | *Recompilar*: `npm run deploy` without pulling |
+| `npm run remote -- rollback` | Back to the previous build |
+| `npm run remote -- restart` | Restart the app |
+| `npm run remote -- status` | Only shows the commit live and what it's missing |
+
+Set it up once with `npm run remote -- --setup` on that computer: it makes a token, keeps it with the panel's address in its `.env.local` (`REMOTE_PANEL_TOKEN`, `REMOTE_PANEL_URL`, `http://pk.nord/admin` unless set already) and prints the `PANEL_API_TOKEN=…` line to add to the server's `.env.local`. Restart `npm run serve` on the server to pick it up. The token is never put on a command line.
 
 ### Fire TV and Android TV app
 
