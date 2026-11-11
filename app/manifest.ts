@@ -2,14 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "AniFlow API - High-Performance Anime Streaming & Embed API",
-    short_name: "AniFlow API",
-    description:
-      "High-performance anime streaming and video embed API with AniList & MAL support.",
+    name: "PK Anime",
+    short_name: "PK Anime",
+    description: "Tu biblioteca de anime: emisión, seguimiento y reproductor.",
     start_url: "/",
     display: "standalone",
-    background_color: "#000000",
-    theme_color: "#000000",
+    background_color: "#0C0B10",
+    theme_color: "#0C0B10",
     icons: [
       {
         src: "/favicon.svg",

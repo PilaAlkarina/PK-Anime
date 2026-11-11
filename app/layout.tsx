@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 // Shared by every route; the docs (/aniflow-doc) and the library set their own titles and SEO
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "AniFlow",
+  title: "PK Anime",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

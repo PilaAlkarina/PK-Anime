@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/logo.svg" alt="PK Anime logo" width="100" height="100" />
+  <img src="public/favicon.svg" alt="PK Anime logo" width="100" height="100" />
 </p>
 
 <h1 align="center">PK Anime</h1>
