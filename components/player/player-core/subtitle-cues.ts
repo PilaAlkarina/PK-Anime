@@ -14,6 +14,13 @@ export interface CueSpan {
   text: string;
   italic?: boolean;
   bold?: boolean;
+  /**
+   * ASS: this piece's font size as a share of the video's height (a sign can change size halfway,
+   * {\fs24}Rules\N{\fs20}…). ASS sizes are the height of a whole line, ascenders to descenders.
+   */
+  size?: number;
+  /** ASS: the font the file asks for (\fn, or the style's), when it names one */
+  font?: string;
 }
 
 export interface SubtitleCue {
@@ -75,6 +82,9 @@ const DRAWING_LINE = /^\s*m\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?(?:\s+(?:[mnlbspc
 interface InlineState {
   italic: boolean;
   bold: boolean;
+  /** ASS: font size in the script's pixels and font name, as they change along the line */
+  fontSize?: number;
+  font?: string;
 }
 
 interface InlineResult {
@@ -206,9 +216,12 @@ function readInline(raw: string, base: InlineState, { ass, reset }: { ass: boole
     }
     const italic = state.italic || tagDepth.i > 0;
     const bold = state.bold || tagDepth.b > 0;
+    // ASS only: the size in script pixels here, turned into a share of the height by parseAss
+    const size = ass && state.fontSize ? state.fontSize : undefined;
+    const font = ass && state.font ? state.font : undefined;
     const last = out.spans[out.spans.length - 1];
-    if (last && !!last.italic === italic && !!last.bold === bold) last.text += text;
-    else out.spans.push({ text, ...(italic && { italic }), ...(bold && { bold }) });
+    if (last && !!last.italic === italic && !!last.bold === bold && last.size === size && last.font === font) last.text += text;
+    else out.spans.push({ text, ...(italic && { italic }), ...(bold && { bold }), ...(size && { size }), ...(font && { font }) });
   };
 
   const tokens = raw.match(/\{[^}]*\}|<[^>]*>|[^{<]+|[{<]/g) || [];
@@ -224,7 +237,10 @@ function readInline(raw: string, base: InlineState, { ass, reset }: { ass: boole
         if ((m = tag.match(/^an(\d)/))) out.align ??= toAlign(+m[1]);
         else if ((m = tag.match(/^a(\d{1,2})$/))) out.align ??= LEGACY_ALIGN[+m[1]] ?? null;
         else if ((m = tag.match(/^(?:pos|move)\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/))) out.pos ??= { x: +m[1], y: +m[2] };
-        else if ((m = tag.match(/^fs(\d+(?:\.\d+)?)$/))) out.fontSize = +m[1];
+        else if ((m = tag.match(/^fs(\d+(?:\.\d+)?)$/))) {
+          out.fontSize ??= +m[1];
+          state.fontSize = +m[1];
+        } else if ((m = tag.match(/^fn(.*)$/))) state.font = m[1].trim() || base.font;
         else if ((m = tag.match(/^fscx(\d+(?:\.\d+)?)$/))) out.scaleX = +m[1] / 100;
         else if ((m = tag.match(/^fscy(\d+(?:\.\d+)?)$/))) out.scaleY = +m[1] / 100;
         else if ((m = tag.match(/^1?c(&?H[0-9a-f]+&?)$/i))) out.color = parseAssColor(m[1])?.rgb ?? out.color;
@@ -343,6 +359,7 @@ function parseAss(text: string): SubtitleCue[] {
           bold: get("bold") === "-1" || get("bold") === "1",
           align: (legacyStyles ? LEGACY_ALIGN[alignment] : toAlign(alignment)) ?? 2,
           fontSize: parseFloat(get("fontsize")) || 0,
+          font: get("fontname") || undefined,
           scaleX: (parseFloat(get("scalex")) || 100) / 100,
           scaleY: (parseFloat(get("scaley")) || 100) / 100,
           color: primary.rgb,
@@ -385,6 +402,7 @@ function parseAss(text: string): SubtitleCue[] {
     bold: false,
     align: 2,
     fontSize: 0,
+    font: undefined,
     scaleX: 1,
     scaleY: 1,
     color: "ffffff",
@@ -459,11 +477,16 @@ function parseAss(text: string): SubtitleCue[] {
     const text = plainText(inline.spans);
     const pos = inline.pos ? { x: inline.pos.x / playX, y: inline.pos.y / playY } : undefined;
     const fontSize = inline.fontSize ?? style.fontSize;
+    // Each piece's size in script pixels → a share of the height. Only placed signs draw at the
+    // file's sizes and fonts; dialogue keeps the viewer's style
+    const spans = pos
+      ? inline.spans.map((span) => (span.size ? { ...span, size: (span.size * scaleY) / playY } : span))
+      : inline.spans.map(({ size: _size, font: _font, ...span }) => span);
     add(`${event.start}|${event.end}|${text}|${pos ? `${pos.x.toFixed(3)},${pos.y.toFixed(3)}` : align}`, {
       start: event.start,
       end: event.end,
       text,
-      spans: inline.spans,
+      spans,
       align,
       layer: event.layer,
       ...(pos && {

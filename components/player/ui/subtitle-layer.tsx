@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { cn } from "@/lib/utils";
 import type { SubtitleStyles } from "../subtitle-settings-dialog";
-import type { CueAlign, SubtitleCue } from "../player-core/subtitle-cues";
+import type { CueAlign, CueSpan, SubtitleCue } from "../player-core/subtitle-cues";
 import { subtitleFontFamily, subtitleOutlineStyles } from "../player-core/subtitle-style";
 import { stackRegion, type StackItem } from "../player-core/subtitle-stack";
 import { SUBTITLE_LINE_EM, SUBTITLE_PAD_X_EM, SUBTITLE_PAD_Y_EM, SubtitleText, subtitleFontPx } from "./subtitle-text";
@@ -22,6 +22,82 @@ const SCREEN_GAP_EM = 0.5;
 const MAX_LINE_WIDTH = 0.85;
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+const cellRatios = new Map<string, number>();
+
+/**
+ * CSS font size for each pixel of an ASS size in this font. ASS sizes (as libass and VSFilter
+ * draw them) are the height of a whole line, top of the ascenders to bottom of the descenders,
+ * while a CSS size is the font's em, smaller by an amount that changes from font to font (Comic
+ * Sans' line is 1.39 em tall, Arial's 1.15): measured once per font.
+ */
+function emPerCell(family: string) {
+  const known = cellRatios.get(family);
+  if (known) return known;
+  if (measureCtx === undefined) measureCtx = document.createElement("canvas").getContext("2d");
+  let ratio = 0.85;
+  if (measureCtx) {
+    measureCtx.font = `100px ${family}`;
+    const m = measureCtx.measureText("Hg");
+    // fontBoundingBox* are the font's own ascent and descent (Chromium 87+); older engines keep 0.85
+    const height = (m.fontBoundingBoxAscent ?? 0) + (m.fontBoundingBoxDescent ?? 0);
+    if (height > 50) ratio = 100 / height;
+  }
+  cellRatios.set(family, ratio);
+  return ratio;
+}
+
+/** The file's font first when it names one (used if this device has it), then the viewer's */
+const familyFor = (font: string | undefined, fallback: string) => (font ? `"${font.replace(/["\\]/g, "")}", ${fallback}` : fallback);
+
+/**
+ * A placed ASS sign's text at the file's sizes: each line as tall as its biggest piece (an ASS
+ * line), each piece at its own size, font, weight and slant.
+ */
+function PlacedText({ cue, height, fallbackFamily, col }: { cue: SubtitleCue; height: number; fallbackFamily: string; col: number }) {
+  const lines: CueSpan[][] = [[]];
+  for (const span of cue.spans) {
+    span.text.split("\n").forEach((part, i) => {
+      if (i > 0) lines.push([]);
+      if (part) lines[lines.length - 1].push({ ...span, text: part });
+    });
+  }
+  const cellOf = (span?: CueSpan) => Math.max(1, (span?.size ?? cue.size ?? DEFAULT_SIGN_SIZE) * height);
+  return (
+    <>
+      {lines.map((line, i) => {
+        const cell = Math.max(...(line.length ? line.map(cellOf) : [cellOf(cue.spans[0])]));
+        // A flex row: as tall as its tallest piece, with no strut in the page's own font making
+        // it taller (which a block line would add when the fonts' baselines differ)
+        return (
+          <span
+            key={i}
+            className="flex items-baseline"
+            style={{ height: cell, justifyContent: col === 0 ? "flex-start" : col === 2 ? "flex-end" : "center" }}
+          >
+            {line.map((span, j) => {
+              const family = familyFor(span.font, fallbackFamily);
+              return (
+                <span
+                  key={j}
+                  style={{
+                    lineHeight: `${cellOf(span)}px`,
+                    fontSize: cellOf(span) * emPerCell(family),
+                    fontFamily: family,
+                    fontWeight: span.bold ? 700 : 400,
+                    fontStyle: span.italic ? "italic" : undefined,
+                  }}
+                >
+                  {span.text}
+                </span>
+              );
+            })}
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 /** Lines a text takes once wrapped at `maxWidth`, measured in the font it's drawn with */
 function wrappedLines(text: string, font: string, maxWidth: number) {
@@ -243,20 +319,18 @@ export function SubtitleLayer({
         return (
           <span
             key={`p${i}-${cue.start}-${cue.text}`}
-            className={cn("absolute whitespace-pre leading-tight", col === 0 ? "text-left" : col === 2 ? "text-right" : "text-center")}
+            className={cn("absolute whitespace-pre", col === 0 ? "text-left" : col === 2 ? "text-right" : "text-center")}
             style={{
               left: anchorX,
               top: anchorY,
               transform: `translate(${tx}, ${ty})${cue.scaleX && cue.scaleX !== 1 ? ` scaleX(${cue.scaleX})` : ""}`,
               transformOrigin: origin,
-              fontSize: Math.max(10, (cue.size ?? DEFAULT_SIGN_SIZE) * box.h),
-              fontFamily: subtitleFontFamily(styles.fontFamily),
-              fontWeight: styles.fontWeight === "normal" ? 400 : 700,
               filter: blur,
               ...look,
             }}
           >
-            <CueLine cue={cue} />
+            {/* At the file's sizes, fonts and weights, like the boxes drawn behind them */}
+            <PlacedText cue={cue} height={box.h} col={col} fallbackFamily={subtitleFontFamily(styles.fontFamily)} />
           </span>
         );
       })}
