@@ -21,7 +21,7 @@ import {
 import type { RemoteCommand } from "@/lib/pairing/store";
 import type { CatalogItem } from "@/lib/anilist/types";
 import { metaLine } from "@/lib/library/format";
-import { authClient } from "@/lib/auth-client";
+import { signInWith, useSignInError } from "@/lib/sign-in";
 import { useAccount } from "@/lib/library/account";
 import { collectProfile } from "@/lib/library/profile-transfer";
 import { cn } from "@/lib/utils";
@@ -89,6 +89,7 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
   const [token, setToken] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [signInError, setSignInError] = useSignInError();
   const [tvListening, setTvListening] = useState(true);
   const [text, setText] = useState("");
   const textTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -449,7 +450,10 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
                 <button
                   key={provider.id}
                   type="button"
-                  onClick={() => authClient.signIn.social({ provider: provider.id, callbackURL: "/link" })}
+                  onClick={async () => {
+                    setSignInError(null);
+                    setSignInError(await signInWith(provider.id, "/link"));
+                  }}
                   className="flex items-center h-11 px-4 rounded-xl bg-white text-black font-bold"
                 >
                   <LogIn className="w-5 h-5 mr-2" /> Entrar con {provider.name}
@@ -459,6 +463,11 @@ export function PhoneRemote({ code: codeParam }: { code: string | null }) {
           </>
         )}
         {message && <p className="mt-4 text-emerald-300">{message}</p>}
+        {signInError && (
+          <p role="alert" className="mt-4 text-red-400">
+            {signInError}
+          </p>
+        )}
       </section>
 
       <button type="button" onClick={unlink} className="flex items-center mt-10 text-zinc-500">

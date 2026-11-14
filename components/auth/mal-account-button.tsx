@@ -3,22 +3,34 @@
 import React from "react";
 import { LogOut } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { signInWith, useSignInError } from "@/lib/sign-in";
 
 /** Nav control: sign in with MyAnimeList, or show the signed-in MAL user with a sign-out button. */
 export function MalAccountButton() {
   const { data: session, isPending } = authClient.useSession();
+  const [signInError, setSignInError] = useSignInError();
 
   if (isPending) return <div className="h-10 w-10" aria-hidden />;
 
   if (!session) {
     return (
-      <button
-        type="button"
-        onClick={() => authClient.signIn.social({ provider: "myanimelist", callbackURL: window.location.pathname })}
-        className="glass h-10 px-4 rounded-full text-[13px] font-semibold text-white cursor-pointer active:scale-95"
-      >
-        Sign in with MAL
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={async () => {
+            setSignInError(null);
+            setSignInError(await signInWith("myanimelist", window.location.pathname));
+          }}
+          className="glass h-10 px-4 rounded-full text-[13px] font-semibold text-white cursor-pointer active:scale-95"
+        >
+          Sign in with MAL
+        </button>
+        {signInError && (
+          <p role="alert" className="absolute right-0 top-full mt-2 w-72 rounded-lg bg-[#000]/85 p-3 text-[12px] leading-snug text-red-400">
+            {signInError}
+          </p>
+        )}
+      </div>
     );
   }
 

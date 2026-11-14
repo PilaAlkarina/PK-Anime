@@ -6,6 +6,7 @@ import { setFocus } from "@noriginmedia/norigin-spatial-navigation";
 import { Activity, ChevronRight, LogOut, Settings, Smartphone, Tv, Unlink, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { signInWith, useSignInError } from "@/lib/sign-in";
 import { refreshAccount, useAccount } from "@/lib/library/account";
 import { useIsTv } from "@/components/ui-mode";
 import { FocusButton, FocusGroup } from "./focusable";
@@ -26,6 +27,7 @@ function AccountSection() {
   const account = useAccount();
   const isTv = useIsTv();
   const reveal = useRevealOnFocus();
+  const [signInError, setSignInError] = useSignInError();
 
   if (!account) return <p className="text-lg text-zinc-500 tv:text-2xl">Cargando…</p>;
 
@@ -81,12 +83,20 @@ function AccountSection() {
             key={provider.id}
             variant="primary"
             className="mr-4"
-            onSelect={() => authClient.signIn.social({ provider: provider.id, callbackURL: "/account" })}
+            onSelect={async () => {
+              setSignInError(null);
+              setSignInError(await signInWith(provider.id, "/account"));
+            }}
           >
             {isTv ? `Entrar con ${provider.name} en la TV` : `Entrar con ${provider.name}`}
           </FocusButton>
         ))}
       </FocusGroup>
+      {signInError && (
+        <p role="alert" className="mt-4 max-w-[60rem] text-base leading-relaxed text-red-400 tv:mt-6 tv:text-2xl">
+          {signInError}
+        </p>
+      )}
     </>
   );
 }
