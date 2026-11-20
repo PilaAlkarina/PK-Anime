@@ -3,6 +3,7 @@
 import { Hanko } from "@/components/brand";
 import { ICON_STROKE, ICON_STROKE_BOLD } from "@/components/icons";
 import { useOriginsFromClicks } from "@/lib/shared-element";
+import { useFullscreenFromWatchLinks } from "@/lib/player-fullscreen";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -216,6 +217,8 @@ export function WebShell({ children }: { children: React.ReactNode }) {
   const fullScreen = pathname.startsWith("/watch/");
   // Cards record where they were, for the shared-element transitions of the next screen
   useOriginsFromClicks();
+  // Phones and tablets open episodes in full screen
+  useFullscreenFromWatchLinks(pathname);
 
   return (
     <WebNavigationProvider>

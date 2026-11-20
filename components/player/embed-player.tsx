@@ -57,6 +57,7 @@ import { LoadingVeil } from "./ui/loading-veil";
 import { PlayerErrorScreen, type PlayerErrorKind, type TriedServer } from "./ui/error-screen";
 import { arrowStep, focusFirst, moveFocus, type NavAxis } from "./ui/focus-nav";
 import type { NextEpisodeInfo } from "./ui/types";
+import { armAutoFullscreen, declineAutoFullscreen } from "@/lib/player-fullscreen";
 import { detectSubtitleLanguage, isForcedSubtitle, subtitleLanguageName, subtitleRegion } from "./player-core/subtitle-language";
 
 export interface SubtitleTrack {
@@ -2075,11 +2076,15 @@ export function EmbedPlayer({
 
   // Fullscreen change listener
   useEffect(() => {
+    let wasFs = false;
     const handleFsChange = () => {
       const isFs = Boolean(
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement
       );
+      // Left by the viewer: the next episode doesn't put it back on its own
+      if (wasFs && !isFs) declineAutoFullscreen();
+      wasFs = isFs;
       setIsFullscreen(isFs);
       if (isFs) {
         handleUserActivity();
@@ -2105,6 +2110,13 @@ export function EmbedPlayer({
       document.removeEventListener("webkitfullscreenchange", handleFsChange);
     };
   }, [handleUserActivity]);
+
+  // Phones and tablets watch in full screen (see lib/player-fullscreen)
+  useEffect(() => {
+    if (tv || !containerRef.current) return;
+    return armAutoFullscreen(containerRef.current, isControlTarget);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tv]);
 
   // Leaving the player leaves full screen too, but not when the next episode's player takes over
   useEffect(() => {
