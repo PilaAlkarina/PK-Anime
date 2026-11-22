@@ -1,4 +1,4 @@
-import { ScheduleScreen } from "@/components/tv/browse-screens";
+import { ScheduleScreen } from "@/components/tv/schedule-screen";
 
 export const metadata = { title: "Calendario" };
 
